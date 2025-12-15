@@ -30,3 +30,5 @@ const getDatabase = createServerOnlyFn(async () => {
 });
 
 export const db = await getDatabase();
+
+export type Database = Awaited<ReturnType<typeof getDatabase>>;
