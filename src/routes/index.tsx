@@ -1,244 +1,262 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { MapPin, Calendar, Users, Trophy, ChevronRight } from "lucide-react";
+
 import { Button } from "~/components/ui/button";
-import { Card, CardHeader } from "~/components/ui/card";
-import { useState } from "react";
 import {
-  fetchPodcastData,
-  downloadPodcastEpisode,
-  type PodcastEpisode,
-} from "~/functions/podcast";
-import { ArrowDownToLine, Play } from "lucide-react";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Badge } from "~/components/ui/badge";
+import { Separator } from "~/components/ui/separator";
 
 export const Route = createFileRoute("/")({
-  loader: async () => {
-    return await fetchPodcastData();
-  },
-  // Cache the podcast data for 5 minutes since RSS feeds don't update very frequently
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  component: RouteComponent,
+  component: LandingPage,
 });
 
-function RouteComponent() {
-  const { podcastInfo, episodes } = Route.useLoaderData();
-  const [downloadingEpisode, setDownloadingEpisode] = useState<string | null>(
-    null
-  );
+const leagues = [
+  {
+    id: "women-primera",
+    title: "Mujeres Primera Fuerza",
+    description: "Liga competitiva de alto nivel para equipos femeninos experimentados",
+    icon: Trophy,
+    category: "Mujeres",
+  },
+  {
+    id: "women-segunda",
+    title: "Mujeres Segunda Fuerza",
+    description: "Liga de desarrollo para equipos femeninos en crecimiento",
+    icon: Users,
+    category: "Mujeres",
+  },
+  {
+    id: "men-primera",
+    title: "Varonil Primera Fuerza",
+    description: "Liga competitiva de alto nivel para equipos varoniles experimentados",
+    icon: Trophy,
+    category: "Varonil",
+  },
+  {
+    id: "men-segunda",
+    title: "Varonil Segunda Fuerza",
+    description: "Liga de desarrollo para equipos varoniles en crecimiento",
+    icon: Users,
+    category: "Varonil",
+  },
+];
 
-  const handleDownload = async (episode: PodcastEpisode) => {
-    try {
-      setDownloadingEpisode(episode.guid);
+const seasons = [
+  {
+    id: "spring",
+    name: "Primavera",
+    months: "Febrero - Mayo",
+    description: "Temporada de primavera con partidos cada sábado",
+  },
+  {
+    id: "fall",
+    name: "Otoño",
+    months: "Septiembre - Diciembre",
+    description: "Temporada de otoño con playoffs en diciembre",
+  },
+  {
+    id: "flash",
+    name: "Torneo Relámpago",
+    months: "Mayo",
+    description: "Torneo especial de un día con formato eliminatorio",
+  },
+];
 
-      // Call our server function to download the episode
-      const response = await downloadPodcastEpisode({
-        data: {
-          audioUrl: episode.audioUrl,
-          filename: `${episode.title.replace(/[^a-zA-Z0-9]/g, "_")}`,
-        },
-      });
-
-      // Create a blob URL and trigger download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${episode.title.replace(/[^a-zA-Z0-9]/g, "_")}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert("Download failed. Please try again.");
-    } finally {
-      setDownloadingEpisode(null);
-    }
-  };
-
-  const handleListen = (episode: PodcastEpisode) => {
-    // Open audio in a new tab for listening
-    window.open(episode.audioUrl, "_blank");
-  };
-
+function LandingPage() {
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
-      {/* Podcast Header */}
-      <div className="text-center space-y-4">
-        {podcastInfo.imageUrl && (
-          <div className="flex justify-center">
-            <img
-              src={podcastInfo.imageUrl}
-              alt={podcastInfo.title}
-              className="w-32 h-32 rounded-xl shadow-lg"
-            />
+    <div className="flex min-h-screen flex-col">
+      {/* Hero Section */}
+      <section className="relative flex min-h-[85vh] items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/hero.jpeg')" }}
+        />
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+
+        {/* Content */}
+        <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
+          <Badge
+            variant="outline"
+            className="mb-6 border-amber-400/50 bg-amber-400/10 text-amber-300 backdrop-blur-sm"
+          >
+            Inscripciones Abiertas
+          </Badge>
+
+          <h1 className="mb-6 font-serif text-5xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
+            Volleyball
+            <span className="block bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
+              Fest
+            </span>
+          </h1>
+
+          <p className="mx-auto mb-4 max-w-2xl text-lg text-zinc-300 md:text-xl">
+            La liga de voleibol más emocionante de Cuauhtémoc
+          </p>
+
+          <div className="mb-10 flex items-center justify-center gap-2 text-zinc-400">
+            <MapPin className="size-5 text-amber-400" />
+            <span className="text-sm md:text-base">
+              Gimnasio de Escuela Álvaro Obregón, Cuauhtémoc, Mexico
+            </span>
           </div>
-        )}
-        <h1 className="text-4xl font-bold">{podcastInfo.title}</h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          {podcastInfo.description}
-        </p>
-        <div className="text-sm text-muted-foreground">
-          By {podcastInfo.author}
-        </div>
-        {podcastInfo.website && (
-          <div className="text-sm">
-            <a
-              href={podcastInfo.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
+
+          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button
+              asChild
+              size="lg"
+              className="bg-amber-500 px-8 text-base font-semibold text-black hover:bg-amber-400"
             >
-              {podcastInfo.website}
-            </a>
+              <Link to="/signup-form">
+                Inscribe tu equipo
+                <ChevronRight className="size-5" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="border-zinc-600 bg-transparent text-white hover:bg-white/10"
+            >
+              <a href="#leagues">
+                Ver ligas
+              </a>
+            </Button>
           </div>
-        )}
-      </div>
-
-      {/* Listening Links */}
-      <Card className="p-6">
-        <CardHeader className="pb-4">
-          <h2 className="text-2xl font-semibold">
-            Listen on Your Favorite Platform
-          </h2>
-        </CardHeader>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button
-            className="flex flex-col items-center gap-2 rounded-md p-2 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
-            onClick={() =>
-              window.open("https://www.youtube.com/@Pludastund-xe2bo", "_blank")
-            }
-          >
-            <img
-              height="32"
-              width="32"
-              src="https://cdn.simpleicons.org/youtube"
-            />
-            <div className="flex flex-col items-center">
-              <span className="font-semibold text-xs">YouTube</span>
-              <span className="text-xs text-muted-foreground">
-                Watch episodes
-              </span>
-            </div>
-          </button>
-          <button
-            className="flex flex-col items-center gap-2 rounded-md p-2 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
-            onClick={() =>
-              window.open(
-                "https://podcasts.apple.com/us/podcast/pludastund/id1602730262",
-                "_blank"
-              )
-            }
-          >
-            <img
-              height="32"
-              width="32"
-              src="https://cdn.simpleicons.org/applepodcasts"
-            />
-            <div className="flex flex-col items-center">
-              <span className="font-semibold text-xs">Apple Podcasts</span>
-              <span className="text-xs text-muted-foreground">
-                Listen on iOS
-              </span>
-            </div>
-          </button>
-          <button
-            className="flex flex-col items-center gap-2 rounded-md p-2 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
-            onClick={() =>
-              window.open("https://open.spotify.com/show/0bgkCoXa1M80zD2v1jpCNT", "_blank")
-            }
-          >
-            <img
-              height="32"
-              width="32"
-              src="https://cdn.simpleicons.org/spotify"
-            />
-            <div className="flex flex-col items-center">
-              <span className="font-semibold text-xs">Spotify</span>
-              <span className="text-xs text-muted-foreground">Stream now</span>
-            </div>
-          </button>
-          <button
-            className="flex flex-col items-center gap-2 rounded-md p-2 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
-            onClick={() =>
-              window.open("https://pca.st/podcast/47b15e20-5742-013d-9be2-0afff3401fad", "_blank")
-            }
-          >
-            <img
-              height="32"
-              width="32"
-              src="https://cdn.simpleicons.org/pocketcasts"
-            />
-            <div className="flex flex-col items-center">
-              <span className="font-semibold text-xs">Pocket Casts</span>
-              <span className="text-xs text-muted-foreground">Podcast app</span>
-            </div>
-          </button>
         </div>
-      </Card>
 
-      {/* Episodes List */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold">Recent Episodes</h2>
-        <div className="space-y-4">
-          {episodes.slice(0, 10).map((episode) => (
-            <Card
-              key={episode.guid}
-              className="p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold hover:text-primary transition-colors">
-                      {episode.title}
-                    </h3>
-                    <p className="text-muted-foreground text-sm mt-1">
-                      {episode.description}
-                    </p>
-                  </div>
-                </div>
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <div className="h-10 w-6 rounded-full border-2 border-zinc-500 p-1">
+            <div className="mx-auto h-2 w-1 rounded-full bg-zinc-400" />
+          </div>
+        </div>
+      </section>
 
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center gap-4">
-                    <span>
-                      {new Date(episode.publishDate).toLocaleDateString("en-US")}
-                    </span>
-                    {episode.duration ? <span>{episode.duration}</span> : null}
-                    {episode.size ? <span>{episode.size}</span> : null}
-                    {typeof episode.episodeNumber === 'number' && Number.isFinite(episode.episodeNumber) ? (
-                      <span>Episode {episode.episodeNumber}</span>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
+      {/* Seasons Section */}
+      <section className="bg-zinc-50 py-20 dark:bg-zinc-900/50">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-12 text-center">
+            <Badge variant="secondary" className="mb-4">
+              <Calendar className="mr-1 size-3" />
+              Calendario
+            </Badge>
+            <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+              Temporadas
+            </h2>
+            <p className="mx-auto max-w-2xl text-muted-foreground">
+              Dos temporadas regulares al año más un emocionante torneo relámpago en mayo
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {seasons.map((season, index) => (
+              <Card
+                key={season.id}
+                className="group relative overflow-hidden transition-all hover:shadow-lg"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
+                <CardHeader>
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge
                       variant="outline"
-                      onClick={(e: React.MouseEvent) => {
-                        e.stopPropagation();
-                        handleListen(episode);
-                      }}
+                      className={
+                        season.id === "flash"
+                          ? "border-orange-500/50 text-orange-600 dark:text-orange-400"
+                          : "border-amber-500/50 text-amber-600 dark:text-amber-400"
+                      }
                     >
-                      <Play className="w-4 h-4 mr-1" />
-                      Listen
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={(e: React.MouseEvent) => {
-                        e.stopPropagation();
-                        handleDownload(episode);
-                      }}
-                      disabled={downloadingEpisode === episode.guid}
-                    >
-                      <ArrowDownToLine className="w-4 h-4 mr-1" />
-                      {downloadingEpisode === episode.guid
-                        ? "Downloading..."
-                        : "Download"}
-                    </Button>
+                      {season.months}
+                    </Badge>
                   </div>
-                </div>
-              </div>
-            </Card>
-          ))}
+                  <CardTitle className="text-xl">{season.name}</CardTitle>
+                  <CardDescription>{season.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Leagues Section */}
+      <section id="leagues" className="py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-12 text-center">
+            <Badge variant="secondary" className="mb-4">
+              <Trophy className="mr-1 size-3" />
+              Competencia
+            </Badge>
+            <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+              Nuestras Ligas
+            </h2>
+            <p className="mx-auto max-w-2xl text-muted-foreground">
+              Cuatro divisiones para todos los niveles de competencia
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            {leagues.map((league, index) => (
+              <Card
+                key={league.id}
+                className="group relative overflow-hidden transition-all hover:shadow-lg"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
+                <CardHeader>
+                  <div className="mb-2 flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10">
+                      <league.icon className="size-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {league.category}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-xl">{league.title}</CardTitle>
+                  <CardDescription>{league.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Separator className="mb-4" />
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Partidos los sábados</span>
+                    <span className="font-medium text-foreground">8+ equipos</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="relative overflow-hidden bg-zinc-900 py-20 dark:bg-zinc-950">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-900/20 via-transparent to-transparent" />
+        <div className="relative mx-auto max-w-4xl px-6 text-center">
+          <h2 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-4xl">
+            ¿Listo para jugar?
+          </h2>
+          <p className="mx-auto mb-8 max-w-xl text-zinc-400">
+            Inscribe a tu equipo hoy y forma parte de la comunidad de voleibol más activa de Cuauhtémoc
+          </p>
+          <Button
+            asChild
+            size="lg"
+            className="bg-amber-500 px-10 text-base font-semibold text-black hover:bg-amber-400"
+          >
+            <Link to="/signup-form">
+              Inscribe tu equipo ahora
+              <ChevronRight className="size-5" />
+            </Link>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

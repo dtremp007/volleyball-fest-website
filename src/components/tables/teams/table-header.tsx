@@ -1,13 +1,12 @@
+import type { Table } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import { cn } from "~/lib/utils";
 import {
   TableHeader as BaseTableHeader,
   TableHead,
   TableRow,
 } from "~/components/ui/table";
-import { ArrowDown, ArrowUp } from "lucide-react";
-import type { Table } from "@tanstack/react-table";
 import type { Team } from "./columns";
 
 interface Props {
@@ -20,7 +19,10 @@ interface Props {
 export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props) {
   "use no memo";
   const isVisible = (id: string) =>
-    table.getAllLeafColumns().find((col) => col.id === id)?.getIsVisible();
+    table
+      .getAllLeafColumns()
+      .find((col) => col.id === id)
+      ?.getIsVisible();
 
   const renderSortIcon = (columnId: string) => {
     if (sortColumn !== columnId) return null;
@@ -30,32 +32,25 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
   };
 
   return (
-    <BaseTableHeader>
-      <TableRow>
+    <BaseTableHeader className="border-r-0 border-l-0">
+      <TableRow className="hover:bg-transparent">
         {/* Select column */}
-        <TableHead className="w-[50px] min-w-[50px] px-3 md:px-4 py-2 md:sticky md:left-0 bg-background z-20 border-r border-border">
+        <TableHead className="bg-background z-20 w-[50px] min-w-[50px]">
           <Checkbox
             checked={
               table.getIsAllPageRowsSelected() ||
               (table.getIsSomePageRowsSelected() && "indeterminate")
             }
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
             aria-label="Select all"
           />
         </TableHead>
 
-        {/* Logo column */}
-        {isVisible("logo") && (
-          <TableHead className="w-[60px] min-w-[60px]" />
-        )}
-
         {/* Team Name column */}
         {isVisible("name") && (
-          <TableHead className="w-[200px] min-w-[200px] md:sticky md:left-[100px] bg-background z-20 border-r border-border">
+          <TableHead className="bg-background w-[200px] min-w-[200px] border-r">
             <Button
-              className="p-0 hover:bg-transparent space-x-2"
+              className="space-x-2 p-0 hover:bg-transparent"
               variant="ghost"
               onClick={() => onSort?.("name")}
             >
@@ -69,7 +64,7 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
         {isVisible("category") && (
           <TableHead className="w-[150px]">
             <Button
-              className="p-0 hover:bg-transparent space-x-2"
+              className="space-x-2 p-0 hover:bg-transparent"
               variant="ghost"
               onClick={() => onSort?.("category")}
             >
@@ -83,7 +78,7 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
         {isVisible("season") && (
           <TableHead className="w-[150px]">
             <Button
-              className="p-0 hover:bg-transparent space-x-2"
+              className="space-x-2 p-0 hover:bg-transparent"
               variant="ghost"
               onClick={() => onSort?.("season")}
             >
@@ -97,7 +92,7 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
         {isVisible("captainName") && (
           <TableHead className="w-[180px]">
             <Button
-              className="p-0 hover:bg-transparent space-x-2"
+              className="space-x-2 p-0 hover:bg-transparent"
               variant="ghost"
               onClick={() => onSort?.("captainName")}
             >
@@ -109,14 +104,7 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
 
         {/* Actions column */}
         {isVisible("actions") && (
-          <TableHead
-            className={cn(
-              "w-[100px] md:sticky md:right-0 bg-background z-30",
-              "border-l border-border"
-            )}
-          >
-            Actions
-          </TableHead>
+          <TableHead className={"bg-background w-[50px] border-l"}>Actions</TableHead>
         )}
       </TableRow>
     </BaseTableHeader>

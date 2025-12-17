@@ -1,8 +1,9 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { HorizontalMenuLayout, Menu } from "~/components/horizontal-menu";
 import { authQueryOptions } from "~/lib/auth/queries";
 
 export const Route = createFileRoute("/(authenticated)")({
-  component: Outlet,
+  component: Layout,
   beforeLoad: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData({
       ...authQueryOptions(),
@@ -16,3 +17,19 @@ export const Route = createFileRoute("/(authenticated)")({
     return { user };
   },
 });
+
+export function Layout() {
+  return (
+    <div className="w-full">
+      <HorizontalMenuLayout>
+        <Menu
+          links={[
+            { label: "Dashboard", to: "/dashboard" },
+            { label: "Teams", to: "/teams" },
+          ]}
+        />
+      </HorizontalMenuLayout>
+      <Outlet />
+    </div>
+  );
+}

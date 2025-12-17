@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Checkbox } from "~/components/ui/checkbox";
 import { cn } from "~/lib/utils";
 import { ActionsMenu } from "./actions-menu";
+import { CellEditor } from "~/components/cell-editor";
 
 export type Team = {
   id: string;
@@ -21,10 +22,6 @@ export type Team = {
 export const columns: ColumnDef<Team>[] = [
   {
     id: "select",
-    meta: {
-      className:
-        "md:sticky md:left-0 bg-background group-hover:bg-muted/50 z-20 border-r border-border",
-    },
     header: ({ table }) => {
       return (
         <Checkbox
@@ -56,34 +53,28 @@ export const columns: ColumnDef<Team>[] = [
     enableHiding: false,
   },
   {
-    id: "logoUrl",
-    header: "",
-    meta: {
-      className: "w-[60px] min-w-[60px]",
-    },
-    cell: ({ row }) => {
-      const logoUrl = row.getValue("logoUrl") as string;
-      const name = row.original.name;
-
-      return (
-        <Avatar className="size-8">
-          {logoUrl && <AvatarImage src={logoUrl} alt={`${name} logo`} />}
-          <AvatarFallback className="text-xs font-medium">
-            {name?.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      );
-    },
-    enableSorting: false,
-  },
-  {
     header: "Team Name",
     accessorKey: "name",
     meta: {
       className:
-        "w-[200px] min-w-[200px] md:sticky md:left-[100px] bg-background group-hover:bg-muted/50 z-20 border-r border-border",
+        "w-[200px] min-w-[200px] border-r p-0",
     },
-    cell: ({ row }) => <span className="font-medium">{row.getValue("name")}</span>,
+    cell: ({ row }) => {
+      const logoUrl = row.original.logoUrl;
+      const name = row.original.name;
+
+      return (
+        <div className="flex justify-between items-center gap-2">
+          <Avatar className="size-6">
+            {logoUrl && <AvatarImage src={logoUrl} alt={`${name} logo`} />}
+            <AvatarFallback className="text-[10px] font-medium">
+              {name?.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <CellEditor value={name} />
+        </div>
+      );
+    },
   },
   {
     header: "Category",
@@ -123,7 +114,7 @@ export const columns: ColumnDef<Team>[] = [
     header: "Actions",
     meta: {
       className:
-        "w-[100px] text-right md:sticky md:right-0 bg-background group-hover:bg-muted/50 z-30 border-l border-border",
+        "text-right border-l",
     },
     cell: ({ row }) => {
       return <ActionsMenu team={row.original} />;

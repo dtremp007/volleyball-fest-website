@@ -8,8 +8,9 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Table, TableBody } from "~/components/ui/table";
+import { useTableScroll } from "~/hooks/use-table-scroll";
 import { useTRPC } from "~/trpc/react";
 import { BottomBarWrapper } from "./bottom-bar";
 import { columns } from "./columns";
@@ -86,7 +87,9 @@ export function TeamsDataTable() {
 
   return (
     <div className="w-full">
-      <div className="border-border scrollbar-hide overflow-x-auto md:border-r md:border-l">
+      <div
+        className="border-border rounded-lg border"
+      >
         <Table>
           <TableHeader
             table={table}
@@ -95,7 +98,7 @@ export function TeamsDataTable() {
             onSort={handleSort}
           />
 
-          <TableBody>
+          <TableBody className="border-l-0 border-r-0">
             {table.getRowModel().rows.map((row) => (
               <TeamRow key={row.id} row={row} />
             ))}
