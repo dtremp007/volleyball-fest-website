@@ -1,9 +1,10 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { CellEditor } from "~/components/cell-editor";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
+import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { cn } from "~/lib/utils";
 import { ActionsMenu } from "./actions-menu";
-import { CellEditor } from "~/components/cell-editor";
 
 export type Team = {
   id: string;
@@ -56,15 +57,14 @@ export const columns: ColumnDef<Team>[] = [
     header: "Team Name",
     accessorKey: "name",
     meta: {
-      className:
-        "w-[200px] min-w-[200px] border-r p-0",
+      className: "w-[200px] min-w-[200px] border-r p-0",
     },
     cell: ({ row }) => {
       const logoUrl = row.original.logoUrl;
       const name = row.original.name;
 
       return (
-        <div className="flex justify-between items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
           <Avatar className="size-6">
             {logoUrl && <AvatarImage src={logoUrl} alt={`${name} logo`} />}
             <AvatarFallback className="text-[10px] font-medium">
@@ -94,14 +94,6 @@ export const columns: ColumnDef<Team>[] = [
     ),
   },
   {
-    header: "Season",
-    accessorKey: "season",
-    meta: {
-      className: "w-[150px] min-w-[150px]",
-    },
-    cell: ({ row }) => <span>{row.getValue("season")}</span>,
-  },
-  {
     header: "Captain",
     accessorKey: "captainName",
     meta: {
@@ -110,11 +102,24 @@ export const columns: ColumnDef<Team>[] = [
     cell: ({ row }) => <span>{row.getValue("captainName")}</span>,
   },
   {
+    header: "Captain Number",
+    accessorKey: "captainPhone",
+    meta: {
+      className: "w-[180px] min-w-[180px]",
+    },
+    cell: ({ row }) => (
+      <Button variant="link" asChild>
+        <a href={`whatsapp://send?phone=${row.getValue("captainPhone")}`} target="_blank">
+          {row.getValue("captainPhone")}
+        </a>
+      </Button>
+    ),
+  },
+  {
     id: "actions",
     header: "Actions",
     meta: {
-      className:
-        "text-right border-l",
+      className: "text-right border-l",
     },
     cell: ({ row }) => {
       return <ActionsMenu team={row.original} />;

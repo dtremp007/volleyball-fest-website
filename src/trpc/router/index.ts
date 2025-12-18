@@ -1,5 +1,6 @@
 import { createTRPCRouter } from "~/trpc/init";
 import { categoryRouter } from "~/trpc/router/category.trpc";
+import { matchupRouter } from "~/trpc/router/matchup.trpc";
 import { positionRouter } from "~/trpc/router/position.trpc";
 import { seasonRouter } from "~/trpc/router/season.trpc";
 import { signupRouter, teamRouter } from "~/trpc/router/team.trpc";
@@ -12,6 +13,7 @@ export const appRouter = createTRPCRouter({
   category: categoryRouter,
   position: positionRouter,
   season: seasonRouter,
+  matchup: matchupRouter,
 });
 
 export type AppRouter = typeof appRouter;

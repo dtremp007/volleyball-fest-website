@@ -1,16 +1,18 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Trash2, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import type { Team } from "./columns";
+import { CopyToSeasonDialog } from "./copy-to-season-dialog";
 
 type Props = {
   selectedCount: number;
+  selectedTeamIds: string[];
   onClearSelection: () => void;
   onDeleteSelected?: () => void;
 };
 
 export function BottomBar({
   selectedCount,
+  selectedTeamIds,
   onClearSelection,
   onDeleteSelected,
 }: Props) {
@@ -38,6 +40,11 @@ export function BottomBar({
           Clear
         </Button>
 
+        <CopyToSeasonDialog
+          selectedTeamIds={selectedTeamIds}
+          onSuccess={onClearSelection}
+        />
+
         {onDeleteSelected && (
           <Button
             variant="destructive"
@@ -56,11 +63,12 @@ export function BottomBar({
 
 export function BottomBarWrapper({
   show,
+  selectedTeamIds,
   ...props
 }: Props & { show: boolean }) {
   return (
     <AnimatePresence>
-      {show && <BottomBar {...props} />}
+      {show && <BottomBar selectedTeamIds={selectedTeamIds} {...props} />}
     </AnimatePresence>
   );
 }

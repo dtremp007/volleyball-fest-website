@@ -11,7 +11,7 @@ export function HorizontalMenuLayout({
   return (
     <nav
       className={cn(
-        "bg-background border-border sticky top-0 z-5 flex flex-row flex-nowrap items-center justify-start overflow-x-auto border-b",
+        "bg-background border-border sticky top-0 z-10 flex flex-row flex-nowrap items-center justify-start overflow-x-auto border-b",
         className,
       )}
       style={{

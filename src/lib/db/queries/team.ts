@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
@@ -53,14 +53,24 @@ export const getTeamById = async (db: Database, id: string) => {
   return { ...team, players };
 };
 
-export const getTeamsBySeasonId = async (db: Database, seasonId: string) => {
+export const getTeamsBySeasonId = async (
+  db: Database,
+  seasonId: string,
+  categoryId?: string,
+) => {
+  const conditions = [eq(schema.seasonTeam.seasonId, seasonId)];
+
+  if (categoryId) {
+    conditions.push(eq(schema.team.categoryId, categoryId));
+  }
+
   return await db
     .select(teamColumns)
     .from(schema.team)
     .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
     .innerJoin(schema.season, eq(schema.seasonTeam.seasonId, schema.season.id))
     .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
-    .where(eq(schema.seasonTeam.seasonId, seasonId));
+    .where(and(...conditions));
 };
 
 type CreateTeamParams = {
@@ -115,4 +125,24 @@ export const createTeam = async (db: Database, params: CreateTeamParams) => {
   ]);
 
   return team;
+};
+
+export const copyTeamsToSeason = async (
+  db: Database,
+  teamIds: string[],
+  targetSeasonId: string,
+) => {
+  if (teamIds.length === 0) return { count: 0 };
+
+  await db
+    .insert(schema.seasonTeam)
+    .values(
+      teamIds.map((teamId) => ({
+        seasonId: targetSeasonId,
+        teamId,
+      })),
+    )
+    .onConflictDoNothing();
+
+  return { count: teamIds.length };
 };

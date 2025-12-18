@@ -13,6 +13,8 @@ import { Route as SignupFormRouteImport } from './routes/signup-form'
 import { Route as authenticatedRouteRouteImport } from './routes/(authenticated)/route'
 import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as authenticatedSettingsRouteImport } from './routes/(authenticated)/settings'
+import { Route as authenticatedScheduleBuilderRouteImport } from './routes/(authenticated)/schedule-builder'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
 import { Route as authPagesLoginRouteImport } from './routes/(auth-pages)/login'
 import { Route as authenticatedDashboardRouteRouteImport } from './routes/(authenticated)/dashboard/route'
@@ -40,6 +42,17 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const authenticatedSettingsRoute = authenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => authenticatedRouteRoute,
+} as any)
+const authenticatedScheduleBuilderRoute =
+  authenticatedScheduleBuilderRouteImport.update({
+    id: '/schedule-builder',
+    path: '/schedule-builder',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
 const authPagesSignupRoute = authPagesSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -90,6 +103,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
+  '/schedule-builder': typeof authenticatedScheduleBuilderRoute
+  '/settings': typeof authenticatedSettingsRoute
   '/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
@@ -101,6 +116,8 @@ export interface FileRoutesByTo {
   '/signup-form': typeof SignupFormRoute
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
+  '/schedule-builder': typeof authenticatedScheduleBuilderRoute
+  '/settings': typeof authenticatedSettingsRoute
   '/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
@@ -116,6 +133,8 @@ export interface FileRoutesById {
   '/(authenticated)/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
+  '/(authenticated)/schedule-builder': typeof authenticatedScheduleBuilderRoute
+  '/(authenticated)/settings': typeof authenticatedSettingsRoute
   '/(authenticated)/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
@@ -130,6 +149,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/signup'
+    | '/schedule-builder'
+    | '/settings'
     | '/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
@@ -141,6 +162,8 @@ export interface FileRouteTypes {
     | '/signup-form'
     | '/login'
     | '/signup'
+    | '/schedule-builder'
+    | '/settings'
     | '/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
@@ -155,6 +178,8 @@ export interface FileRouteTypes {
     | '/(authenticated)/dashboard'
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
+    | '/(authenticated)/schedule-builder'
+    | '/(authenticated)/settings'
     | '/(authenticated)/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
@@ -200,6 +225,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/(authenticated)/settings': {
+      id: '/(authenticated)/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof authenticatedSettingsRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
+    '/(authenticated)/schedule-builder': {
+      id: '/(authenticated)/schedule-builder'
+      path: '/schedule-builder'
+      fullPath: '/schedule-builder'
+      preLoaderRoute: typeof authenticatedScheduleBuilderRouteImport
+      parentRoute: typeof authenticatedRouteRoute
     }
     '/(auth-pages)/signup': {
       id: '/(auth-pages)/signup'
@@ -290,6 +329,8 @@ const authenticatedDashboardRouteRouteWithChildren =
 
 interface authenticatedRouteRouteChildren {
   authenticatedDashboardRouteRoute: typeof authenticatedDashboardRouteRouteWithChildren
+  authenticatedScheduleBuilderRoute: typeof authenticatedScheduleBuilderRoute
+  authenticatedSettingsRoute: typeof authenticatedSettingsRoute
   authenticatedTeamsTeamIdRoute: typeof authenticatedTeamsTeamIdRoute
   authenticatedTeamsIndexRoute: typeof authenticatedTeamsIndexRoute
 }
@@ -297,6 +338,8 @@ interface authenticatedRouteRouteChildren {
 const authenticatedRouteRouteChildren: authenticatedRouteRouteChildren = {
   authenticatedDashboardRouteRoute:
     authenticatedDashboardRouteRouteWithChildren,
+  authenticatedScheduleBuilderRoute: authenticatedScheduleBuilderRoute,
+  authenticatedSettingsRoute: authenticatedSettingsRoute,
   authenticatedTeamsTeamIdRoute: authenticatedTeamsTeamIdRoute,
   authenticatedTeamsIndexRoute: authenticatedTeamsIndexRoute,
 }

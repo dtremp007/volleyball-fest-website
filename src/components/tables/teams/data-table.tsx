@@ -9,8 +9,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { Table, TableBody } from "~/components/ui/table";
-import { useTableScroll } from "~/hooks/use-table-scroll";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableRow,
+} from "~/components/ui/table";
+import { Route } from "~/routes/(authenticated)/teams";
 import { useTRPC } from "~/trpc/react";
 import { BottomBarWrapper } from "./bottom-bar";
 import { columns } from "./columns";
@@ -21,12 +27,15 @@ import { TableHeader } from "./table-header";
 export function TeamsDataTable() {
   "use no memo";
   const trpc = useTRPC();
+  const { seasonId, categoryId } = Route.useSearch();
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
-  const { data: teams } = useSuspenseQuery(trpc.team.list.queryOptions());
+  const { data: teams } = useSuspenseQuery(
+    trpc.team.list.queryOptions({ seasonId, categoryId }),
+  );
 
   const tableData = useMemo(() => teams ?? [], [teams]);
 
@@ -87,9 +96,7 @@ export function TeamsDataTable() {
 
   return (
     <div className="w-full">
-      <div
-        className="border-border rounded-lg border"
-      >
+      <div className="border-border rounded-lg border">
         <Table>
           <TableHeader
             table={table}
@@ -98,17 +105,24 @@ export function TeamsDataTable() {
             onSort={handleSort}
           />
 
-          <TableBody className="border-l-0 border-r-0">
+          <TableBody className="border-r-0 border-l-0">
             {table.getRowModel().rows.map((row) => (
               <TeamRow key={row.id} row={row} />
             ))}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={5}>Total teams</TableCell>
+              <TableCell className="text-right">{tableData.length}</TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
 
       <BottomBarWrapper
         show={showBottomBar}
         selectedCount={selectedCount}
+        selectedTeamIds={Object.keys(rowSelection)}
         onClearSelection={handleClearSelection}
         onDeleteSelected={handleDeleteSelected}
       />

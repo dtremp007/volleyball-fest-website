@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { type Row, flexRender } from "@tanstack/react-table";
-import { cn } from "~/lib/utils";
 import { TableCell, TableRow } from "~/components/ui/table";
+import { cn } from "~/lib/utils";
 import type { Team } from "./columns";
 
 type Props = {
@@ -19,10 +19,12 @@ export function TeamRow({ row }: Props) {
     }
 
     // Prevent event bubbling for checkbox clicks
-    if (
-      e.target instanceof HTMLElement &&
-      e.target.closest('[role="checkbox"]')
-    ) {
+    if (e.target instanceof HTMLElement && e.target.closest('[role="checkbox"]')) {
+      return;
+    }
+
+    // a tag
+    if (e.target instanceof HTMLElement && e.target.closest("a")) {
       return;
     }
 

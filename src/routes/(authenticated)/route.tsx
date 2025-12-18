@@ -20,12 +20,14 @@ export const Route = createFileRoute("/(authenticated)")({
 
 export function Layout() {
   return (
-    <div className="w-full">
+    <div className="w-full min-h-screen">
       <HorizontalMenuLayout>
         <Menu
           links={[
             { label: "Dashboard", to: "/dashboard" },
             { label: "Teams", to: "/teams" },
+            { label: "Schedule Builder", to: "/schedule-builder" },
+            { label: "Settings", to: "/settings" },
           ]}
         />
       </HorizontalMenuLayout>

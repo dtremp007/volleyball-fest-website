@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { desc, eq, gte } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
@@ -8,10 +8,7 @@ export const getSeasons = async (db: Database) => {
 };
 
 export const getSeasonById = async (db: Database, id: string) => {
-  const [season] = await db
-    .select()
-    .from(schema.season)
-    .where(eq(schema.season.id, id));
+  const [season] = await db.select().from(schema.season).where(eq(schema.season.id, id));
   return season;
 };
 
@@ -20,12 +17,9 @@ export const getCurrentSeason = async (db: Database) => {
   const [season] = await db
     .select()
     .from(schema.season)
-    .where(
-      and(
-        lte(schema.season.startDate, today),
-        gte(schema.season.endDate, today),
-      ),
-    );
+    .orderBy(desc(schema.season.startDate))
+    .where(gte(schema.season.endDate, today));
+
   return season;
 };
 

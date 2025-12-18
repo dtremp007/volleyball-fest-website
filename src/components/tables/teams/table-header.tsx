@@ -101,6 +101,12 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
             </Button>
           </TableHead>
         )}
+        {/* captain number column */}
+        {isVisible("captainPhone") && (
+          <TableHead className="w-[180px]">
+            <span>Captain Number</span>
+          </TableHead>
+        )}
 
         {/* Actions column */}
         {isVisible("actions") && (
