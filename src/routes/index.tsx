@@ -81,7 +81,7 @@ function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
-      <section className="relative flex min-h-[85vh] items-center justify-center overflow-hidden">
+      <section className="relative flex min-h-[95vh] items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -92,18 +92,9 @@ function LandingPage() {
 
         {/* Content */}
         <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
-          <Badge
-            variant={badgeConfig.variant}
-            className={
-              badgeConfig.variant === "default"
-                ? "mb-6 border-amber-400/50 bg-amber-400/10 text-amber-300 backdrop-blur-sm"
-                : "mb-6 backdrop-blur-sm"
-            }
-          >
-            {badgeConfig.text}
-          </Badge>
+          <img src="/icon-no-bg-512.png" alt="Volleyball Fest" className="size-32 mx-auto" />
 
-          <h1 className="mb-6 font-serif text-5xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
+          <h1 className="mb-6 text-6xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
             {String(hero.title).includes(" ") ? (
               <>
                 {String(hero.title).split(" ")[0]}
@@ -112,7 +103,7 @@ function LandingPage() {
                 </span>
               </>
             ) : (
-              <span className="bg-linear-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
+              <span className="text-white">
                 {String(hero.title)}
               </span>
             )}
@@ -123,7 +114,7 @@ function LandingPage() {
           </p>
 
           <div className="mb-10 flex items-center justify-center gap-2 text-zinc-400">
-            <MapPin className="size-5 text-[#C20A12]" />
+            <MapPin className="size-5" />
             <span className="text-sm md:text-base">
               Gimnasio de Escuela Álvaro Obregón, Cuauhtémoc, Mexico
             </span>
@@ -134,7 +125,6 @@ function LandingPage() {
               <Button
                 asChild
                 size="lg"
-                className="bg-[#C20A12] px-8 text-base font-semibold text-white hover:bg-[#C20A12]/90"
               >
                 <Link to="/signup-form">
                   {String(hero.ctaText)}
@@ -225,7 +215,6 @@ function LandingPage() {
             <Button
               asChild
               size="lg"
-              className="bg-[#C20A12] px-10 text-base font-semibold text-white hover:bg-[#C20A12]/90"
             >
               <Link to="/signup-form">
                 Inscribe tu equipo ahora

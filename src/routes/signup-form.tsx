@@ -8,6 +8,7 @@ import z from "zod";
 import AvatarUpload from "~/components/avatar-upload";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -105,6 +106,8 @@ function SignupFormPage() {
       unavailableDates: team?.unavailableDates.split(",") ?? ["", ""],
       comingFrom: team?.comingFrom,
       notes: team?.notes || undefined,
+      acceptTerms: false,
+      acceptCost: false,
     },
     validators: {
       onSubmit: signupFormSchema,
@@ -127,13 +130,13 @@ function SignupFormPage() {
           navigate({ to: returnTo });
         }
 
-        toast.success("Signup submitted!", {
-          description: "We received your team signup details.",
+        toast.success("¡Inscripción enviada!", {
+          description: "Hemos recibido los detalles de tu equipo.",
         });
         formApi.reset();
       } catch (error) {
         console.error(error);
-        toast.error("Could not submit signup. Please try again.");
+        toast.error("No se pudo enviar la inscripción. Por favor, inténtalo de nuevo.");
       }
     },
   });
@@ -151,7 +154,7 @@ function SignupFormPage() {
             </Badge>
           )}
         </div>
-        <p className="sr-only">Provide your team details, roster, and availability.</p>
+        <p className="sr-only">Proporciona los detalles de tu equipo, plantilla y disponibilidad.</p>
       </div>
 
       <form
@@ -163,7 +166,7 @@ function SignupFormPage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Team Details</CardTitle>
+            <CardTitle>Detalles del Equipo</CardTitle>
           </CardHeader>
           <CardContent>
             <FieldGroup className="gap-6">
@@ -183,7 +186,7 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid} className="w-full">
-                      <FieldLabel htmlFor={field.name}>Team name</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Nombre del equipo</FieldLabel>
                       <Input
                         id={field.name}
                         name={field.name}
@@ -191,7 +194,7 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Blue Spikers"
+                        placeholder="Los Clavados"
                         autoComplete="organization"
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -242,7 +245,7 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Captain</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Capitán</FieldLabel>
                       <Input
                         id={field.name}
                         name={field.name}
@@ -250,7 +253,7 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Alex Johnson"
+                        placeholder="Juan Pérez"
                         autoComplete="name"
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -265,7 +268,7 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Captain phone</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Teléfono del capitán</FieldLabel>
                       <Input
                         id={field.name}
                         name={field.name}
@@ -273,7 +276,7 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="(555) 123-4567"
+                        placeholder="625-123-4567"
                         autoComplete="tel"
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -288,7 +291,7 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Co-captain</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Co-capitán</FieldLabel>
                       <Input
                         id={field.name}
                         name={field.name}
@@ -296,7 +299,7 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Sam Doe"
+                        placeholder="María González"
                         autoComplete="name"
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -311,7 +314,7 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Co-captain phone</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Teléfono del co-capitán</FieldLabel>
                       <Input
                         id={field.name}
                         name={field.name}
@@ -319,7 +322,7 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="(555) 987-6543"
+                        placeholder="625-987-6543"
                         autoComplete="tel"
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -333,9 +336,9 @@ function SignupFormPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Players</CardTitle>
+            <CardTitle>Jugadores</CardTitle>
             <CardDescription>
-              Add your roster. Use the dropdown to set each player&apos;s position.
+              Agrega tu plantilla. Usa el menú desplegable para seleccionar la posición de cada jugador.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -350,7 +353,7 @@ function SignupFormPage() {
                     <div className="flex flex-col gap-4">
                       {field.state.value.map((player, index) => (
                         <form.Field
-                          key={`${player.name}`}
+                          key={index}
                           name={`players[${index}]`}
                           children={(playerField) => {
                             const invalid =
@@ -376,7 +379,7 @@ function SignupFormPage() {
                                         })
                                       }
                                       aria-invalid={invalid}
-                                      placeholder="Full name"
+                                      placeholder="Nombre completo"
                                       autoComplete="name"
                                     />
                                     <div className="col-span-2">
@@ -412,7 +415,7 @@ function SignupFormPage() {
                                         })
                                       }
                                       aria-invalid={invalid}
-                                      placeholder="Jersey number"
+                                      placeholder="Número de camiseta"
                                     />
                                   </FieldContent>
                                   <Button
@@ -447,7 +450,7 @@ function SignupFormPage() {
                         }
                       >
                         <Plus className="size-4" />
-                        Add player
+                        Agregar jugador
                       </Button>
                     </div>
                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -460,9 +463,9 @@ function SignupFormPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Availability & Location</CardTitle>
+            <CardTitle>Disponibilidad y Ubicación</CardTitle>
             <CardDescription>
-              Tell us when you cannot play and where the team is based.
+              Dinos cuándo no puedes jugar y dónde se encuentra el equipo.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -475,7 +478,7 @@ function SignupFormPage() {
                       field.state.meta.isTouched && !field.state.meta.isValid;
                     return (
                       <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>Unavailable date 1</FieldLabel>
+                        <FieldLabel htmlFor={field.name}>Fecha no disponible 1</FieldLabel>
                         <Input
                           id={field.name}
                           name={field.name}
@@ -497,7 +500,7 @@ function SignupFormPage() {
                       field.state.meta.isTouched && !field.state.meta.isValid;
                     return (
                       <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>Unavailable date 2</FieldLabel>
+                        <FieldLabel htmlFor={field.name}>Fecha no disponible 2</FieldLabel>
                         <Input
                           id={field.name}
                           name={field.name}
@@ -522,8 +525,8 @@ function SignupFormPage() {
                   return (
                     <Field data-invalid={isInvalid}>
                       <FieldLabel htmlFor={field.name}>
-                        Where is most of the team coming from? We will take this into
-                        account when scheduling games.
+                        ¿De dónde viene la mayoría del equipo? Tomaremos esto en
+                        cuenta al programar los juegos.
                       </FieldLabel>
                       <Textarea
                         id={field.name}
@@ -532,7 +535,7 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Cuauhtemoc, Corredor, Jagueyes, etc."
+                        placeholder="Cuauhtémoc, Corredor, Jagüeyes, etc."
                         rows={3}
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
@@ -547,7 +550,7 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Notes</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Notas</FieldLabel>
                       <Textarea
                         id={field.name}
                         name={field.name}
@@ -555,10 +558,64 @@ function SignupFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Notes"
+                        placeholder="Notas adicionales"
                         rows={3}
                       />
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    </Field>
+                  );
+                }}
+              />
+
+              <form.Field
+                name="acceptTerms"
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={field.name}
+                          checked={field.state.value}
+                          onCheckedChange={(checked) => field.handleChange(checked as boolean)}
+                          onBlur={field.handleBlur}
+                          aria-invalid={isInvalid}
+                        />
+                        <div className="flex flex-col gap-1">
+                          <Label htmlFor={field.name} className="text-sm font-normal cursor-pointer">
+                            Acepto que la información proporcionada es correcta y será utilizada únicamente para la administración del torneo de voleibol. También acepto aparecer en cualquier medio de comunicación que se capture durante el evento.
+                          </Label>
+                          {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                        </div>
+                      </div>
+                    </Field>
+                  );
+                }}
+              />
+
+              <form.Field
+                name="acceptCost"
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={field.name}
+                          checked={field.state.value}
+                          onCheckedChange={(checked) => field.handleChange(checked as boolean)}
+                          onBlur={field.handleBlur}
+                          aria-invalid={isInvalid}
+                        />
+                        <div className="flex flex-col gap-1">
+                          <Label htmlFor={field.name} className="text-sm font-normal cursor-pointer">
+                            Entiendo que al inscribirme, el costo es de <strong>$3,500 MXN</strong> por equipo.
+                          </Label>
+                          {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                        </div>
+                      </div>
                     </Field>
                   );
                 }}
