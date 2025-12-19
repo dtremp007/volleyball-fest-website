@@ -24,7 +24,6 @@ import { Route as authenticatedTeamsIndexRouteImport } from './routes/(authentic
 import { Route as authenticatedDashboardIndexRouteImport } from './routes/(authenticated)/dashboard/index'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
-import { Route as authenticatedTeamsTeamIdRouteImport } from './routes/(authenticated)/teams/$teamId'
 
 const SignupFormRoute = SignupFormRouteImport.update({
   id: '/signup-form',
@@ -102,12 +101,6 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const authenticatedTeamsTeamIdRoute =
-  authenticatedTeamsTeamIdRouteImport.update({
-    id: '/teams/$teamId',
-    path: '/teams/$teamId',
-    getParentRoute: () => authenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -119,7 +112,6 @@ export interface FileRoutesByFullPath {
   '/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/settings': typeof authenticatedSettingsRoute
   '/api/upload-image': typeof ApiUploadImageRoute
-  '/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard/': typeof authenticatedDashboardIndexRoute
@@ -134,7 +126,6 @@ export interface FileRoutesByTo {
   '/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/settings': typeof authenticatedSettingsRoute
   '/api/upload-image': typeof ApiUploadImageRoute
-  '/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard': typeof authenticatedDashboardIndexRoute
@@ -153,7 +144,6 @@ export interface FileRoutesById {
   '/(authenticated)/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/(authenticated)/settings': typeof authenticatedSettingsRoute
   '/api/upload-image': typeof ApiUploadImageRoute
-  '/(authenticated)/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/(authenticated)/dashboard/': typeof authenticatedDashboardIndexRoute
@@ -171,7 +161,6 @@ export interface FileRouteTypes {
     | '/schedule-builder'
     | '/settings'
     | '/api/upload-image'
-    | '/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard/'
@@ -186,7 +175,6 @@ export interface FileRouteTypes {
     | '/schedule-builder'
     | '/settings'
     | '/api/upload-image'
-    | '/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard'
@@ -204,7 +192,6 @@ export interface FileRouteTypes {
     | '/(authenticated)/schedule-builder'
     | '/(authenticated)/settings'
     | '/api/upload-image'
-    | '/(authenticated)/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/(authenticated)/dashboard/'
@@ -329,13 +316,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(authenticated)/teams/$teamId': {
-      id: '/(authenticated)/teams/$teamId'
-      path: '/teams/$teamId'
-      fullPath: '/teams/$teamId'
-      preLoaderRoute: typeof authenticatedTeamsTeamIdRouteImport
-      parentRoute: typeof authenticatedRouteRoute
-    }
   }
 }
 
@@ -371,7 +351,6 @@ interface authenticatedRouteRouteChildren {
   authenticatedDashboardRouteRoute: typeof authenticatedDashboardRouteRouteWithChildren
   authenticatedScheduleBuilderRoute: typeof authenticatedScheduleBuilderRoute
   authenticatedSettingsRoute: typeof authenticatedSettingsRoute
-  authenticatedTeamsTeamIdRoute: typeof authenticatedTeamsTeamIdRoute
   authenticatedTeamsIndexRoute: typeof authenticatedTeamsIndexRoute
 }
 
@@ -380,7 +359,6 @@ const authenticatedRouteRouteChildren: authenticatedRouteRouteChildren = {
     authenticatedDashboardRouteRouteWithChildren,
   authenticatedScheduleBuilderRoute: authenticatedScheduleBuilderRoute,
   authenticatedSettingsRoute: authenticatedSettingsRoute,
-  authenticatedTeamsTeamIdRoute: authenticatedTeamsTeamIdRoute,
   authenticatedTeamsIndexRoute: authenticatedTeamsIndexRoute,
 }
 
