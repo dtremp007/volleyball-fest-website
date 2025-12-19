@@ -139,13 +139,10 @@ function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <h3 className="text-xl font-bold">
-              Volleyball{" "}
-              <span className="bg-linear-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-                Fest
-              </span>
+              Volleyball <span className="text-[#C20A12]">Fest</span>
             </h3>
             <div className="text-muted-foreground flex items-start gap-2 text-sm">
-              <MapPin className="mt-0.5 size-4 shrink-0 text-amber-500" />
+              <MapPin className="mt-0.5 size-4 shrink-0" />
               <span>
                 Gimnasio de Escuela Álvaro Obregón
                 <br />
@@ -211,7 +208,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="font-display flex flex-col antialiased">
         <ThemeProvider>
-          <main className="flex-1 min-h-screen">{children}</main>
+          <main className="min-h-screen flex-1">{children}</main>
           <Footer />
           <Toaster richColors />
         </ThemeProvider>
