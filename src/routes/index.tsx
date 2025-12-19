@@ -69,7 +69,6 @@ const TIME_SLOTS = [
 function LandingPage() {
   const { seasons, heroContent, schedule, currentSeason } = Route.useLoaderData();
 
-
   const hero = heroContent ?? heroDefaults;
   const seasonState = (currentSeason?.state ?? "draft") as SeasonState;
   const badgeConfig = seasonStateBadges[seasonState];
@@ -92,7 +91,11 @@ function LandingPage() {
 
         {/* Content */}
         <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
-          <img src="/icon-no-bg-512.png" alt="Volleyball Fest" className="size-32 mx-auto" />
+          <img
+            src="/icon-no-bg-512.png"
+            alt="Volleyball Fest"
+            className="mx-auto size-32"
+          />
 
           <h1 className="mb-6 text-6xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
             {String(hero.title).includes(" ") ? (
@@ -103,9 +106,7 @@ function LandingPage() {
                 </span>
               </>
             ) : (
-              <span className="text-white">
-                {String(hero.title)}
-              </span>
+              <span className="text-white">{String(hero.title)}</span>
             )}
           </h1>
 
@@ -122,10 +123,7 @@ function LandingPage() {
 
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             {showCta ? (
-              <Button
-                asChild
-                size="lg"
-              >
+              <Button asChild size="lg">
                 <Link to="/signup-form">
                   {String(hero.ctaText)}
                   <ChevronRight className="size-5" />
@@ -156,46 +154,51 @@ function LandingPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {seasons.map((season, index) => (
-              <Card
-                key={season.id}
-                className="group relative overflow-hidden transition-all hover:shadow-lg"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="absolute inset-0 bg-linear-to-br from-amber-500/5 to-orange-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
-                <CardHeader>
-                  <div className="mb-2 flex items-center justify-between">
-                    <Badge
-                      variant="outline"
-                      className={
-                        season.id === "flash"
-                          ? "border-orange-500/50 text-orange-600 dark:text-orange-400"
-                          : "border-amber-500/50 text-amber-600 dark:text-amber-400"
-                      }
-                    >
-                      {/* get months, if in the same month, then just show that month */}
-                      {new Date(season.startDate).getMonth() ===
-                      new Date(season.endDate).getMonth() ? (
-                        new Date(season.startDate).toLocaleDateString("es-MX", {
-                          month: "long",
-                        })
-                      ) : (
-                        <>
-                          {new Date(season.startDate).toLocaleDateString("es-MX", {
+            {seasons
+              .sort(
+                (a, b) =>
+                  new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+              )
+              .map((season, index) => (
+                <Card
+                  key={season.id}
+                  className="group relative overflow-hidden transition-all hover:shadow-lg"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="absolute inset-0 bg-linear-to-br from-amber-500/5 to-orange-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <CardHeader>
+                    <div className="mb-2 flex items-center justify-between">
+                      <Badge
+                        variant="outline"
+                        className={
+                          season.id === "flash"
+                            ? "border-orange-500/50 text-orange-600 dark:text-orange-400"
+                            : "border-amber-500/50 text-amber-600 dark:text-amber-400"
+                        }
+                      >
+                        {/* get months, if in the same month, then just show that month */}
+                        {new Date(season.startDate).getMonth() ===
+                        new Date(season.endDate).getMonth() ? (
+                          new Date(season.startDate).toLocaleDateString("es-MX", {
                             month: "long",
-                          })}{" "}
-                          -{" "}
-                          {new Date(season.endDate).toLocaleDateString("es-MX", {
-                            month: "long",
-                          })}
-                        </>
-                      )}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-xl">{season.name}</CardTitle>
-                </CardHeader>
-              </Card>
-            ))}
+                          })
+                        ) : (
+                          <>
+                            {new Date(season.startDate).toLocaleDateString("es-MX", {
+                              month: "long",
+                            })}{" "}
+                            -{" "}
+                            {new Date(season.endDate).toLocaleDateString("es-MX", {
+                              month: "long",
+                            })}
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-xl">{season.name}</CardTitle>
+                  </CardHeader>
+                </Card>
+              ))}
           </div>
         </div>
       </section>
@@ -212,10 +215,7 @@ function LandingPage() {
               Inscribe a tu equipo hoy y forma parte de la comunidad de voleibol más
               activa de Cuauhtémoc
             </p>
-            <Button
-              asChild
-              size="lg"
-            >
+            <Button asChild size="lg">
               <Link to="/signup-form">
                 Inscribe tu equipo ahora
                 <ChevronRight className="size-5" />
@@ -308,21 +308,23 @@ function ScheduleSection({ schedule }: { schedule: ScheduleEvent[] }) {
                 key={event.id}
                 className={`overflow-hidden transition-all ${isPast ? "opacity-60" : ""}`}
               >
-                  <div className="flex items-center gap-4 p-4">
-                    <div className="flex size-12 flex-col items-center justify-center rounded-lg bg-amber-500/10">
-                      <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                        {new Date(event.date + "T00:00:00")
-                          .toLocaleDateString("es-MX", { month: "short" })
-                          .toUpperCase()}
-                      </span>
-                      <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                        {new Date(event.date + "T00:00:00").getDate()}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{formatDate(event.date + "T00:00:00")}</h3>
-                    </div>
+                <div className="flex items-center gap-4 p-4">
+                  <div className="flex size-12 flex-col items-center justify-center rounded-lg bg-amber-500/10">
+                    <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                      {new Date(event.date + "T00:00:00")
+                        .toLocaleDateString("es-MX", { month: "short" })
+                        .toUpperCase()}
+                    </span>
+                    <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                      {new Date(event.date + "T00:00:00").getDate()}
+                    </span>
                   </div>
+                  <div>
+                    <h3 className="font-semibold">
+                      {formatDate(event.date + "T00:00:00")}
+                    </h3>
+                  </div>
+                </div>
 
                 {event.matchups.length > 0 && (
                   <div className="bg-muted/20 border-t">
@@ -397,7 +399,7 @@ function ScheduleSection({ schedule }: { schedule: ScheduleEvent[] }) {
 
                             {slot.court1 && (
                               <div className="space-y-1.5">
-                                <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                                <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                                   Cancha 1
                                 </div>
                                 <MatchupCell matchup={slot.court1} />
@@ -406,7 +408,7 @@ function ScheduleSection({ schedule }: { schedule: ScheduleEvent[] }) {
 
                             {slot.court2 && (
                               <div className="space-y-1.5">
-                                <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                                <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                                   Cancha 2
                                 </div>
                                 <MatchupCell matchup={slot.court2} />
@@ -447,7 +449,15 @@ function MatchupCell({ matchup }: { matchup: ScheduleEvent["matchups"][number] }
   );
 }
 
-function TeamBadge({ name, logoUrl, className }: { name: string; logoUrl: string; className?: string }) {
+function TeamBadge({
+  name,
+  logoUrl,
+  className,
+}: {
+  name: string;
+  logoUrl: string;
+  className?: string;
+}) {
   return (
     <div className={cn("flex min-w-0 flex-1 items-center gap-1.5", className)}>
       <div className="bg-muted size-6 shrink-0 overflow-hidden rounded">

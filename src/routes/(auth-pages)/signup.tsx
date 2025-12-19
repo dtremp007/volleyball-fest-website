@@ -2,19 +2,25 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { GalleryVerticalEnd, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
+import z from "zod";
 import { SignInSocialButton } from "~/components/sign-in-social-button";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { env } from "~/env/client";
 import authClient from "~/lib/auth/auth-client";
 import { authQueryOptions } from "~/lib/auth/queries";
 
 export const Route = createFileRoute("/(auth-pages)/signup")({
   component: SignupForm,
+  validateSearch: z.object({
+    invite: z.string().optional(),
+  }),
 });
 
 function SignupForm() {
   const { redirectUrl } = Route.useRouteContext();
+  const { invite: inviteFromUrl } = Route.useSearch();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -47,11 +53,18 @@ function SignupForm() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirm_password") as string;
+    const inviteCode = formData.get("invite_code") as string;
 
-    if (!name || !email || !password || !confirmPassword) return;
+    if (!name || !email || !password || !confirmPassword || !inviteCode) return;
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match.");
+      return;
+    }
+
+    // Validate invite code
+    if (inviteCode !== env.VITE_SIGNUP_INVITE_CODE) {
+      toast.error("Invalid invite code. Please contact the administrator.");
       return;
     }
 
@@ -67,9 +80,9 @@ function SignupForm() {
               <div className="flex h-8 w-8 items-center justify-center rounded-md">
                 <GalleryVerticalEnd className="size-6" />
               </div>
-              <span className="sr-only">Acme Inc.</span>
+              <span className="sr-only">Volleyball Fest</span>
             </a>
-            <h1 className="text-xl font-bold">Sign up for Acme Inc.</h1>
+            <h1 className="text-xl font-bold">Sign up for Volleyball Fest</h1>
           </div>
           <div className="flex flex-col gap-5">
             <div className="grid gap-2">
@@ -112,6 +125,18 @@ function SignupForm() {
                 name="confirm_password"
                 type="password"
                 placeholder="Confirm Password"
+                readOnly={isPending}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="invite_code">Invite Code</Label>
+              <Input
+                id="invite_code"
+                name="invite_code"
+                type="text"
+                placeholder="Enter invite code"
+                defaultValue={inviteFromUrl || ""}
                 readOnly={isPending}
                 required
               />

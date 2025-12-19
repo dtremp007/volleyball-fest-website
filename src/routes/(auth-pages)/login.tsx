@@ -58,9 +58,9 @@ function LoginForm() {
               <div className="flex h-8 w-8 items-center justify-center rounded-md">
                 <GalleryVerticalEnd className="size-6" />
               </div>
-              <span className="sr-only">Acme Inc.</span>
+              <span className="sr-only">Volleyball Fest</span>
             </a>
-            <h1 className="text-xl font-bold">Welcome back to Acme Inc.</h1>
+            <h1 className="text-xl font-bold">Welcome back to Volleyball Fest</h1>
           </div>
           <div className="flex flex-col gap-5">
             <div className="grid gap-2">
