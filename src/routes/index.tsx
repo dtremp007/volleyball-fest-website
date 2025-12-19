@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calendar, ChevronDown, ChevronRight, MapPin } from "lucide-react";
+import { Calendar, ChevronRight, MapPin } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "~/components/ui/badge";

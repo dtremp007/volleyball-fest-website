@@ -28,7 +28,7 @@ const validStateTransitions: Record<string, string[]> = {
 };
 
 export const seasonRouter = {
-  getAll: protectedProcedure.query(async () => {
+  getAll: publicProcedure.query(async () => {
     return await getSeasons(db);
   }),
 
