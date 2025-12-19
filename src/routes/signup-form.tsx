@@ -8,7 +8,6 @@ import z from "zod";
 import AvatarUpload from "~/components/avatar-upload";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -17,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   Field,
   FieldContent,
@@ -144,7 +144,7 @@ function SignupFormPage() {
   const logoValue = useStore(form.store, (state) => state.values.logoUrl);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-2 py-6">
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">Inscripción de Equipos</h1>
@@ -154,7 +154,9 @@ function SignupFormPage() {
             </Badge>
           )}
         </div>
-        <p className="sr-only">Proporciona los detalles de tu equipo, plantilla y disponibilidad.</p>
+        <p className="sr-only">
+          Proporciona los detalles de tu equipo, plantilla y disponibilidad.
+        </p>
       </div>
 
       <form
@@ -314,7 +316,9 @@ function SignupFormPage() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Teléfono del co-capitán</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>
+                        Teléfono del co-capitán
+                      </FieldLabel>
                       <Input
                         id={field.name}
                         name={field.name}
@@ -338,7 +342,8 @@ function SignupFormPage() {
           <CardHeader>
             <CardTitle>Jugadores</CardTitle>
             <CardDescription>
-              Agrega tu plantilla. Usa el menú desplegable para seleccionar la posición de cada jugador.
+              Agrega tu plantilla. Usa el menú desplegable para seleccionar la posición de
+              cada jugador.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -363,7 +368,7 @@ function SignupFormPage() {
                               <Field
                                 orientation="horizontal"
                                 data-invalid={invalid}
-                                className="flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:gap-4"
+                                className="flex-col gap-3 rounded-lg pb-4 md:flex-row md:items-center md:gap-4"
                               >
                                 <div className="flex w-full items-start gap-3">
                                   <FieldContent className="grid grid-cols-3 gap-3">
@@ -382,7 +387,7 @@ function SignupFormPage() {
                                       placeholder="Nombre completo"
                                       autoComplete="name"
                                     />
-                                    <div className="col-span-2">
+                                    <div className="col-span-3 md:col-span-2">
                                       <NativeSelect
                                         name={`${playerField.name}.position`}
                                         value={playerField.state.value.positionId}
@@ -406,6 +411,7 @@ function SignupFormPage() {
                                       name={`${playerField.name}.jerseyNumber`}
                                       value={playerField.state.value.jerseyNumber}
                                       type="number"
+                                      className="col-span-3 md:col-span-1"
                                       min={0}
                                       onBlur={() => playerField.handleBlur()}
                                       onChange={(e) =>
@@ -478,7 +484,9 @@ function SignupFormPage() {
                       field.state.meta.isTouched && !field.state.meta.isValid;
                     return (
                       <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>Fecha no disponible 1</FieldLabel>
+                        <FieldLabel htmlFor={field.name}>
+                          Fecha no disponible 1
+                        </FieldLabel>
                         <Input
                           id={field.name}
                           name={field.name}
@@ -500,7 +508,9 @@ function SignupFormPage() {
                       field.state.meta.isTouched && !field.state.meta.isValid;
                     return (
                       <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>Fecha no disponible 2</FieldLabel>
+                        <FieldLabel htmlFor={field.name}>
+                          Fecha no disponible 2
+                        </FieldLabel>
                         <Input
                           id={field.name}
                           name={field.name}
@@ -525,8 +535,8 @@ function SignupFormPage() {
                   return (
                     <Field data-invalid={isInvalid}>
                       <FieldLabel htmlFor={field.name}>
-                        ¿De dónde viene la mayoría del equipo? Tomaremos esto en
-                        cuenta al programar los juegos.
+                        ¿De dónde viene la mayoría del equipo? Tomaremos esto en cuenta al
+                        programar los juegos.
                       </FieldLabel>
                       <Textarea
                         id={field.name}
@@ -578,13 +588,21 @@ function SignupFormPage() {
                         <Checkbox
                           id={field.name}
                           checked={field.state.value}
-                          onCheckedChange={(checked) => field.handleChange(checked as boolean)}
+                          onCheckedChange={(checked) =>
+                            field.handleChange(checked as boolean)
+                          }
                           onBlur={field.handleBlur}
                           aria-invalid={isInvalid}
                         />
                         <div className="flex flex-col gap-1">
-                          <Label htmlFor={field.name} className="text-sm font-normal cursor-pointer">
-                            Acepto que la información proporcionada es correcta y será utilizada únicamente para la administración del torneo de voleibol. También acepto aparecer en cualquier medio de comunicación que se capture durante el evento.
+                          <Label
+                            htmlFor={field.name}
+                            className="cursor-pointer text-sm font-normal"
+                          >
+                            Acepto que la información proporcionada es correcta y será
+                            utilizada únicamente para la administración del torneo de
+                            voleibol. También acepto aparecer en cualquier medio de
+                            comunicación que se capture durante el evento.
                           </Label>
                           {isInvalid && <FieldError errors={field.state.meta.errors} />}
                         </div>
@@ -605,13 +623,21 @@ function SignupFormPage() {
                         <Checkbox
                           id={field.name}
                           checked={field.state.value}
-                          onCheckedChange={(checked) => field.handleChange(checked as boolean)}
+                          onCheckedChange={(checked) =>
+                            field.handleChange(checked as boolean)
+                          }
                           onBlur={field.handleBlur}
                           aria-invalid={isInvalid}
                         />
                         <div className="flex flex-col gap-1">
-                          <Label htmlFor={field.name} className="text-sm font-normal cursor-pointer">
-                            Entiendo que al inscribirme, el costo es de <strong>$3,500 MXN</strong> por equipo.
+                          <Label
+                            htmlFor={field.name}
+                            className="cursor-pointer text-sm font-normal"
+                          >
+                            <span>
+                              Entiendo que al inscribirme, el costo es de{" "}
+                              <strong>$3,500 MXN</strong> por equipo.
+                            </span>
                           </Label>
                           {isInvalid && <FieldError errors={field.state.meta.errors} />}
                         </div>
