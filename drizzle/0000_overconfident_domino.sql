@@ -51,6 +51,16 @@ CREATE TABLE `verification` (
 );
 --> statement-breakpoint
 CREATE INDEX `verification_identifier_idx` ON `verification` (`identifier`);--> statement-breakpoint
+CREATE TABLE `cms` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`value` text,
+	`value_type` text DEFAULT 'string' NOT NULL,
+	`meta` text,
+	`parent_id` text,
+	FOREIGN KEY (`parent_id`) REFERENCES `cms`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `matchup` (
 	`id` text PRIMARY KEY NOT NULL,
 	`team_a_id` text NOT NULL,
@@ -98,7 +108,8 @@ CREATE TABLE `season` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`start_date` text NOT NULL,
-	`end_date` text NOT NULL
+	`end_date` text NOT NULL,
+	`state` text DEFAULT 'draft' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `season_team` (
@@ -120,5 +131,6 @@ CREATE TABLE `team` (
 	`co_captain_phone` text NOT NULL,
 	`unavailable_dates` text NOT NULL,
 	`coming_from` text NOT NULL,
+	`notes` text,
 	FOREIGN KEY (`category_id`) REFERENCES `category`(`id`) ON UPDATE no action ON DELETE cascade
 );

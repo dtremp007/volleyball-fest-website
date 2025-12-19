@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1765998828120,
-      "tag": "0000_material_pet_avengers",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1766158800000,
-      "tag": "0001_add_season_state",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1766245200000,
-      "tag": "0002_add_cms_table",
+      "when": 1766163419580,
+      "tag": "0000_overconfident_domino",
       "breakpoints": true
     }
   ]

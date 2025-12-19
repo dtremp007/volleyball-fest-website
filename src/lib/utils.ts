@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { env } from "~/env/server";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -9,7 +10,7 @@ export function getUrl() {
   const base = (() => {
     if (typeof window !== "undefined") return "";
 
-    return `http://localhost:${process.env.PORT ?? 3000}`;
+    return env.VITE_BASE_URL;
   })();
 
   return `${base}/api/trpc`;

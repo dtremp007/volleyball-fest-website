@@ -21,6 +21,7 @@ const getDatabase = createServerOnlyFn(async () => {
 
     const client = createClient({
       url: env.DATABASE_URL,
+      authToken: env.DATABASE_AUTH_TOKEN,
     });
 
     return drizzle({ client, schema, casing: "snake_case" });
