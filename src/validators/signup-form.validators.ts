@@ -10,6 +10,7 @@ export const signupPositionEnum = z.enum([
 ]);
 
 export const signupFormSchema = z.object({
+  id: z.string().or(z.undefined()),
   seasonId: z.string(),
   name: z.string().min(2, "Team name is required"),
   logoUrl: z.string(),
@@ -21,19 +22,15 @@ export const signupFormSchema = z.object({
   players: z
     .array(
       z.object({
-        fullName: z.string().min(2, "Full name is required"),
+        name: z.string().min(2, "Full name is required"),
         jerseyNumber: z.string().min(1, "Jersey number is required"),
         positionId: z.string(),
       }),
     )
     .min(1, "Add at least 1 player"),
-  unavailableDates: z
-    .array(z.string())
-    .length(2, "Select exactly two dates")
-    .refine((dates) => dates.every((date) => Boolean(date)), {
-      message: "Both dates are required",
-    }),
+  unavailableDates: z.array(z.string()),
   comingFrom: z.string().min(2, "Tell us where the team is coming from"),
+  notes: z.string().nullable(),
 });
 
 export type SignupFormValues = z.infer<typeof signupFormSchema>;

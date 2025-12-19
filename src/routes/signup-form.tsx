@@ -1,10 +1,12 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Plus, Trash } from "lucide-react";
+import z from "zod";
 import AvatarUpload from "~/components/avatar-upload";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -28,42 +30,103 @@ import { Label } from "~/components/ui/label";
 import { NativeSelect } from "~/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { Textarea } from "~/components/ui/textarea";
+import type { SeasonState } from "~/lib/db/schema/team.schema";
 import { useTRPC } from "~/trpc/react";
 import { signupFormSchema } from "~/validators/signup-form.validators";
 
-
 export const Route = createFileRoute("/signup-form")({
   component: SignupFormPage,
+  errorComponent: SignupFormError,
+  validateSearch: z.object({
+    teamId: z.string().optional(),
+    returnTo: z.string().optional(),
+  }),
+  loaderDeps: ({ search }) => ({ teamId: search.teamId }),
+  beforeLoad: async ({ context }) => {
+    if (context.session) {
+      return { canEdit: true };
+    }
+
+    return { canEdit: false };
+  },
+  loader: async ({ context, deps }) => {
+    const categories = await context.queryClient.fetchQuery(
+      context.trpc.category.getAll.queryOptions(),
+    );
+    const positions = await context.queryClient.fetchQuery(
+      context.trpc.position.getAll.queryOptions(),
+    );
+
+    if (context.canEdit && deps.teamId) {
+      const team = await context.queryClient.fetchQuery(
+        context.trpc.team.getById.queryOptions({ id: deps.teamId }),
+      );
+      return {
+        team,
+        categories,
+        positions,
+      };
+    }
+
+    const season = await context.queryClient.fetchQuery(
+      context.trpc.season.getByState.queryOptions({ state: "signup_open" }),
+    );
+
+    return { team: null, season, categories, positions };
+  },
 });
 
 function SignupFormPage() {
   const trpc = useTRPC();
-  const { data: currentSeason } = useQuery(trpc.season.getCurrent.queryOptions());
-  const { data: categories } = useQuery(trpc.category.getAll.queryOptions());
-  const { data: positions } = useQuery(trpc.position.getAll.queryOptions());
+  const { season: currentSeason, categories, positions, team } = Route.useLoaderData();
+  const upsertMutation = useMutation(trpc.team.upsert.mutationOptions());
+  const navigate = useNavigate();
+  const router = useRouter();
+  const { returnTo } = Route.useSearch();
 
-  const signupMutation = useMutation(trpc.signupForm.submit.mutationOptions());
+  const seasonState = (currentSeason?.state ?? "draft") as SeasonState;
 
   const form = useForm({
     defaultValues: {
-      seasonId: currentSeason?.id ?? "",
-      name: "",
-      categoryId: categories?.[0]?.id ?? "",
-      logoUrl: "",
-      captainName: "",
-      captainPhone: "",
-      coCaptainName: "",
-      coCaptainPhone: "",
-      players: [{ fullName: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
-      unavailableDates: ["", ""],
-      comingFrom: "",
+      id: team?.id,
+      seasonId: currentSeason?.id ?? team?.season.id ?? "",
+      name: team?.name ?? "",
+      categoryId: team?.category.id ?? categories?.[0]?.id ?? "",
+      logoUrl: team?.logoUrl ?? "",
+      captainName: team?.captainName ?? "",
+      captainPhone: team?.captainPhone ?? "",
+      coCaptainName: team?.coCaptainName ?? "",
+      coCaptainPhone: team?.coCaptainPhone ?? "",
+      players: team?.players.map((player) => ({
+        name: player.name,
+        jerseyNumber: player.jerseyNumber,
+        positionId: player.position?.id ?? positions?.[0]?.id ?? "",
+      })) ?? [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
+      unavailableDates: team?.unavailableDates.split(",") ?? ["", ""],
+      comingFrom: team?.comingFrom ?? "",
+      notes: team?.notes,
     },
     validators: {
       onSubmit: signupFormSchema,
     },
+    onSubmitInvalid() {
+      // print errors
+      console.log(form.state.errors);
+      return;
+    },
     onSubmit: async ({ value, formApi }) => {
       try {
-        await signupMutation.mutateAsync(value);
+        await upsertMutation.mutateAsync({
+          ...value,
+          notes: value.notes ?? null,
+        });
+
+        router.invalidate();
+
+        if (returnTo) {
+          navigate({ to: returnTo });
+        }
+
         toast.success("Signup submitted!", {
           description: "We received your team signup details.",
         });
@@ -80,7 +143,14 @@ function SignupFormPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Volleyball Team Signup</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">Inscripción de Equipos</h1>
+          {seasonState === "signup_open" && (
+            <Badge className="bg-green-600 hover:bg-green-700">
+              Inscripciones Abiertas
+            </Badge>
+          )}
+        </div>
         <p className="sr-only">Provide your team details, roster, and availability.</p>
       </div>
 
@@ -103,7 +173,7 @@ function SignupFormPage() {
                   initialUrl={logoValue || undefined}
                   onUploadSuccess={(url) => form.setFieldValue("logoUrl", url)}
                   onUploadError={(message) => toast.error(message)}
-                  disabled={signupMutation.isPending}
+                  disabled={upsertMutation.isPending}
                 />
               </div>
               <form.Field
@@ -280,7 +350,7 @@ function SignupFormPage() {
                     <div className="flex flex-col gap-4">
                       {field.state.value.map((player, index) => (
                         <form.Field
-                          key={`${player.fullName}`}
+                          key={`${player.name}`}
                           name={`players[${index}]`}
                           children={(playerField) => {
                             const invalid =
@@ -295,14 +365,14 @@ function SignupFormPage() {
                                 <div className="flex w-full items-start gap-3">
                                   <FieldContent className="grid grid-cols-3 gap-3">
                                     <Input
-                                      name={`${playerField.name}.fullName`}
-                                      value={playerField.state.value.fullName}
+                                      name={`${playerField.name}.name`}
+                                      value={playerField.state.value.name}
                                       onBlur={() => playerField.handleBlur()}
                                       className="col-span-3"
                                       onChange={(e) =>
                                         playerField.handleChange({
                                           ...playerField.state.value,
-                                          fullName: e.target.value,
+                                          name: e.target.value,
                                         })
                                       }
                                       aria-invalid={invalid}
@@ -370,7 +440,7 @@ function SignupFormPage() {
                         size="sm"
                         onClick={() =>
                           field.pushValue({
-                            fullName: "",
+                            name: "",
                             jerseyNumber: "",
                             positionId: positions?.[0]?.id ?? "",
                           })
@@ -470,6 +540,29 @@ function SignupFormPage() {
                   );
                 }}
               />
+              <form.Field
+                name="notes"
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>Notes</FieldLabel>
+                      <Textarea
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value ?? ""}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        aria-invalid={isInvalid}
+                        placeholder="Notes"
+                        rows={3}
+                      />
+                      {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    </Field>
+                  );
+                }}
+              />
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex justify-end gap-3">
@@ -477,16 +570,40 @@ function SignupFormPage() {
               type="button"
               variant="outline"
               onClick={() => form.reset()}
-              disabled={signupMutation.isPending}
+              disabled={upsertMutation.isPending}
             >
-              Reset
+              Limpiar
             </Button>
-            <Button type="submit" disabled={signupMutation.isPending}>
-              {signupMutation.isPending ? "Submitting..." : "Submit signup"}
-            </Button>
+            <form.Subscribe
+              selector={(state) => [state.canSubmit, state.isSubmitting]}
+              children={([canSubmit, isSubmitting]) => (
+                <Button type="submit" disabled={!canSubmit}>
+                  {isSubmitting ? "Enviando..." : "Enviar inscripción"}
+                </Button>
+              )}
+            />
           </CardFooter>
         </Card>
       </form>
+    </div>
+  );
+}
+
+// let user know there is currently no signup form
+function SignupFormError() {
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">Inscripción de Equipos</h1>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Inscripciones Cerradas</CardTitle>
+          <CardDescription>
+            No hay inscripciones abiertas en este momento.
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   );
 }

@@ -3,9 +3,10 @@ import { z } from "zod";
 import { db } from "~/lib/db";
 import {
   copyTeamsToSeason,
-  createTeam,
+  getPublicTeamsBySeasonId,
   getTeamById,
   getTeamsBySeasonId,
+  upsertTeam,
 } from "~/lib/db/queries/team";
 
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
@@ -13,7 +14,9 @@ import { signupFormSchema } from "~/validators/signup-form.validators";
 
 export const teamRouter = {
   list: publicProcedure
-    .input(z.object({ seasonId: z.string().optional(), categoryId: z.string().optional() }))
+    .input(
+      z.object({ seasonId: z.string().optional(), categoryId: z.string().optional() }),
+    )
     .query(async ({ input }) => {
       if (!input.seasonId) {
         return [];
@@ -21,6 +24,15 @@ export const teamRouter = {
 
       const teams = await getTeamsBySeasonId(db, input.seasonId, input.categoryId);
       return teams;
+    }),
+
+  /**
+   * Public endpoint to get teams with full rosters (no sensitive data)
+   */
+  listPublic: publicProcedure
+    .input(z.object({ seasonId: z.string() }))
+    .query(async ({ input }) => {
+      return await getPublicTeamsBySeasonId(db, input.seasonId);
     }),
 
   getById: publicProcedure
@@ -36,22 +48,12 @@ export const teamRouter = {
       const result = await copyTeamsToSeason(db, input.teamIds, input.seasonId);
       return result;
     }),
-} satisfies TRPCRouterRecord;
-
-// Keep signupRouter for backwards compatibility
-export const signupRouter = {
-  submit: publicProcedure.input(signupFormSchema).mutation(async ({ input }) => {
-    // Transform form data to match database schema
+  upsert: publicProcedure.input(signupFormSchema).mutation(async ({ input }) => {
     const teamData = {
       ...input,
       unavailableDates: input.unavailableDates.join(","),
-      players: input.players.map((player) => ({
-        name: player.fullName,
-        jerseyNumber: player.jerseyNumber,
-        positionId: player.positionId,
-      })),
     };
-    await createTeam(db, teamData);
+    await upsertTeam(db, teamData);
     return { success: true };
   }),
 } satisfies TRPCRouterRecord;

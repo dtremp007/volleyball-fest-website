@@ -1,7 +1,8 @@
-import { desc, eq, gte } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
+import type { SeasonState } from "~/lib/db/schema/team.schema";
 
 export const getSeasons = async (db: Database) => {
   return await db.select().from(schema.season);
@@ -12,13 +13,12 @@ export const getSeasonById = async (db: Database, id: string) => {
   return season;
 };
 
-export const getCurrentSeason = async (db: Database) => {
-  const today = new Date().toISOString().split("T")[0];
+export const getSeasonByState = async (db: Database, state: SeasonState) => {
   const [season] = await db
     .select()
     .from(schema.season)
     .orderBy(desc(schema.season.startDate))
-    .where(gte(schema.season.endDate, today));
+    .where(eq(schema.season.state, state));
 
   return season;
 };
@@ -27,6 +27,7 @@ type CreateSeasonParams = {
   name: string;
   startDate: string;
   endDate: string;
+  state?: SeasonState;
 };
 
 export const createSeason = async (db: Database, params: CreateSeasonParams) => {
@@ -44,6 +45,7 @@ type UpdateSeasonParams = {
   name?: string;
   startDate?: string;
   endDate?: string;
+  state?: SeasonState;
 };
 
 export const updateSeason = async (
@@ -54,6 +56,15 @@ export const updateSeason = async (
   const [season] = await db
     .update(schema.season)
     .set(params)
+    .where(eq(schema.season.id, id))
+    .returning();
+  return season;
+};
+
+export const updateSeasonState = async (db: Database, id: string, state: SeasonState) => {
+  const [season] = await db
+    .update(schema.season)
+    .set({ state })
     .where(eq(schema.season.id, id))
     .returning();
   return season;

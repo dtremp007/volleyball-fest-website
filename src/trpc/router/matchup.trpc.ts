@@ -6,12 +6,31 @@ import {
   generateMatchupsForSeason,
   getEventsBySeasonId,
   getMatchupsBySeasonId,
+  getPublicSchedule,
   hasMatchupsForSeason,
   saveSchedule,
 } from "~/lib/db/queries/schedule";
-import { protectedProcedure } from "~/trpc/init";
+import { protectedProcedure, publicProcedure } from "~/trpc/init";
 
 export const matchupRouter = {
+  /**
+   * Public: Get schedule for public display
+   */
+  getPublicSchedule: publicProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        upcomingOnly: z.boolean().optional(),
+        limit: z.number().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      return await getPublicSchedule(db, input.seasonId, {
+        upcomingOnly: input.upcomingOnly,
+        limit: input.limit,
+      });
+    }),
+
   /**
    * Get all matchups and events for a season
    */

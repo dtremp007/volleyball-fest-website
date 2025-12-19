@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
@@ -217,4 +217,96 @@ export async function saveSchedule(db: Database, data: ScheduleData) {
       })
       .where(eq(schema.matchup.id, matchup.id));
   }
+}
+
+// ============== Public Schedule ==============
+
+export type PublicMatchup = {
+  id: string;
+  teamA: { name: string; logoUrl: string };
+  teamB: { name: string; logoUrl: string };
+  category: string;
+  courtId: string | null;
+  slotIndex: number | null;
+};
+
+export type PublicScheduleEvent = {
+  id: string;
+  name: string;
+  date: string;
+  matchups: PublicMatchup[];
+};
+
+/**
+ * Get public schedule for a season - upcoming events with their matchups
+ */
+export async function getPublicSchedule(
+  db: Database,
+  seasonId: string,
+  options?: { upcomingOnly?: boolean; limit?: number },
+) {
+  const { upcomingOnly = false, limit } = options ?? {};
+
+  // Build the query conditions
+  const conditions = [eq(schema.scheduleEvent.seasonId, seasonId)];
+
+  if (upcomingOnly) {
+    const today = new Date().toISOString().split("T")[0];
+    conditions.push(gte(schema.scheduleEvent.date, today));
+  }
+
+  // Get events
+  const eventsQuery = db
+    .select({
+      id: schema.scheduleEvent.id,
+      name: schema.scheduleEvent.name,
+      date: schema.scheduleEvent.date,
+    })
+    .from(schema.scheduleEvent)
+    .where(and(...conditions))
+    .orderBy(asc(schema.scheduleEvent.date));
+
+  const events = limit
+    ? await eventsQuery.limit(limit)
+    : await eventsQuery;
+
+  if (events.length === 0) return [];
+
+  // Get all matchups for these events
+  const eventIds = events.map((e) => e.id);
+  const matchups = await getMatchupsBySeasonId(db, seasonId);
+
+  // Filter to only scheduled matchups for these events
+  const scheduledMatchups = matchups.filter(
+    (m) => m.eventId && eventIds.includes(m.eventId),
+  );
+
+  // Group matchups by event
+  const matchupsByEvent = new Map<string, typeof scheduledMatchups>();
+  for (const matchup of scheduledMatchups) {
+    if (matchup.eventId) {
+      const existing = matchupsByEvent.get(matchup.eventId) ?? [];
+      existing.push(matchup);
+      matchupsByEvent.set(matchup.eventId, existing);
+    }
+  }
+
+  // Build the result with matchups grouped by event, sorted by slot
+  return events.map((event) => {
+    const eventMatchups = matchupsByEvent.get(event.id) ?? [];
+    // Sort by slot index
+    eventMatchups.sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0));
+
+    return {
+      ...event,
+      matchups: eventMatchups.map((m) => ({
+        id: m.id,
+        teamA: { name: m.teamA.name, logoUrl: m.teamA.logoUrl },
+        teamB: { name: m.teamB.name, logoUrl: m.teamB.logoUrl },
+        category: m.category,
+        courtId: m.courtId,
+        slotIndex: m.slotIndex,
+      })),
+    };
+  });
 }

@@ -19,6 +19,7 @@
     "auth:generate": "pnpm dlx @better-auth/cli@latest generate --config ./src/lib/auth/auth.ts --y --output ./src/lib/db/schema/auth.schema.ts && prettier --write ./src/lib/db/schema/auth.schema.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.954.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@libsql/client": "^0.15.15",
@@ -35,6 +36,7 @@
     "@react-pdf/renderer": "^4.3.1",
     "@t3-oss/env-core": "^0.13.8",
     "@tanstack/react-form": "^1.27.1",
+    "@tanstack/react-form-devtools": "^0.2.8",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.139.14",
     "@tanstack/react-router-ssr-query": "^1.139.14",

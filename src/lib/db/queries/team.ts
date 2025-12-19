@@ -7,14 +7,31 @@ const teamColumns = {
   id: schema.team.id,
   name: schema.team.name,
   logoUrl: schema.team.logoUrl,
-  category: schema.category.name,
   captainName: schema.team.captainName,
   captainPhone: schema.team.captainPhone,
   coCaptainName: schema.team.coCaptainName,
   coCaptainPhone: schema.team.coCaptainPhone,
   unavailableDates: schema.team.unavailableDates,
   comingFrom: schema.team.comingFrom,
-  season: schema.season.name,
+  season: {
+    id: schema.season.id,
+    name: schema.season.name,
+  },
+  notes: schema.team.notes,
+  category: {
+    id: schema.category.id,
+    name: schema.category.name,
+  }
+};
+
+const playerColumns = {
+  id: schema.player.id,
+  name: schema.player.name,
+  jerseyNumber: schema.player.jerseyNumber,
+  position: {
+    id: schema.position.id,
+    name: schema.position.name,
+  }
 };
 
 export const getTeams = async (db: Database) => {
@@ -40,12 +57,7 @@ export const getTeamById = async (db: Database, id: string) => {
   }
 
   const players = await db
-    .select({
-      id: schema.player.id,
-      name: schema.player.name,
-      jerseyNumber: schema.player.jerseyNumber,
-      position: schema.position.name,
-    })
+    .select(playerColumns)
     .from(schema.player)
     .where(eq(schema.player.teamId, id))
     .leftJoin(schema.position, eq(schema.player.positionId, schema.position.id));
@@ -73,7 +85,8 @@ export const getTeamsBySeasonId = async (
     .where(and(...conditions));
 };
 
-type CreateTeamParams = {
+type UpsertTeamParams = {
+  id?: string;
   name: string;
   logoUrl: string;
   categoryId: string;
@@ -91,9 +104,9 @@ type CreateTeamParams = {
   }[];
 };
 
-export const createTeam = async (db: Database, params: CreateTeamParams) => {
-  const { players, ...teamParams } = params;
-  const teamId = uuidv4();
+export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
+  const { id, players, ...teamParams } = params;
+  const teamId = id ?? uuidv4();
   const [team] = await Promise.all([
     await db
       .insert(schema.team)
@@ -101,7 +114,10 @@ export const createTeam = async (db: Database, params: CreateTeamParams) => {
         id: teamId,
         ...teamParams,
       })
-      .returning(),
+      .onConflictDoUpdate({
+        target: [schema.team.id],
+        set: teamParams,
+      }),
 
     // Add the team to the season
     await db
@@ -112,16 +128,21 @@ export const createTeam = async (db: Database, params: CreateTeamParams) => {
       })
       .onConflictDoNothing(),
 
-    // Add the players to the team
-    await db.insert(schema.player).values(
-      players.map((player) => ({
-        id: uuidv4(),
-        name: player.name,
-        jerseyNumber: player.jerseyNumber,
-        positionId: player.positionId,
-        teamId,
-      })),
-    ),
+    await db.transaction(async (tx) => {
+      // delete all players
+      await tx.delete(schema.player).where(eq(schema.player.teamId, teamId));
+
+      // Add the players to the team
+      await tx.insert(schema.player).values(
+        players.map((player) => ({
+          id: uuidv4(),
+          name: player.name,
+          jerseyNumber: player.jerseyNumber,
+          positionId: player.positionId,
+          teamId,
+        })),
+      );
+    }),
   ]);
 
   return team;
@@ -145,4 +166,78 @@ export const copyTeamsToSeason = async (
     .onConflictDoNothing();
 
   return { count: teamIds.length };
+};
+
+// Public columns - excludes sensitive captain info
+const publicTeamColumns = {
+  id: schema.team.id,
+  name: schema.team.name,
+  logoUrl: schema.team.logoUrl,
+  category: schema.category.name,
+  categoryId: schema.team.categoryId,
+};
+
+export type PublicTeam = {
+  id: string;
+  name: string;
+  logoUrl: string;
+  category: string;
+  categoryId: string | null;
+  players: {
+    id: string;
+    name: string;
+    jerseyNumber: string;
+    position: string | null;
+  }[];
+};
+
+/**
+ * Get all teams with players for public display (no sensitive data)
+ */
+export const getPublicTeamsBySeasonId = async (
+  db: Database,
+  seasonId: string,
+): Promise<PublicTeam[]> => {
+  // Get all teams for the season
+  const teams = await db
+    .select(publicTeamColumns)
+    .from(schema.team)
+    .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
+    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
+    .where(eq(schema.seasonTeam.seasonId, seasonId));
+
+  if (teams.length === 0) return [];
+
+  // Get all players for these teams
+  const teamIds = teams.map((t) => t.id);
+  const players = await db
+    .select({
+      id: schema.player.id,
+      name: schema.player.name,
+      jerseyNumber: schema.player.jerseyNumber,
+      position: schema.position.name,
+      teamId: schema.player.teamId,
+    })
+    .from(schema.player)
+    .leftJoin(schema.position, eq(schema.player.positionId, schema.position.id));
+
+  // Group players by team
+  const playersByTeam = new Map<string, typeof players>();
+  for (const player of players) {
+    if (player.teamId && teamIds.includes(player.teamId)) {
+      const existing = playersByTeam.get(player.teamId) ?? [];
+      existing.push(player);
+      playersByTeam.set(player.teamId, existing);
+    }
+  }
+
+  return teams.map((team) => ({
+    ...team,
+    players: (playersByTeam.get(team.id) ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      jerseyNumber: p.jerseyNumber,
+      position: p.position,
+    })),
+  }));
 };

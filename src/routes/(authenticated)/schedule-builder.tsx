@@ -30,6 +30,13 @@ import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/schedule-builder")({
   component: ScheduleBuilderPage,
+  loader: async ({ context }) => {
+    const seasons = await context.queryClient.fetchQuery(
+      context.trpc.season.getAll.queryOptions(),
+    );
+    const currentSeason = seasons.find((season) => !["completed", "draft"].includes(season.state)) || seasons[0];
+    return { currentSeason, seasons };
+  },
 });
 
 // Time slot generation utilities
@@ -95,20 +102,10 @@ function ScheduleBuilderSkeleton() {
 }
 
 function SeasonSelector() {
-  const trpc = useTRPC();
-  const { data: currentSeason } = useSuspenseQuery(trpc.season.getCurrent.queryOptions());
-  const { data: seasons } = useQuery(trpc.season.getAll.queryOptions());
+  const { currentSeason, seasons } = Route.useLoaderData();
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(currentSeason.id);
 
-  // Initialize with current season or first available
-  const defaultSeasonId = currentSeason?.id ?? seasons?.[0]?.id ?? null;
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(
-    defaultSeasonId,
-  );
-
-  // Update if currentSeason loads after initial render
-  const seasonId = selectedSeasonId ?? defaultSeasonId;
-
-  if (seasons?.length === 0) {
+  if (!selectedSeasonId) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <div className="text-muted-foreground text-center">
@@ -121,13 +118,13 @@ function SeasonSelector() {
     );
   }
 
-  if (!seasonId) {
+  if (!selectedSeasonId) {
     return <ScheduleBuilderSkeleton />;
   }
 
   return (
     <ScheduleBuilderContent
-      seasonId={seasonId}
+      seasonId={currentSeason.id}
       seasons={seasons ?? []}
       onSeasonChange={setSelectedSeasonId}
     />
@@ -594,7 +591,9 @@ function ScheduleBuilderContent({
           {/* Header */}
           <div className="bg-card flex items-center justify-between border-b p-4">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold tracking-tight text-nowrap">Schedule Builder</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-nowrap">
+                Schedule Builder
+              </h1>
               <NativeSelect
                 value={seasonId}
                 onChange={(e) => onSeasonChange(e.target.value)}

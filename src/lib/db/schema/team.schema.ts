@@ -1,11 +1,15 @@
 import { relations } from "drizzle-orm";
 import { primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export const seasonStateEnum = ["draft", "signup_open", "signup_closed", "active", "completed"] as const;
+export type SeasonState = (typeof seasonStateEnum)[number];
+
 export const season = sqliteTable("season", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
+  state: text("state").notNull().$type<SeasonState>().default("draft"),
 });
 
 export const category = sqliteTable("category", {
@@ -34,6 +38,7 @@ export const team = sqliteTable("team", {
   coCaptainPhone: text("co_captain_phone").notNull(),
   unavailableDates: text("unavailable_dates").notNull(),
   comingFrom: text("coming_from").notNull(),
+  notes: text("notes"),
 });
 
 export const player = sqliteTable("player", {

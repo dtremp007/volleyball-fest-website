@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupFormRouteImport } from './routes/signup-form'
+import { Route as EquiposRouteImport } from './routes/equipos'
 import { Route as authenticatedRouteRouteImport } from './routes/(authenticated)/route'
 import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiUploadImageRouteImport } from './routes/api/upload-image'
 import { Route as authenticatedSettingsRouteImport } from './routes/(authenticated)/settings'
 import { Route as authenticatedScheduleBuilderRouteImport } from './routes/(authenticated)/schedule-builder'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
@@ -29,6 +31,11 @@ const SignupFormRoute = SignupFormRouteImport.update({
   path: '/signup-form',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EquiposRoute = EquiposRouteImport.update({
+  id: '/equipos',
+  path: '/equipos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const authenticatedRouteRoute = authenticatedRouteRouteImport.update({
   id: '/(authenticated)',
   getParentRoute: () => rootRouteImport,
@@ -40,6 +47,11 @@ const authPagesRouteRoute = authPagesRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUploadImageRoute = ApiUploadImageRouteImport.update({
+  id: '/api/upload-image',
+  path: '/api/upload-image',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authenticatedSettingsRoute = authenticatedSettingsRouteImport.update({
@@ -99,12 +111,14 @@ const authenticatedTeamsTeamIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/equipos': typeof EquiposRoute
   '/signup-form': typeof SignupFormRoute
   '/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/settings': typeof authenticatedSettingsRoute
+  '/api/upload-image': typeof ApiUploadImageRoute
   '/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
@@ -113,11 +127,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/equipos': typeof EquiposRoute
   '/signup-form': typeof SignupFormRoute
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/settings': typeof authenticatedSettingsRoute
+  '/api/upload-image': typeof ApiUploadImageRoute
   '/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
@@ -129,12 +145,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/(auth-pages)': typeof authPagesRouteRouteWithChildren
   '/(authenticated)': typeof authenticatedRouteRouteWithChildren
+  '/equipos': typeof EquiposRoute
   '/signup-form': typeof SignupFormRoute
   '/(authenticated)/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
   '/(authenticated)/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/(authenticated)/settings': typeof authenticatedSettingsRoute
+  '/api/upload-image': typeof ApiUploadImageRoute
   '/(authenticated)/teams/$teamId': typeof authenticatedTeamsTeamIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
@@ -145,12 +163,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/equipos'
     | '/signup-form'
     | '/dashboard'
     | '/login'
     | '/signup'
     | '/schedule-builder'
     | '/settings'
+    | '/api/upload-image'
     | '/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
@@ -159,11 +179,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/equipos'
     | '/signup-form'
     | '/login'
     | '/signup'
     | '/schedule-builder'
     | '/settings'
+    | '/api/upload-image'
     | '/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
@@ -174,12 +196,14 @@ export interface FileRouteTypes {
     | '/'
     | '/(auth-pages)'
     | '/(authenticated)'
+    | '/equipos'
     | '/signup-form'
     | '/(authenticated)/dashboard'
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
     | '/(authenticated)/schedule-builder'
     | '/(authenticated)/settings'
+    | '/api/upload-image'
     | '/(authenticated)/teams/$teamId'
     | '/api/auth/$'
     | '/api/trpc/$'
@@ -191,7 +215,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   authPagesRouteRoute: typeof authPagesRouteRouteWithChildren
   authenticatedRouteRoute: typeof authenticatedRouteRouteWithChildren
+  EquiposRoute: typeof EquiposRoute
   SignupFormRoute: typeof SignupFormRoute
+  ApiUploadImageRoute: typeof ApiUploadImageRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
 }
@@ -203,6 +229,13 @@ declare module '@tanstack/react-router' {
       path: '/signup-form'
       fullPath: '/signup-form'
       preLoaderRoute: typeof SignupFormRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/equipos': {
+      id: '/equipos'
+      path: '/equipos'
+      fullPath: '/equipos'
+      preLoaderRoute: typeof EquiposRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(authenticated)': {
@@ -224,6 +257,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/upload-image': {
+      id: '/api/upload-image'
+      path: '/api/upload-image'
+      fullPath: '/api/upload-image'
+      preLoaderRoute: typeof ApiUploadImageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(authenticated)/settings': {
@@ -351,7 +391,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   authPagesRouteRoute: authPagesRouteRouteWithChildren,
   authenticatedRouteRoute: authenticatedRouteRouteWithChildren,
+  EquiposRoute: EquiposRoute,
   SignupFormRoute: SignupFormRoute,
+  ApiUploadImageRoute: ApiUploadImageRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
 }

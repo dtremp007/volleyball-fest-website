@@ -1,0 +1,47 @@
+{
+  "name": "Volleyball Fest",
+  "short_name": "VBFest",
+  "description": "La liga de voleibol más emocionante de Cuauhtémoc. Inscribe tu equipo y compite cada sábado.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait-primary",
+  "lang": "es-MX",
+  "categories": ["sports", "entertainment"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/hero.jpeg",
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Volleyball Fest - Liga de Voleibol"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import { TanStackDevtools } from "@tanstack/react-devtools";
+import { formDevtoolsPlugin } from "@tanstack/react-form-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import {
@@ -59,15 +60,57 @@ export const Route = createRootRouteWithContext<{
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#f59e0b" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       ...seo({
-        title: "kolm start",
+        title: "Volleyball Fest - Liga de Voleibol en Cuauhtémoc",
         description:
-          "TanStack Start starter with tRPC, Drizzle ORM, better-auth and TailwindCSS ",
+          "La liga de voleibol más emocionante de Cuauhtémoc. Inscribe tu equipo en nuestras categorías femenil y varonil. Partidos todos los sábados en el Gimnasio de Escuela Álvaro Obregón.",
+        keywords:
+          "voleibol, volleyball, liga, Cuauhtémoc, México, deportes, equipos, torneo",
+        image: "/hero.jpeg",
       }),
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.svg" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.json" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SportsOrganization",
+          name: "Volleyball Fest",
+          description: "La liga de voleibol más emocionante de Cuauhtémoc",
+          url: "https://volleyballfest.com",
+          sport: "Volleyball",
+          location: {
+            "@type": "Place",
+            name: "Gimnasio de Escuela Álvaro Obregón",
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: "Cuauhtémoc",
+              addressCountry: "MX",
+            },
+          },
+          event: {
+            "@type": "SportsEvent",
+            name: "Temporada Primavera 2025",
+            description: "Temporada de primavera con partidos cada sábado",
+            startDate: "2025-02-01",
+            endDate: "2025-05-31",
+            location: {
+              "@type": "Place",
+              name: "Gimnasio de Escuela Álvaro Obregón",
+            },
+          },
+        }),
+      },
     ],
   }),
   errorComponent: (props) => {
@@ -101,7 +144,7 @@ function Footer() {
                 Fest
               </span>
             </h3>
-            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex items-start gap-2 text-sm">
               <MapPin className="mt-0.5 size-4 shrink-0 text-amber-500" />
               <span>
                 Gimnasio de Escuela Álvaro Obregón
@@ -117,13 +160,19 @@ function Footer() {
             <nav className="flex flex-col gap-2 text-sm">
               <Link
                 to="/"
-                className="text-muted-foreground transition-colors hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 Inicio
               </Link>
+              <a
+                href="/equipos"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Equipos
+              </a>
               <Link
                 to="/signup-form"
-                className="text-muted-foreground transition-colors hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 Inscribir equipo
               </Link>
@@ -133,7 +182,7 @@ function Footer() {
           {/* Info */}
           <div className="space-y-4">
             <h4 className="font-semibold">Temporadas</h4>
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex flex-col gap-2 text-sm">
               <span>Primavera: Febrero - Mayo</span>
               <span>Otoño: Septiembre - Diciembre</span>
               <span>Torneo Relámpago: Mayo</span>
@@ -143,8 +192,10 @@ function Footer() {
 
         <Separator className="my-8" />
 
-        <div className="flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground md:flex-row">
-          <p>© {new Date().getFullYear()} Volleyball Fest. Todos los derechos reservados.</p>
+        <div className="text-muted-foreground flex flex-col items-center justify-between gap-4 text-sm md:flex-row">
+          <p>
+            © {new Date().getFullYear()} Volleyball Fest. Todos los derechos reservados.
+          </p>
           <p>Hecho con pasión por el voleibol</p>
         </div>
       </div>
@@ -154,18 +205,19 @@ function Footer() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body className="font-display flex min-h-screen flex-col antialiased">
+      <body className="font-display flex flex-col antialiased">
         <ThemeProvider>
-          {children}
+          <main className="flex-1 min-h-screen">{children}</main>
           <Footer />
           <Toaster richColors />
         </ThemeProvider>
         <TanStackDevtools
           plugins={[
+            formDevtoolsPlugin(),
             {
               name: "TanStack Query",
               render: <ReactQueryDevtoolsPanel />,

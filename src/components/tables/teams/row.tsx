@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { type Row, flexRender } from "@tanstack/react-table";
 import { TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
@@ -11,6 +11,7 @@ type Props = {
 export function TeamRow({ row }: Props) {
   "use no memo";
   const navigate = useNavigate();
+  const router = useRouter();
 
   const handleRowClick = (cellId: string, e: React.MouseEvent) => {
     // Don't navigate if clicking on checkbox or actions column
@@ -28,7 +29,8 @@ export function TeamRow({ row }: Props) {
       return;
     }
 
-    navigate({ to: "/teams/$teamId", params: { teamId: row.original.id } });
+    // return to current path
+    navigate({ to: "/signup-form", search: { teamId: row.original.id, returnTo: router.history.location.href } });
   };
 
   return (

@@ -17,10 +17,14 @@ export const Route = createFileRoute("/(authenticated)/teams/")({
   }),
   beforeLoad: async ({ search, context }) => {
     if (!search.seasonId) {
-      const currentSeason = await context.queryClient.fetchQuery(
-        context.trpc.season.getCurrent.queryOptions(),
+      const seasons = await context.queryClient.fetchQuery(
+        context.trpc.season.getAll.queryOptions(),
       );
-      throw redirect({ to: "/teams", search: { seasonId: currentSeason?.id } });
+      const currentSeason =
+        seasons.find((season) => !["completed", "draft"].includes(season.state)) ||
+        seasons[0];
+
+      throw redirect({ to: "/teams", search: { seasonId: currentSeason.id } });
     }
     return { seasonId: search.seasonId };
   },

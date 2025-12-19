@@ -5,20 +5,9 @@ import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { cn } from "~/lib/utils";
 import { ActionsMenu } from "./actions-menu";
+import type { RouterOutputs } from "~/trpc/router";
 
-export type Team = {
-  id: string;
-  name: string;
-  logoUrl: string;
-  category: string;
-  captainName: string;
-  captainPhone: string;
-  coCaptainName: string;
-  coCaptainPhone: string;
-  unavailableDates: string;
-  comingFrom: string;
-  season: string;
-};
+export type Team = RouterOutputs["team"]["list"][number];
 
 export const columns: ColumnDef<Team>[] = [
   {
@@ -77,8 +66,9 @@ export const columns: ColumnDef<Team>[] = [
     },
   },
   {
+    id: "category",
     header: "Category",
-    accessorKey: "category",
+    accessorKey: "category.name",
     meta: {
       className: "w-[150px] min-w-[150px]",
     },
