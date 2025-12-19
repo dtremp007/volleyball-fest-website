@@ -104,7 +104,7 @@ function SignupFormPage() {
       })) ?? [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
       unavailableDates: team?.unavailableDates.split(",") ?? ["", ""],
       comingFrom: team?.comingFrom,
-      notes: team?.notes,
+      notes: team?.notes || undefined,
     },
     validators: {
       onSubmit: signupFormSchema,
