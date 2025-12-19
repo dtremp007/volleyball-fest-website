@@ -107,7 +107,7 @@ function LandingPage() {
             {String(hero.title).includes(" ") ? (
               <>
                 {String(hero.title).split(" ")[0]}
-                <span className="block bg-linear-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
+                <span className="block text-[#C20A12]">
                   {String(hero.title).split(" ").slice(1).join(" ")}
                 </span>
               </>
@@ -123,7 +123,7 @@ function LandingPage() {
           </p>
 
           <div className="mb-10 flex items-center justify-center gap-2 text-zinc-400">
-            <MapPin className="size-5 text-amber-400" />
+            <MapPin className="size-5 text-[#C20A12]" />
             <span className="text-sm md:text-base">
               Gimnasio de Escuela Álvaro Obregón, Cuauhtémoc, Mexico
             </span>
@@ -134,7 +134,7 @@ function LandingPage() {
               <Button
                 asChild
                 size="lg"
-                className="bg-amber-500 px-8 text-base font-semibold text-black hover:bg-amber-400"
+                className="bg-[#C20A12] px-8 text-base font-semibold text-white hover:bg-[#C20A12]/90"
               >
                 <Link to="/signup-form">
                   {String(hero.ctaText)}
@@ -225,7 +225,7 @@ function LandingPage() {
             <Button
               asChild
               size="lg"
-              className="bg-amber-500 px-10 text-base font-semibold text-black hover:bg-amber-400"
+              className="bg-[#C20A12] px-10 text-base font-semibold text-white hover:bg-[#C20A12]/90"
             >
               <Link to="/signup-form">
                 Inscribe tu equipo ahora
