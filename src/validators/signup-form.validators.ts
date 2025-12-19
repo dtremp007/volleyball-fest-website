@@ -29,8 +29,8 @@ export const signupFormSchema = z.object({
     )
     .min(1, "Add at least 1 player"),
   unavailableDates: z.array(z.string()),
-  comingFrom: z.string().min(2, "Tell us where the team is coming from"),
-  notes: z.string().nullable(),
+  comingFrom: z.string().or(z.undefined()),
+  notes: z.string().or(z.undefined()),
 });
 
 export type SignupFormValues = z.infer<typeof signupFormSchema>;

@@ -103,7 +103,7 @@ function SignupFormPage() {
         positionId: player.position?.id ?? positions?.[0]?.id ?? "",
       })) ?? [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
       unavailableDates: team?.unavailableDates.split(",") ?? ["", ""],
-      comingFrom: team?.comingFrom ?? "",
+      comingFrom: team?.comingFrom,
       notes: team?.notes,
     },
     validators: {
@@ -118,7 +118,7 @@ function SignupFormPage() {
       try {
         await upsertMutation.mutateAsync({
           ...value,
-          notes: value.notes ?? null,
+          notes: value.notes ?? undefined,
         });
 
         router.invalidate();

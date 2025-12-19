@@ -8,18 +8,18 @@ import {
   getCategoryById,
   updateCategory,
 } from "~/lib/db/queries/category";
-import { protectedProcedure } from "~/trpc/init";
+import { protectedProcedure, publicProcedure } from "~/trpc/init";
 import {
   createCategorySchema,
   updateCategorySchema,
 } from "~/validators/category.validators";
 
 export const categoryRouter = {
-  getAll: protectedProcedure.query(async () => {
+  getAll: publicProcedure.query(async () => {
     return await getCategories(db);
   }),
 
-  getById: protectedProcedure
+  getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       return await getCategoryById(db, input.id);

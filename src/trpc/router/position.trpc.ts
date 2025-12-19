@@ -8,18 +8,18 @@ import {
   getPositions,
   updatePosition,
 } from "~/lib/db/queries/position";
-import { protectedProcedure } from "~/trpc/init";
+import { protectedProcedure, publicProcedure } from "~/trpc/init";
 import {
   createPositionSchema,
   updatePositionSchema,
 } from "~/validators/position.validators";
 
 export const positionRouter = {
-  getAll: protectedProcedure.query(async () => {
+  getAll: publicProcedure.query(async () => {
     return await getPositions(db);
   }),
 
-  getById: protectedProcedure
+  getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       return await getPositionById(db, input.id);

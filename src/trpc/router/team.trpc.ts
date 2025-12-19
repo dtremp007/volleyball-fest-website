@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "~/lib/db";
 import {
   copyTeamsToSeason,
+  deleteTeam,
   getPublicTeamsBySeasonId,
   getTeamById,
   getTeamsBySeasonId,
@@ -52,8 +53,14 @@ export const teamRouter = {
     const teamData = {
       ...input,
       unavailableDates: input.unavailableDates.join(","),
+      comingFrom: input.comingFrom ?? "",
     };
     await upsertTeam(db, teamData);
     return { success: true };
   }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      return await deleteTeam(db, input.id);
+    }),
 } satisfies TRPCRouterRecord;

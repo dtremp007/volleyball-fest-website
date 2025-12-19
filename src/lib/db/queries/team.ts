@@ -21,7 +21,7 @@ const teamColumns = {
   category: {
     id: schema.category.id,
     name: schema.category.name,
-  }
+  },
 };
 
 const playerColumns = {
@@ -31,7 +31,7 @@ const playerColumns = {
   position: {
     id: schema.position.id,
     name: schema.position.name,
-  }
+  },
 };
 
 export const getTeams = async (db: Database) => {
@@ -240,4 +240,13 @@ export const getPublicTeamsBySeasonId = async (
       position: p.position,
     })),
   }));
+};
+
+export const deleteTeam = async (db: Database, id: string) => {
+  await db.transaction(async (tx) => {
+    await tx.delete(schema.player).where(eq(schema.player.teamId, id));
+    await tx.delete(schema.team).where(eq(schema.team.id, id));
+  });
+
+  return { success: true };
 };
