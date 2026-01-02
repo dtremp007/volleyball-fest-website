@@ -16,14 +16,18 @@ import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiUploadImageRouteImport } from './routes/api/upload-image'
 import { Route as authenticatedSettingsRouteImport } from './routes/(authenticated)/settings'
-import { Route as authenticatedScheduleBuilderRouteImport } from './routes/(authenticated)/schedule-builder'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
 import { Route as authPagesLoginRouteImport } from './routes/(auth-pages)/login'
 import { Route as authenticatedDashboardRouteRouteImport } from './routes/(authenticated)/dashboard/route'
 import { Route as authenticatedTeamsIndexRouteImport } from './routes/(authenticated)/teams/index'
+import { Route as authenticatedSeasonsIndexRouteImport } from './routes/(authenticated)/seasons/index'
 import { Route as authenticatedDashboardIndexRouteImport } from './routes/(authenticated)/dashboard/index'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
+import { Route as authenticatedSeasonsSeasonIdIndexRouteImport } from './routes/(authenticated)/seasons/$seasonId/index'
+import { Route as authenticatedSeasonsSeasonIdGenerateRouteImport } from './routes/(authenticated)/seasons/$seasonId/generate'
+import { Route as authenticatedSeasonsSeasonIdConfigureRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure'
+import { Route as authenticatedSeasonsSeasonIdBuildRouteImport } from './routes/(authenticated)/seasons/$seasonId/build'
 
 const SignupFormRoute = SignupFormRouteImport.update({
   id: '/signup-form',
@@ -58,12 +62,6 @@ const authenticatedSettingsRoute = authenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => authenticatedRouteRoute,
 } as any)
-const authenticatedScheduleBuilderRoute =
-  authenticatedScheduleBuilderRouteImport.update({
-    id: '/schedule-builder',
-    path: '/schedule-builder',
-    getParentRoute: () => authenticatedRouteRoute,
-  } as any)
 const authPagesSignupRoute = authPagesSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -85,6 +83,12 @@ const authenticatedTeamsIndexRoute = authenticatedTeamsIndexRouteImport.update({
   path: '/teams/',
   getParentRoute: () => authenticatedRouteRoute,
 } as any)
+const authenticatedSeasonsIndexRoute =
+  authenticatedSeasonsIndexRouteImport.update({
+    id: '/seasons/',
+    path: '/seasons/',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
 const authenticatedDashboardIndexRoute =
   authenticatedDashboardIndexRouteImport.update({
     id: '/',
@@ -101,6 +105,30 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const authenticatedSeasonsSeasonIdIndexRoute =
+  authenticatedSeasonsSeasonIdIndexRouteImport.update({
+    id: '/seasons/$seasonId/',
+    path: '/seasons/$seasonId/',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
+const authenticatedSeasonsSeasonIdGenerateRoute =
+  authenticatedSeasonsSeasonIdGenerateRouteImport.update({
+    id: '/seasons/$seasonId/generate',
+    path: '/seasons/$seasonId/generate',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
+const authenticatedSeasonsSeasonIdConfigureRoute =
+  authenticatedSeasonsSeasonIdConfigureRouteImport.update({
+    id: '/seasons/$seasonId/configure',
+    path: '/seasons/$seasonId/configure',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
+const authenticatedSeasonsSeasonIdBuildRoute =
+  authenticatedSeasonsSeasonIdBuildRouteImport.update({
+    id: '/seasons/$seasonId/build',
+    path: '/seasons/$seasonId/build',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,13 +137,17 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
-  '/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/settings': typeof authenticatedSettingsRoute
   '/api/upload-image': typeof ApiUploadImageRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard/': typeof authenticatedDashboardIndexRoute
+  '/seasons': typeof authenticatedSeasonsIndexRoute
   '/teams': typeof authenticatedTeamsIndexRoute
+  '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
+  '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
+  '/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
+  '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -123,13 +155,17 @@ export interface FileRoutesByTo {
   '/signup-form': typeof SignupFormRoute
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
-  '/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/settings': typeof authenticatedSettingsRoute
   '/api/upload-image': typeof ApiUploadImageRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard': typeof authenticatedDashboardIndexRoute
+  '/seasons': typeof authenticatedSeasonsIndexRoute
   '/teams': typeof authenticatedTeamsIndexRoute
+  '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
+  '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
+  '/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
+  '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,13 +177,17 @@ export interface FileRoutesById {
   '/(authenticated)/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
-  '/(authenticated)/schedule-builder': typeof authenticatedScheduleBuilderRoute
   '/(authenticated)/settings': typeof authenticatedSettingsRoute
   '/api/upload-image': typeof ApiUploadImageRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/(authenticated)/dashboard/': typeof authenticatedDashboardIndexRoute
+  '/(authenticated)/seasons/': typeof authenticatedSeasonsIndexRoute
   '/(authenticated)/teams/': typeof authenticatedTeamsIndexRoute
+  '/(authenticated)/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
+  '/(authenticated)/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
+  '/(authenticated)/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
+  '/(authenticated)/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -158,13 +198,17 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/signup'
-    | '/schedule-builder'
     | '/settings'
     | '/api/upload-image'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard/'
+    | '/seasons'
     | '/teams'
+    | '/seasons/$seasonId/build'
+    | '/seasons/$seasonId/configure'
+    | '/seasons/$seasonId/generate'
+    | '/seasons/$seasonId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -172,13 +216,17 @@ export interface FileRouteTypes {
     | '/signup-form'
     | '/login'
     | '/signup'
-    | '/schedule-builder'
     | '/settings'
     | '/api/upload-image'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard'
+    | '/seasons'
     | '/teams'
+    | '/seasons/$seasonId/build'
+    | '/seasons/$seasonId/configure'
+    | '/seasons/$seasonId/generate'
+    | '/seasons/$seasonId'
   id:
     | '__root__'
     | '/'
@@ -189,13 +237,17 @@ export interface FileRouteTypes {
     | '/(authenticated)/dashboard'
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
-    | '/(authenticated)/schedule-builder'
     | '/(authenticated)/settings'
     | '/api/upload-image'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/(authenticated)/dashboard/'
+    | '/(authenticated)/seasons/'
     | '/(authenticated)/teams/'
+    | '/(authenticated)/seasons/$seasonId/build'
+    | '/(authenticated)/seasons/$seasonId/configure'
+    | '/(authenticated)/seasons/$seasonId/generate'
+    | '/(authenticated)/seasons/$seasonId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -260,13 +312,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authenticatedSettingsRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }
-    '/(authenticated)/schedule-builder': {
-      id: '/(authenticated)/schedule-builder'
-      path: '/schedule-builder'
-      fullPath: '/schedule-builder'
-      preLoaderRoute: typeof authenticatedScheduleBuilderRouteImport
-      parentRoute: typeof authenticatedRouteRoute
-    }
     '/(auth-pages)/signup': {
       id: '/(auth-pages)/signup'
       path: '/signup'
@@ -295,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authenticatedTeamsIndexRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }
+    '/(authenticated)/seasons/': {
+      id: '/(authenticated)/seasons/'
+      path: '/seasons'
+      fullPath: '/seasons'
+      preLoaderRoute: typeof authenticatedSeasonsIndexRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
     '/(authenticated)/dashboard/': {
       id: '/(authenticated)/dashboard/'
       path: '/'
@@ -315,6 +367,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/(authenticated)/seasons/$seasonId/': {
+      id: '/(authenticated)/seasons/$seasonId/'
+      path: '/seasons/$seasonId'
+      fullPath: '/seasons/$seasonId'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdIndexRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
+    '/(authenticated)/seasons/$seasonId/generate': {
+      id: '/(authenticated)/seasons/$seasonId/generate'
+      path: '/seasons/$seasonId/generate'
+      fullPath: '/seasons/$seasonId/generate'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdGenerateRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
+    '/(authenticated)/seasons/$seasonId/configure': {
+      id: '/(authenticated)/seasons/$seasonId/configure'
+      path: '/seasons/$seasonId/configure'
+      fullPath: '/seasons/$seasonId/configure'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdConfigureRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
+    '/(authenticated)/seasons/$seasonId/build': {
+      id: '/(authenticated)/seasons/$seasonId/build'
+      path: '/seasons/$seasonId/build'
+      fullPath: '/seasons/$seasonId/build'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdBuildRouteImport
+      parentRoute: typeof authenticatedRouteRoute
     }
   }
 }
@@ -349,17 +429,29 @@ const authenticatedDashboardRouteRouteWithChildren =
 
 interface authenticatedRouteRouteChildren {
   authenticatedDashboardRouteRoute: typeof authenticatedDashboardRouteRouteWithChildren
-  authenticatedScheduleBuilderRoute: typeof authenticatedScheduleBuilderRoute
   authenticatedSettingsRoute: typeof authenticatedSettingsRoute
+  authenticatedSeasonsIndexRoute: typeof authenticatedSeasonsIndexRoute
   authenticatedTeamsIndexRoute: typeof authenticatedTeamsIndexRoute
+  authenticatedSeasonsSeasonIdBuildRoute: typeof authenticatedSeasonsSeasonIdBuildRoute
+  authenticatedSeasonsSeasonIdConfigureRoute: typeof authenticatedSeasonsSeasonIdConfigureRoute
+  authenticatedSeasonsSeasonIdGenerateRoute: typeof authenticatedSeasonsSeasonIdGenerateRoute
+  authenticatedSeasonsSeasonIdIndexRoute: typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 
 const authenticatedRouteRouteChildren: authenticatedRouteRouteChildren = {
   authenticatedDashboardRouteRoute:
     authenticatedDashboardRouteRouteWithChildren,
-  authenticatedScheduleBuilderRoute: authenticatedScheduleBuilderRoute,
   authenticatedSettingsRoute: authenticatedSettingsRoute,
+  authenticatedSeasonsIndexRoute: authenticatedSeasonsIndexRoute,
   authenticatedTeamsIndexRoute: authenticatedTeamsIndexRoute,
+  authenticatedSeasonsSeasonIdBuildRoute:
+    authenticatedSeasonsSeasonIdBuildRoute,
+  authenticatedSeasonsSeasonIdConfigureRoute:
+    authenticatedSeasonsSeasonIdConfigureRoute,
+  authenticatedSeasonsSeasonIdGenerateRoute:
+    authenticatedSeasonsSeasonIdGenerateRoute,
+  authenticatedSeasonsSeasonIdIndexRoute:
+    authenticatedSeasonsSeasonIdIndexRoute,
 }
 
 const authenticatedRouteRouteWithChildren =

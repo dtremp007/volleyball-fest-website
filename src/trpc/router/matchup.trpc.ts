@@ -2,6 +2,9 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod";
 import { db } from "~/lib/db";
 import {
+  autoScheduleMatchups,
+  configureGroupsAndGenerateMatchups,
+  createEvent,
   deleteMatchupsForSeason,
   generateMatchupsForSeason,
   getEventsBySeasonId,
@@ -37,10 +40,9 @@ export const matchupRouter = {
   getBySeasonId: protectedProcedure
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
-      const [matchups, events, hasMatchups] = await Promise.all([
+      const [matchups, events] = await Promise.all([
         getMatchupsBySeasonId(db, input.seasonId),
         getEventsBySeasonId(db, input.seasonId),
-        hasMatchupsForSeason(db, input.seasonId),
       ]);
 
       // Group matchups by category
@@ -58,7 +60,7 @@ export const matchupRouter = {
       const unscheduled = matchups.filter((m) => m.eventId === null);
 
       return {
-        hasMatchups,
+        hasMatchups: matchups.length > 0,
         matchups,
         matchupsByCategory,
         scheduled,
@@ -91,6 +93,37 @@ export const matchupRouter = {
 
       const count = await generateMatchupsForSeason(db, input.seasonId);
       return { generated: count };
+    }),
+
+  /**
+   * One-shot: Configure groups and generate matchups
+   * Takes all group configurations and team assignments, persists everything,
+   * and generates round-robin matchups in a single operation
+   */
+  generateWithGroups: protectedProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        categoryConfigs: z.array(
+          z.object({
+            categoryId: z.string(),
+            groups: z.array(
+              z.object({
+                name: z.string(),
+                teamIds: z.array(z.string()),
+              }),
+            ),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const result = await configureGroupsAndGenerateMatchups(
+        db,
+        input.seasonId,
+        input.categoryConfigs,
+      );
+      return result;
     }),
 
   /**
@@ -131,5 +164,51 @@ export const matchupRouter = {
     .mutation(async ({ input }) => {
       await saveSchedule(db, input);
       return { success: true };
+    }),
+
+  /**
+   * Generate schedule: create events from dates and auto-schedule matchups
+   * This will:
+   * 1. Generate matchups if they don't exist
+   * 2. Create events from the selected dates
+   * 3. Auto-schedule matchups across events and courts
+   */
+  generateSchedule: protectedProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        dates: z.array(z.string()), // Array of date strings (YYYY-MM-DD)
+        defaultStartTime: z.string(), // e.g., "4:15 PM"
+        gamesPerEvening: z.number().int().positive(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { seasonId, dates, gamesPerEvening } = input;
+
+      // Generate matchups if they don't exist
+      const hasMatchups = await hasMatchupsForSeason(db, seasonId);
+      if (!hasMatchups) {
+        await generateMatchupsForSeason(db, seasonId);
+      }
+
+      // Create events from dates
+      const eventIds: string[] = [];
+      for (const date of dates) {
+        const event = await createEvent(db, {
+          seasonId,
+          name: `Game Day ${date}`,
+          date,
+        });
+        eventIds.push(event.id);
+      }
+
+      // Auto-schedule matchups across events
+      await autoScheduleMatchups(db, seasonId, eventIds, gamesPerEvening);
+
+      return {
+        success: true,
+        eventsCreated: eventIds.length,
+        eventIds,
+      };
     }),
 } satisfies TRPCRouterRecord;

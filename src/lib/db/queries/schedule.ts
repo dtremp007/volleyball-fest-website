@@ -1,7 +1,50 @@
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, isNull } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
+
+// ============== Schedule Config ==============
+
+export async function getScheduleConfig(db: Database, seasonId: string) {
+  const [config] = await db
+    .select({
+      id: schema.scheduleConfig.id,
+      seasonId: schema.scheduleConfig.seasonId,
+      defaultStartTime: schema.scheduleConfig.defaultStartTime,
+      gamesPerEvening: schema.scheduleConfig.gamesPerEvening,
+    })
+    .from(schema.scheduleConfig)
+    .where(eq(schema.scheduleConfig.seasonId, seasonId))
+    .limit(1);
+
+  return config ?? null;
+}
+
+export async function upsertScheduleConfig(
+  db: Database,
+  params: {
+    seasonId: string;
+    defaultStartTime: string;
+    gamesPerEvening: number;
+  },
+) {
+  const existing = await getScheduleConfig(db, params.seasonId);
+
+  if (existing) {
+    await db
+      .update(schema.scheduleConfig)
+      .set({
+        defaultStartTime: params.defaultStartTime,
+        gamesPerEvening: params.gamesPerEvening,
+      })
+      .where(eq(schema.scheduleConfig.id, existing.id));
+    return { id: existing.id, ...params };
+  } else {
+    const id = uuidv4();
+    await db.insert(schema.scheduleConfig).values({ id, ...params });
+    return { id, ...params };
+  }
+}
 
 // ============== Events ==============
 
@@ -10,7 +53,7 @@ export async function getEventsBySeasonId(db: Database, seasonId: string) {
     .select({
       id: schema.scheduleEvent.id,
       name: schema.scheduleEvent.name,
-      date: schema.scheduleEvent.date,
+      date: schema.scheduleEvent.startTime,
       seasonId: schema.scheduleEvent.seasonId,
     })
     .from(schema.scheduleEvent)
@@ -22,7 +65,12 @@ export async function createEvent(
   params: { name: string; date: string; seasonId: string },
 ) {
   const id = uuidv4();
-  await db.insert(schema.scheduleEvent).values({ id, ...params });
+  await db.insert(schema.scheduleEvent).values({
+    id,
+    name: params.name,
+    startTime: params.date,
+    seasonId: params.seasonId,
+  });
   return { id, ...params };
 }
 
@@ -31,9 +79,16 @@ export async function updateEvent(
   id: string,
   params: { name?: string; date?: string },
 ) {
+  const updateData: { name?: string; startTime?: string } = {};
+  if (params.name !== undefined) {
+    updateData.name = params.name;
+  }
+  if (params.date !== undefined) {
+    updateData.startTime = params.date;
+  }
   await db
     .update(schema.scheduleEvent)
-    .set(params)
+    .set(updateData)
     .where(eq(schema.scheduleEvent.id, id));
 }
 
@@ -98,7 +153,7 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
 }
 
 export async function generateMatchupsForSeason(db: Database, seasonId: string) {
-  // Get all teams for this season grouped by category
+  // Get all teams for this season with their group assignments
   const teams = await db
     .select({
       id: schema.team.id,
@@ -106,23 +161,31 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
       logoUrl: schema.team.logoUrl,
       categoryId: schema.team.categoryId,
       category: schema.category.name,
+      groupId: schema.seasonTeam.groupId,
     })
     .from(schema.team)
     .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
     .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
     .where(eq(schema.seasonTeam.seasonId, seasonId));
 
-  // Group teams by category
-  const teamsByCategory = teams.reduce(
+  // Group teams by category and then by group
+  // Teams without a group are grouped together per category
+  const teamsByCategoryAndGroup = teams.reduce(
     (acc, team) => {
-      if (!acc[team.category]) acc[team.category] = [];
-      acc[team.category].push(team);
+      if (!acc[team.category]) {
+        acc[team.category] = {};
+      }
+      const groupKey = team.groupId ?? "__ungrouped__";
+      if (!acc[team.category][groupKey]) {
+        acc[team.category][groupKey] = [];
+      }
+      acc[team.category][groupKey].push(team);
       return acc;
     },
-    {} as Record<string, typeof teams>,
+    {} as Record<string, Record<string, typeof teams>>,
   );
 
-  // Generate round-robin matchups for each category
+  // Generate round-robin matchups for each category-group combination
   const matchupsToInsert: {
     id: string;
     teamAId: string;
@@ -130,15 +193,20 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
     seasonId: string;
   }[] = [];
 
-  for (const categoryTeams of Object.values(teamsByCategory)) {
-    for (let i = 0; i < categoryTeams.length; i++) {
-      for (let j = i + 1; j < categoryTeams.length; j++) {
-        matchupsToInsert.push({
-          id: uuidv4(),
-          teamAId: categoryTeams[i].id,
-          teamBId: categoryTeams[j].id,
-          seasonId,
-        });
+  for (const categoryGroups of Object.values(teamsByCategoryAndGroup)) {
+    for (const groupTeams of Object.values(categoryGroups)) {
+      // Only generate matchups if there are at least 2 teams in the group
+      if (groupTeams.length < 2) continue;
+
+      for (let i = 0; i < groupTeams.length; i++) {
+        for (let j = i + 1; j < groupTeams.length; j++) {
+          matchupsToInsert.push({
+            id: uuidv4(),
+            teamAId: groupTeams[i].id,
+            teamBId: groupTeams[j].id,
+            seasonId,
+          });
+        }
       }
     }
   }
@@ -162,6 +230,82 @@ export async function hasMatchupsForSeason(db: Database, seasonId: string) {
 
 export async function deleteMatchupsForSeason(db: Database, seasonId: string) {
   await db.delete(schema.matchup).where(eq(schema.matchup.seasonId, seasonId));
+}
+
+/**
+ * Auto-schedule matchups across events and courts
+ * Distributes matchups evenly across events, alternating between courts A and B
+ */
+export async function autoScheduleMatchups(
+  db: Database,
+  seasonId: string,
+  eventIds: string[],
+  gamesPerEvening: number,
+) {
+  // Get all unscheduled matchups
+  const unscheduledMatchups = await db
+    .select({
+      id: schema.matchup.id,
+    })
+    .from(schema.matchup)
+    .where(
+      and(
+        eq(schema.matchup.seasonId, seasonId),
+        isNull(schema.matchup.eventId),
+      ),
+    );
+
+  if (unscheduledMatchups.length === 0 || eventIds.length === 0) {
+    return;
+  }
+
+  const courts: ("A" | "B")[] = ["A", "B"];
+  const totalSlotsPerEvent = gamesPerEvening * courts.length; // 2 courts per event
+  const totalCapacity = eventIds.length * totalSlotsPerEvent;
+
+  if (unscheduledMatchups.length > totalCapacity) {
+    throw new Error(
+      `Cannot schedule ${unscheduledMatchups.length} matchups: only ${totalCapacity} slots available`,
+    );
+  }
+
+  // Distribute matchups across events and courts
+  const updates: Array<{
+    id: string;
+    eventId: string;
+    courtId: "A" | "B";
+    slotIndex: number;
+  }> = [];
+
+  let matchupIndex = 0;
+  for (const eventId of eventIds) {
+    for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
+      for (const courtId of courts) {
+        if (matchupIndex >= unscheduledMatchups.length) break;
+        updates.push({
+          id: unscheduledMatchups[matchupIndex].id,
+          eventId,
+          courtId,
+          slotIndex,
+        });
+        matchupIndex++;
+      }
+      if (matchupIndex >= unscheduledMatchups.length) break;
+    }
+    if (matchupIndex >= unscheduledMatchups.length) break;
+  }
+
+  // Batch update matchups
+  for (const update of updates) {
+    await db
+      .update(schema.matchup)
+      .set({
+        eventId: update.eventId,
+        courtId: update.courtId,
+        slotIndex: update.slotIndex,
+      })
+      .where(eq(schema.matchup.id, update.id));
+  }
 }
 
 // ============== Bulk Save ==============
@@ -200,7 +344,7 @@ export async function saveSchedule(db: Database, data: ScheduleData) {
       await db.insert(schema.scheduleEvent).values({
         id: event.id,
         name: event.name,
-        date: event.date,
+        startTime: event.date,
         seasonId,
       });
     }
@@ -217,6 +361,96 @@ export async function saveSchedule(db: Database, data: ScheduleData) {
       })
       .where(eq(schema.matchup.id, matchup.id));
   }
+}
+
+// ============== Configure Groups & Generate Matchups ==============
+
+type GroupConfig = {
+  categoryId: string;
+  groups: Array<{
+    name: string;
+    teamIds: string[];
+  }>;
+};
+
+/**
+ * One-shot function to configure groups and generate matchups
+ * 1. Deletes existing groups and matchups for the season
+ * 2. Creates new groups with team assignments
+ * 3. Generates round-robin matchups per group
+ */
+export async function configureGroupsAndGenerateMatchups(
+  db: Database,
+  seasonId: string,
+  categoryConfigs: GroupConfig[],
+) {
+  // Delete existing matchups for this season
+  await db.delete(schema.matchup).where(eq(schema.matchup.seasonId, seasonId));
+
+  // Delete existing groups for this season
+  await db.delete(schema.group).where(eq(schema.group.seasonId, seasonId));
+
+  // Clear all team group assignments for this season
+  await db
+    .update(schema.seasonTeam)
+    .set({ groupId: null })
+    .where(eq(schema.seasonTeam.seasonId, seasonId));
+
+  // Create groups and assign teams
+  const matchupsToInsert: Array<{
+    id: string;
+    teamAId: string;
+    teamBId: string;
+    seasonId: string;
+  }> = [];
+
+  for (const categoryConfig of categoryConfigs) {
+    for (const groupConfig of categoryConfig.groups) {
+      // Create the group
+      const groupId = uuidv4();
+      await db.insert(schema.group).values({
+        id: groupId,
+        name: groupConfig.name,
+        seasonId,
+        categoryId: categoryConfig.categoryId,
+      });
+
+      // Assign teams to this group
+      for (const teamId of groupConfig.teamIds) {
+        await db
+          .update(schema.seasonTeam)
+          .set({ groupId })
+          .where(
+            and(
+              eq(schema.seasonTeam.seasonId, seasonId),
+              eq(schema.seasonTeam.teamId, teamId),
+            ),
+          );
+      }
+
+      // Generate round-robin matchups for this group
+      const teamIds = groupConfig.teamIds;
+      if (teamIds.length >= 2) {
+        for (let i = 0; i < teamIds.length; i++) {
+          for (let j = i + 1; j < teamIds.length; j++) {
+            matchupsToInsert.push({
+              id: uuidv4(),
+              teamAId: teamIds[i],
+              teamBId: teamIds[j],
+              seasonId,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Bulk insert matchups
+  if (matchupsToInsert.length > 0) {
+    await db.insert(schema.matchup).values(matchupsToInsert);
+  }
+
+  return { matchupsGenerated: matchupsToInsert.length };
 }
 
 // ============== Public Schedule ==============
@@ -252,7 +486,7 @@ export async function getPublicSchedule(
 
   if (upcomingOnly) {
     const today = new Date().toISOString().split("T")[0];
-    conditions.push(gte(schema.scheduleEvent.date, today));
+    conditions.push(gte(schema.scheduleEvent.startTime, today));
   }
 
   // Get events
@@ -260,11 +494,11 @@ export async function getPublicSchedule(
     .select({
       id: schema.scheduleEvent.id,
       name: schema.scheduleEvent.name,
-      date: schema.scheduleEvent.date,
+      date: schema.scheduleEvent.startTime,
     })
     .from(schema.scheduleEvent)
     .where(and(...conditions))
-    .orderBy(asc(schema.scheduleEvent.date));
+    .orderBy(asc(schema.scheduleEvent.startTime));
 
   const events = limit
     ? await eventsQuery.limit(limit)

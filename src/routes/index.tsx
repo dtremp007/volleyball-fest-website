@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card } from "~/components/ui/card";
 import type { SeasonState } from "~/lib/db/schema/team.schema";
 import { cn } from "~/lib/utils";
 
@@ -67,11 +67,10 @@ const TIME_SLOTS = [
 ];
 
 function LandingPage() {
-  const { seasons, heroContent, schedule, currentSeason } = Route.useLoaderData();
+  const { heroContent, schedule, currentSeason } = Route.useLoaderData();
 
   const hero = heroContent ?? heroDefaults;
   const seasonState = (currentSeason?.state ?? "draft") as SeasonState;
-  const badgeConfig = seasonStateBadges[seasonState];
 
   // Show CTA only if signup is open or signup closed (late signup allowed)
   const showCta =
@@ -114,13 +113,6 @@ function LandingPage() {
             {hero.subtitle}
           </p>
 
-          <div className="mb-10 flex items-center justify-center gap-2 text-zinc-400">
-            <MapPin className="size-5" />
-            <span className="text-sm md:text-base">
-              Gimnasio de Escuela Álvaro Obregón, Cuauhtémoc, Mexico
-            </span>
-          </div>
-
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             {showCta ? (
               <Button asChild size="lg">
@@ -137,72 +129,6 @@ function LandingPage() {
       {/* Schedule Section */}
       {schedule && schedule.length > 0 ? <ScheduleSection schedule={schedule} /> : null}
 
-      {/* Seasons Section */}
-      <section className="bg-zinc-50 py-20 dark:bg-zinc-900/50">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 text-center">
-            <Badge variant="secondary" className="mb-4">
-              <Calendar className="mr-1 size-3" />
-              Calendario
-            </Badge>
-            <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-              Temporadas
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl">
-              Dos temporadas regulares al año más un emocionante torneo relámpago en mayo
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {seasons
-              .sort(
-                (a, b) =>
-                  new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
-              )
-              .map((season, index) => (
-                <Card
-                  key={season.id}
-                  className="group relative overflow-hidden transition-all hover:shadow-lg"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="absolute inset-0 bg-linear-to-br from-amber-500/5 to-orange-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
-                  <CardHeader>
-                    <div className="mb-2 flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className={
-                          season.id === "flash"
-                            ? "border-orange-500/50 text-orange-600 dark:text-orange-400"
-                            : "border-amber-500/50 text-amber-600 dark:text-amber-400"
-                        }
-                      >
-                        {/* get months, if in the same month, then just show that month */}
-                        {new Date(season.startDate).getMonth() ===
-                        new Date(season.endDate).getMonth() ? (
-                          new Date(season.startDate).toLocaleDateString("es-MX", {
-                            month: "long",
-                          })
-                        ) : (
-                          <>
-                            {new Date(season.startDate).toLocaleDateString("es-MX", {
-                              month: "long",
-                            })}{" "}
-                            -{" "}
-                            {new Date(season.endDate).toLocaleDateString("es-MX", {
-                              month: "long",
-                            })}
-                          </>
-                        )}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-xl">{season.name}</CardTitle>
-                  </CardHeader>
-                </Card>
-              ))}
-          </div>
-        </div>
-      </section>
-
       {/* Final CTA Section */}
       {showCta ? (
         <section className="relative overflow-hidden bg-zinc-900 py-20 dark:bg-zinc-950">
@@ -211,9 +137,11 @@ function LandingPage() {
             <h2 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-4xl">
               ¿Listo para jugar?
             </h2>
-            <p className="mx-auto mb-8 max-w-xl text-zinc-400">
-              Inscribe a tu equipo hoy y forma parte de la comunidad de voleibol más
-              activa de Cuauhtémoc
+            <p className="mx-auto mb-4 max-w-xl text-zinc-400">
+              Inscribe a tu equipo hoy.
+            </p>
+            <p className="mx-auto mb-8 text-2xl font-semibold text-white">
+              Costo: $3,500
             </p>
             <Button asChild size="lg">
               <Link to="/signup-form">

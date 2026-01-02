@@ -23,7 +23,7 @@ export function Layout() {
           links={[
             { label: "Dashboard", to: "/dashboard" },
             { label: "Teams", to: "/teams" },
-            { label: "Schedule Builder", to: "/schedule-builder" },
+            { label: "Seasons", to: "/seasons" },
             { label: "Settings", to: "/settings" },
           ]}
         />

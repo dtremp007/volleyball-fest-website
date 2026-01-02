@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronLeft, Search, Trophy, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "~/components/ui/badge";
@@ -77,30 +77,10 @@ function EquiposPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 py-16">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/20 via-transparent to-transparent" />
+      <section className="overflow-hidden py-16">
         <div className="relative mx-auto max-w-6xl px-6">
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="mb-6 text-zinc-400 hover:text-white"
-          >
-            <Link to="/">
-              <ChevronLeft className="mr-1 size-4" />
-              Volver al inicio
-            </Link>
-          </Button>
-
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-4 mt-16">
             <div>
-              <Badge
-                variant="outline"
-                className="mb-4 border-amber-400/50 bg-amber-400/10 text-amber-300"
-              >
-                <Trophy className="mr-1 size-3" />
-                {currentSeason?.name ?? "Temporada actual"}
-              </Badge>
               <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
                 Equipos
               </h1>
@@ -111,7 +91,7 @@ function EquiposPage() {
 
             {/* Search */}
             <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-500" />
               <Input
                 type="search"
                 placeholder="Buscar equipo o jugador..."
@@ -205,22 +185,19 @@ function TeamCard({ team }: { team: Team }) {
       <CardContent>
         {/* Roster */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Plantel</h4>
+          <h4 className="text-muted-foreground text-sm font-medium">Plantel</h4>
           {team.players.length > 0 ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {team.players
                 .sort((a, b) => parseInt(a.jerseyNumber) - parseInt(b.jerseyNumber))
                 .map((player) => (
-                  <div
-                    key={player.id}
-                    className="flex items-center gap-2 text-sm"
-                  >
+                  <div key={player.id} className="flex items-center gap-2 text-sm">
                     <span className="flex size-6 shrink-0 items-center justify-center rounded bg-amber-500/10 text-xs font-semibold text-amber-600 dark:text-amber-400">
                       {player.jerseyNumber}
                     </span>
                     <span className="truncate">{player.name}</span>
                     {player.position && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-muted-foreground text-xs">
                         ({player.position})
                       </span>
                     )}
@@ -228,9 +205,7 @@ function TeamCard({ team }: { team: Team }) {
                 ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No hay jugadores registrados
-            </p>
+            <p className="text-muted-foreground text-sm">No hay jugadores registrados</p>
           )}
         </div>
       </CardContent>
@@ -267,10 +242,7 @@ function TeamsSkeleton() {
                     <div className="bg-muted h-4 w-16 animate-pulse rounded" />
                     <div className="grid grid-cols-2 gap-2">
                       {[1, 2, 3, 4, 5, 6].map((j) => (
-                        <div
-                          key={j}
-                          className="bg-muted h-6 animate-pulse rounded"
-                        />
+                        <div key={j} className="bg-muted h-6 animate-pulse rounded" />
                       ))}
                     </div>
                   </div>
@@ -287,20 +259,20 @@ function TeamsSkeleton() {
 function EmptyState({ search }: { search: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
-        <Users className="size-8 text-muted-foreground" />
+      <div className="bg-muted mb-4 flex size-16 items-center justify-center rounded-full">
+        <Users className="text-muted-foreground size-8" />
       </div>
       {search ? (
         <>
           <h3 className="text-lg font-semibold">No se encontraron equipos</h3>
-          <p className="mt-1 text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             No hay equipos que coincidan con "{search}"
           </p>
         </>
       ) : (
         <>
           <h3 className="text-lg font-semibold">No hay equipos registrados</h3>
-          <p className="mt-1 text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Los equipos aparecerán aquí una vez que se inscriban
           </p>
         </>
