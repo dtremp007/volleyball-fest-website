@@ -42,6 +42,7 @@ export const Route = createFileRoute("/signup-form")({
     teamId: z.string().optional(),
     returnTo: z.string().optional(),
   }),
+  pendingComponent: SignupFormPending,
   loaderDeps: ({ search }) => ({ teamId: search.teamId }),
   beforeLoad: async ({ context }) => {
     if (context.session) {
@@ -51,12 +52,15 @@ export const Route = createFileRoute("/signup-form")({
     return { canEdit: false };
   },
   loader: async ({ context, deps }) => {
-    const categories = await context.queryClient.fetchQuery(
-      context.trpc.category.getAll.queryOptions(),
-    );
-    const positions = await context.queryClient.fetchQuery(
-      context.trpc.position.getAll.queryOptions(),
-    );
+    // wait 2 seconds
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const [categories, positions, season] = await Promise.all([
+      context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
+      context.queryClient.fetchQuery(context.trpc.position.getAll.queryOptions()),
+      context.queryClient.fetchQuery(
+        context.trpc.season.getByState.queryOptions({ state: "signup_open" }),
+      ),
+    ]);
 
     if (context.canEdit && deps.teamId) {
       const team = await context.queryClient.fetchQuery(
@@ -68,10 +72,6 @@ export const Route = createFileRoute("/signup-form")({
         positions,
       };
     }
-
-    const season = await context.queryClient.fetchQuery(
-      context.trpc.season.getByState.queryOptions({ state: "signup_open" }),
-    );
 
     return { team: null, season, categories, positions };
   },
@@ -668,6 +668,16 @@ function SignupFormPage() {
           </CardFooter>
         </Card>
       </form>
+    </div>
+  );
+}
+
+function SignupFormPending() {
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">Inscripción de Equipos</h1>
+      </div>
     </div>
   );
 }
