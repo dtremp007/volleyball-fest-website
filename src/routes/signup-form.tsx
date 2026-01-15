@@ -644,7 +644,7 @@ function SignupFormPage() {
               type="button"
               variant="outline"
               onClick={() => form.reset()}
-              disabled={upsertMutation.isPending || form.state.canSubmit}
+              disabled={upsertMutation.isPending}
             >
               Limpiar
             </Button>
