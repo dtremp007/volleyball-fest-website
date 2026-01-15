@@ -144,7 +144,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               { label: "Inscribir equipo", to: "/signup-form" },
             ]}
           />
-          <main className="min-h-screen flex-1 pt-16 md:pt-0">{children}</main>
+          <main className="min-h-screen flex-1 pt-16">{children}</main>
           <Footer />
           <Toaster richColors />
         </ThemeProvider>

@@ -6,7 +6,6 @@ import { useMutation } from "@tanstack/react-query";
 import { Plus, Trash } from "lucide-react";
 import z from "zod";
 import AvatarUpload from "~/components/avatar-upload";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -53,7 +52,6 @@ export const Route = createFileRoute("/signup-form")({
   },
   loader: async ({ context, deps }) => {
     // wait 2 seconds
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     const [categories, positions, season] = await Promise.all([
       context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
       context.queryClient.fetchQuery(context.trpc.position.getAll.queryOptions()),
@@ -84,8 +82,6 @@ function SignupFormPage() {
   const navigate = useNavigate();
   const router = useRouter();
   const { returnTo } = Route.useSearch();
-
-  const seasonState = (currentSeason?.state ?? "draft") as SeasonState;
 
   const form = useForm({
     defaultValues: {
@@ -148,11 +144,6 @@ function SignupFormPage() {
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">Inscripción de Equipos</h1>
-          {seasonState === "signup_open" && (
-            <Badge className="bg-green-600 hover:bg-green-700">
-              Inscripciones Abiertas
-            </Badge>
-          )}
         </div>
         <p className="sr-only">
           Proporciona los detalles de tu equipo, plantilla y disponibilidad.
@@ -653,7 +644,7 @@ function SignupFormPage() {
               type="button"
               variant="outline"
               onClick={() => form.reset()}
-              disabled={upsertMutation.isPending}
+              disabled={upsertMutation.isPending || form.state.canSubmit}
             >
               Limpiar
             </Button>
