@@ -21,7 +21,6 @@ export function Layout() {
       <HorizontalMenuLayout>
         <Menu
           links={[
-            { label: "Dashboard", to: "/dashboard" },
             { label: "Teams", to: "/teams" },
             { label: "Seasons", to: "/seasons" },
             { label: "Settings", to: "/settings" },
