@@ -311,7 +311,7 @@ export function TeamSheetDocument({ team }: Props) {
 
         {/* Footer */}
         <Text style={styles.footer}>
-          Generated on {new Date().toLocaleDateString()} • Volleyball Fest
+          Volleyball Fest
         </Text>
       </Page>
     </Document>
