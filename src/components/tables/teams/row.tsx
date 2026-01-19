@@ -1,7 +1,7 @@
-import { useNavigate, useRouter } from "@tanstack/react-router";
 import { type Row, flexRender } from "@tanstack/react-table";
 import { TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
+import { Route } from "~/routes/(authenticated)/teams";
 import type { Team } from "./columns";
 
 type Props = {
@@ -10,8 +10,7 @@ type Props = {
 
 export function TeamRow({ row }: Props) {
   "use no memo";
-  const navigate = useNavigate();
-  const router = useRouter();
+  const navigate = Route.useNavigate();
 
   const handleRowClick = (cellId: string, e: React.MouseEvent) => {
     // Don't navigate if clicking on checkbox or actions column
@@ -29,8 +28,8 @@ export function TeamRow({ row }: Props) {
       return;
     }
 
-    // return to current path
-    navigate({ to: "/signup-form", search: { teamId: row.original.id, returnTo: router.history.location.href } });
+    // Open the team details drawer
+    navigate({ search: (prev) => ({ ...prev, teamId: row.original.id }) });
   };
 
   return (

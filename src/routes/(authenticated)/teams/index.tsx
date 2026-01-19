@@ -4,6 +4,7 @@ import z from "zod";
 import {
   CategoryTabs,
   SeasonTabs,
+  TeamDetailsDrawer,
   TeamsDataTable,
   TeamsSkeleton,
 } from "~/components/tables/teams";
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/(authenticated)/teams/")({
   validateSearch: z.object({
     seasonId: z.string().optional(),
     categoryId: z.string().optional(),
+    teamId: z.string().optional(),
   }),
   beforeLoad: async ({ search, context }) => {
     if (!search.seasonId) {
@@ -55,6 +57,8 @@ function TeamsPage() {
       <Suspense fallback={<TeamsSkeleton />}>
         <TeamsDataTable />
       </Suspense>
+
+      <TeamDetailsDrawer />
     </div>
   );
 }
