@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Eye, Loader, MoreHorizontal, Trash2 } from "lucide-react";
+import { Eye, FileText, Loader, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -55,6 +55,17 @@ export function ActionsMenu({ team }: Props) {
               <Eye className="mr-2 size-4" />
               Edit Team
             </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a
+              href={`/api/team-pdf?id=${team.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center"
+            >
+              <FileText className="mr-2 size-4" />
+              View PDF
+            </a>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
