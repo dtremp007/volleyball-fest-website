@@ -66,6 +66,12 @@ export const columns: ColumnDef<Team>[] = [
     },
   },
   {
+    id: "categoryId",
+    accessorKey: "category.id",
+    enableHiding: true,
+    enableSorting: false,
+  },
+  {
     id: "category",
     header: "Category",
     accessorKey: "category.name",

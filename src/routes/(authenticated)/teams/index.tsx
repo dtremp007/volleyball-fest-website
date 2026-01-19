@@ -46,10 +46,6 @@ function TeamsPage() {
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
         <Suspense fallback={<TabsSkeleton />}>
-          <SeasonTabs />
-        </Suspense>
-
-        <Suspense fallback={<TabsSkeleton />}>
           <CategoryTabs />
         </Suspense>
       </div>

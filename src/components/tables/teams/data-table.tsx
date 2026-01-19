@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
+  type ColumnFiltersState,
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
@@ -8,6 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Table,
@@ -20,21 +22,31 @@ import { Route } from "~/routes/(authenticated)/teams";
 import { useTRPC } from "~/trpc/react";
 import { BottomBarWrapper } from "./bottom-bar";
 import { columns } from "./columns";
-import { EmptyState } from "./empty-states";
+import { EmptyState, NoResults } from "./empty-states";
 import { TeamRow } from "./row";
 import { TableHeader } from "./table-header";
 
 export function TeamsDataTable() {
   "use no memo";
   const trpc = useTRPC();
+  const navigate = useNavigate();
   const { seasonId, categoryId } = Route.useSearch();
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    categoryId: false, // Hidden column used only for filtering
+  });
 
+  // Fetch all teams for the season (no categoryId filter)
   const { data: teams } = useSuspenseQuery(
-    trpc.team.list.queryOptions({ seasonId, categoryId }),
+    trpc.team.list.queryOptions({ seasonId }),
+  );
+
+  // Compute column filters from URL search params
+  const columnFilters: ColumnFiltersState = useMemo(
+    () => (categoryId ? [{ id: "categoryId", value: categoryId }] : []),
+    [categoryId],
   );
 
   const tableData = useMemo(() => teams ?? [], [teams]);
@@ -53,6 +65,7 @@ export function TeamsDataTable() {
       sorting,
       rowSelection,
       columnVisibility,
+      columnFilters,
     },
   });
 
@@ -90,8 +103,19 @@ export function TeamsDataTable() {
     setRowSelection({});
   };
 
+  const handleClearFilters = () => {
+    navigate({ to: "/teams", search: { seasonId, categoryId: undefined } });
+  };
+
+  // No teams at all for this season
   if (!tableData.length) {
     return <EmptyState />;
+  }
+
+  // Teams exist but none match the current filter
+  const filteredRows = table.getFilteredRowModel().rows;
+  if (categoryId && filteredRows.length === 0) {
+    return <NoResults onClearFilters={handleClearFilters} />;
   }
 
   return (
@@ -113,7 +137,9 @@ export function TeamsDataTable() {
           <TableFooter>
             <TableRow>
               <TableCell colSpan={5}>Total teams</TableCell>
-              <TableCell className="text-right">{tableData.length}</TableCell>
+              <TableCell className="text-right">
+                {table.getFilteredRowModel().rows.length}
+              </TableCell>
             </TableRow>
           </TableFooter>
         </Table>

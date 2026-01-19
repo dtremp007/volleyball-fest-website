@@ -10,39 +10,41 @@ export function CategoryTabs() {
   const { data: categories } = useSuspenseQuery(trpc.category.getAll.queryOptions());
 
   return (
-    <nav
-      className="bg-muted inline-flex h-9 items-center justify-center rounded-lg p-1"
-      aria-label="Category tabs"
-    >
-      <Link
-        to="/teams"
-        search={{ seasonId, categoryId: undefined }}
-        className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          !categoryId
-            ? "bg-background text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground"
-        )}
+    <div className="max-w-full overflow-x-auto scrollbar-none">
+      <nav
+        className="bg-muted inline-flex h-9 items-center rounded-lg p-1"
+        aria-label="Category tabs"
       >
-        All
-      </Link>
-      {categories.map((category) => (
         <Link
-          key={category.id}
           to="/teams"
-          search={{ seasonId, categoryId: category.id }}
+          search={{ seasonId, categoryId: undefined }}
           className={cn(
-            "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
+            "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            categoryId === category.id
+            !categoryId
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {category.name}
+          All
         </Link>
-      ))}
-    </nav>
+        {categories.map((category) => (
+          <Link
+            key={category.id}
+            to="/teams"
+            search={{ seasonId, categoryId: category.id }}
+            className={cn(
+              "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              categoryId === category.id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {category.name}
+          </Link>
+        ))}
+      </nav>
+    </div>
   );
 }
