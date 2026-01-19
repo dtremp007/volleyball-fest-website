@@ -120,7 +120,7 @@ export function TeamsDataTable() {
 
   return (
     <div className="w-full">
-      <div className="border-border rounded-lg border">
+      <div className="border-border rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader
             table={table}

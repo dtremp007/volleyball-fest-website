@@ -60,7 +60,7 @@ export const columns: ColumnDef<Team>[] = [
               {name?.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <CellEditor value={name} />
+          <span className="pr-4">{name}</span>
         </div>
       );
     },
