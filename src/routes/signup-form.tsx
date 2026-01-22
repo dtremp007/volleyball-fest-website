@@ -82,6 +82,7 @@ function SignupFormPage() {
   const navigate = useNavigate();
   const router = useRouter();
   const { returnTo } = Route.useSearch();
+  const isEditing = Boolean(team?.id);
 
   const form = useForm({
     defaultValues: {
@@ -122,9 +123,18 @@ function SignupFormPage() {
 
         router.invalidate();
 
-        if (returnTo) {
-          navigate({ to: returnTo });
+        if (isEditing) {
+          if (returnTo) {
+            navigate({ to: returnTo });
+          }
+
+          toast.success("Inscripcion actualizada", {
+            description: "Hemos guardado los cambios del equipo.",
+          });
+          return;
         }
+
+        navigate({ to: "/signup-success" });
 
         toast.success("¡Inscripción enviada!", {
           description: "Hemos recibido los detalles de tu equipo.",

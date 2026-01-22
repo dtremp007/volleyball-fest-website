@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupFormRouteImport } from './routes/signup-form'
+import { Route as SignupSuccessRouteImport } from './routes/signup-success'
 import { Route as EquiposRouteImport } from './routes/equipos'
 import { Route as authenticatedRouteRouteImport } from './routes/(authenticated)/route'
 import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
@@ -33,6 +34,11 @@ import { Route as authenticatedSeasonsSeasonIdBuildRouteImport } from './routes/
 const SignupFormRoute = SignupFormRouteImport.update({
   id: '/signup-form',
   path: '/signup-form',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupSuccessRoute = SignupSuccessRouteImport.update({
+  id: '/signup-success',
+  path: '/signup-success',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquiposRoute = EquiposRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/equipos': typeof EquiposRoute
   '/signup-form': typeof SignupFormRoute
+  '/signup-success': typeof SignupSuccessRoute
   '/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/equipos': typeof EquiposRoute
   '/signup-form': typeof SignupFormRoute
+  '/signup-success': typeof SignupSuccessRoute
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/settings': typeof authenticatedSettingsRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/(authenticated)': typeof authenticatedRouteRouteWithChildren
   '/equipos': typeof EquiposRoute
   '/signup-form': typeof SignupFormRoute
+  '/signup-success': typeof SignupSuccessRoute
   '/(authenticated)/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/'
     | '/equipos'
     | '/signup-form'
+    | '/signup-success'
     | '/dashboard'
     | '/login'
     | '/signup'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/'
     | '/equipos'
     | '/signup-form'
+    | '/signup-success'
     | '/login'
     | '/signup'
     | '/settings'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/(authenticated)'
     | '/equipos'
     | '/signup-form'
+    | '/signup-success'
     | '/(authenticated)/dashboard'
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
@@ -268,6 +280,7 @@ export interface RootRouteChildren {
   authenticatedRouteRoute: typeof authenticatedRouteRouteWithChildren
   EquiposRoute: typeof EquiposRoute
   SignupFormRoute: typeof SignupFormRoute
+  SignupSuccessRoute: typeof SignupSuccessRoute
   ApiTeamPdfRoute: typeof ApiTeamPdfRoute
   ApiUploadImageRoute: typeof ApiUploadImageRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -281,6 +294,13 @@ declare module '@tanstack/react-router' {
       path: '/signup-form'
       fullPath: '/signup-form'
       preLoaderRoute: typeof SignupFormRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup-success': {
+      id: '/signup-success'
+      path: '/signup-success'
+      fullPath: '/signup-success'
+      preLoaderRoute: typeof SignupSuccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipos': {
@@ -483,6 +503,7 @@ const rootRouteChildren: RootRouteChildren = {
   authenticatedRouteRoute: authenticatedRouteRouteWithChildren,
   EquiposRoute: EquiposRoute,
   SignupFormRoute: SignupFormRoute,
+  SignupSuccessRoute: SignupSuccessRoute,
   ApiTeamPdfRoute: ApiTeamPdfRoute,
   ApiUploadImageRoute: ApiUploadImageRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
