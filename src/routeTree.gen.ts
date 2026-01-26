@@ -9,8 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupFormRouteImport } from './routes/signup-form'
 import { Route as SignupSuccessRouteImport } from './routes/signup-success'
+import { Route as SignupFormRouteImport } from './routes/signup-form'
 import { Route as EquiposRouteImport } from './routes/equipos'
 import { Route as authenticatedRouteRouteImport } from './routes/(authenticated)/route'
 import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
@@ -31,14 +31,14 @@ import { Route as authenticatedSeasonsSeasonIdGenerateRouteImport } from './rout
 import { Route as authenticatedSeasonsSeasonIdConfigureRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure'
 import { Route as authenticatedSeasonsSeasonIdBuildRouteImport } from './routes/(authenticated)/seasons/$seasonId/build'
 
-const SignupFormRoute = SignupFormRouteImport.update({
-  id: '/signup-form',
-  path: '/signup-form',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SignupSuccessRoute = SignupSuccessRouteImport.update({
   id: '/signup-success',
   path: '/signup-success',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupFormRoute = SignupFormRouteImport.update({
+  id: '/signup-form',
+  path: '/signup-form',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquiposRoute = EquiposRouteImport.update({
@@ -289,18 +289,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup-form': {
-      id: '/signup-form'
-      path: '/signup-form'
-      fullPath: '/signup-form'
-      preLoaderRoute: typeof SignupFormRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/signup-success': {
       id: '/signup-success'
       path: '/signup-success'
       fullPath: '/signup-success'
       preLoaderRoute: typeof SignupSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup-form': {
+      id: '/signup-form'
+      path: '/signup-form'
+      fullPath: '/signup-form'
+      preLoaderRoute: typeof SignupFormRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipos': {

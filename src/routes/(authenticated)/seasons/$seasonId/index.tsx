@@ -93,7 +93,7 @@ function SeasonOverviewPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
@@ -132,26 +132,6 @@ function SeasonOverviewPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{eventCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Schedule Progress</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {matchupCount > 0 ? (
-              <>
-                <p className="text-3xl font-bold">
-                  {Math.round((scheduledCount / matchupCount) * 100)}%
-                </p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  {scheduledCount} of {matchupCount} scheduled
-                </p>
-              </>
-            ) : (
-              <p className="text-muted-foreground text-sm">No matchups yet</p>
-            )}
           </CardContent>
         </Card>
       </div>
