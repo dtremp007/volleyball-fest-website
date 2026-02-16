@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -16,13 +16,14 @@ import {
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Route } from "~/routes/(authenticated)/teams";
 import { useTRPC } from "~/trpc/react";
 
 const routeApi = getRouteApi("/(authenticated)/teams/");
 
 export function TeamDetailsDrawer() {
   const { teamId } = routeApi.useSearch();
-  const navigate = useNavigate();
+  const navigate = Route.useNavigate();
   const trpc = useTRPC();
 
   const { data: team, isLoading } = useQuery({

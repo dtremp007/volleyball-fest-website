@@ -22,6 +22,7 @@ export const signupFormSchema = z.object({
   players: z
     .array(
       z.object({
+        id: z.string().optional(),
         name: z.string().min(2, "El nombre completo es requerido"),
         jerseyNumber: z.string().min(1, "El número de camiseta es requerido"),
         positionId: z.string(),

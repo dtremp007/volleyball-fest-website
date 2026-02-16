@@ -32,7 +32,7 @@ async function handleGetTeamPDF({ request }: { request: Request }) {
     const sanitizedName = team.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
     const filename = `${sanitizedName}_roster.pdf`;
 
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as unknown as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

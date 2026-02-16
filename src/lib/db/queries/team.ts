@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
@@ -85,6 +85,13 @@ export const getTeamsBySeasonId = async (
     .where(and(...conditions));
 };
 
+type UpsertPlayerInput = {
+  id?: string;
+  name: string;
+  jerseyNumber: string;
+  positionId: string;
+};
+
 type UpsertTeamParams = {
   id?: string;
   name: string;
@@ -97,18 +104,15 @@ type UpsertTeamParams = {
   unavailableDates: string;
   comingFrom: string;
   seasonId: string;
-  players: {
-    name: string;
-    jerseyNumber: string;
-    positionId: string;
-  }[];
+  players: UpsertPlayerInput[];
 };
 
 export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
   const { id, players, ...teamParams } = params;
   const teamId = id ?? uuidv4();
-  const [team] = await Promise.all([
-    await db
+
+  await db.transaction(async (tx) => {
+    await tx
       .insert(schema.team)
       .values({
         id: teamId,
@@ -117,24 +121,69 @@ export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
       .onConflictDoUpdate({
         target: [schema.team.id],
         set: teamParams,
-      }),
+      });
 
-    // Add the team to the season
-    await db
+    await tx
       .insert(schema.seasonTeam)
       .values({
         seasonId: params.seasonId,
         teamId,
       })
-      .onConflictDoNothing(),
+      .onConflictDoNothing();
 
-    await db.transaction(async (tx) => {
-      // delete all players
-      await tx.delete(schema.player).where(eq(schema.player.teamId, teamId));
+    const existingPlayers = await tx
+      .select({ id: schema.player.id, name: schema.player.name, jerseyNumber: schema.player.jerseyNumber, positionId: schema.player.positionId })
+      .from(schema.player)
+      .where(eq(schema.player.teamId, teamId));
 
-      // Add the players to the team
+    const existingById = new Map(existingPlayers.map((p) => [p.id, p]));
+    const submittedById = new Map<string, UpsertPlayerInput>();
+    for (const p of players) {
+      if (p.id) submittedById.set(p.id, p);
+    }
+
+    const toDelete: string[] = [];
+    for (const { id: playerId } of existingPlayers) {
+      if (!submittedById.has(playerId)) toDelete.push(playerId);
+    }
+
+    const toUpdate: UpsertPlayerInput[] = [];
+    const toInsert: UpsertPlayerInput[] = [];
+    for (const player of players) {
+      if (player.id) {
+        const existing = existingById.get(player.id);
+        if (!existing) {
+          throw new Error(`Player ${player.id} does not belong to team ${teamId}`);
+        }
+        const changed =
+          existing.name !== player.name ||
+          existing.jerseyNumber !== player.jerseyNumber ||
+          existing.positionId !== player.positionId;
+        if (changed) toUpdate.push(player);
+      } else {
+        toInsert.push(player);
+      }
+    }
+
+    if (toDelete.length > 0) {
+      await tx.delete(schema.player).where(inArray(schema.player.id, toDelete));
+    }
+
+    for (const player of toUpdate) {
+      if (!player.id) continue;
+      await tx
+        .update(schema.player)
+        .set({
+          name: player.name,
+          jerseyNumber: player.jerseyNumber,
+          positionId: player.positionId,
+        })
+        .where(eq(schema.player.id, player.id));
+    }
+
+    if (toInsert.length > 0) {
       await tx.insert(schema.player).values(
-        players.map((player) => ({
+        toInsert.map((player) => ({
           id: uuidv4(),
           name: player.name,
           jerseyNumber: player.jerseyNumber,
@@ -142,9 +191,10 @@ export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
           teamId,
         })),
       );
-    }),
-  ]);
+    }
+  });
 
+  const [team] = await db.select().from(schema.team).where(eq(schema.team.id, teamId));
   return team;
 };
 

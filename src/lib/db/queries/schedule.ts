@@ -471,6 +471,17 @@ export type PublicScheduleEvent = {
   matchups: PublicMatchup[];
 };
 
+export type EventWithMatchups = {
+  id: string;
+  name: string;
+  date: string;
+  season: {
+    id: string;
+    name: string;
+  };
+  matchups: PublicMatchup[];
+};
+
 /**
  * Get public schedule for a season - upcoming events with their matchups
  */
@@ -543,4 +554,53 @@ export async function getPublicSchedule(
       })),
     };
   });
+}
+
+/**
+ * Get a single event with all scheduled matchups for PDF/details views.
+ */
+export async function getEventWithMatchupsById(db: Database, eventId: string) {
+  const [event] = await db
+    .select({
+      id: schema.scheduleEvent.id,
+      name: schema.scheduleEvent.name,
+      date: schema.scheduleEvent.startTime,
+      seasonId: schema.scheduleEvent.seasonId,
+      seasonName: schema.season.name,
+    })
+    .from(schema.scheduleEvent)
+    .innerJoin(schema.season, eq(schema.scheduleEvent.seasonId, schema.season.id))
+    .where(eq(schema.scheduleEvent.id, eventId))
+    .limit(1);
+
+  if (!event) {
+    return null;
+  }
+
+  const seasonMatchups = await getMatchupsBySeasonId(db, event.seasonId);
+  const eventMatchups = seasonMatchups
+    .filter((matchup) => matchup.eventId === eventId)
+    .sort((a, b) => {
+      const slotCompare = (a.slotIndex ?? 999) - (b.slotIndex ?? 999);
+      if (slotCompare !== 0) return slotCompare;
+      return (a.courtId ?? "Z").localeCompare(b.courtId ?? "Z");
+    });
+
+  return {
+    id: event.id,
+    name: event.name,
+    date: event.date,
+    season: {
+      id: event.seasonId,
+      name: event.seasonName,
+    },
+    matchups: eventMatchups.map((matchup) => ({
+      id: matchup.id,
+      teamA: { name: matchup.teamA.name, logoUrl: matchup.teamA.logoUrl },
+      teamB: { name: matchup.teamB.name, logoUrl: matchup.teamB.logoUrl },
+      category: matchup.category,
+      courtId: matchup.courtId,
+      slotIndex: matchup.slotIndex,
+    })),
+  } satisfies EventWithMatchups;
 }

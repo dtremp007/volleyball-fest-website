@@ -1,5 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { Calendar, CalendarDays, Settings2, Swords, Users } from "lucide-react";
+import z from "zod";
+import { EventDetailsDrawer } from "../../../../components/tables/events/event-details-drawer";
+import { EventsDataTable, EventsSkeleton } from "../../../../components/tables/events";
+import { MatchupsDataTable, MatchupsSkeleton } from "../../../../components/tables/matchups";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -9,9 +14,14 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   component: SeasonOverviewPage,
+  validateSearch: z.object({
+    view: z.enum(["events", "matchups"]).optional(),
+    eventId: z.string().optional(),
+  }),
   loader: async ({ params, context }) => {
     const [matchupData, teams, season] = await Promise.all([
       context.queryClient.fetchQuery(
@@ -63,6 +73,8 @@ function formatDate(dateStr: string) {
 
 function SeasonOverviewPage() {
   const { seasonId } = Route.useParams();
+  const navigate = Route.useNavigate();
+  const { view = "events" } = Route.useSearch();
   const {
     season,
     matchupCount,
@@ -72,6 +84,17 @@ function SeasonOverviewPage() {
     unscheduledCount,
     teamCount,
   } = Route.useLoaderData();
+
+  const handleViewChange = (nextView: string) => {
+    if (nextView !== "events" && nextView !== "matchups") return;
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        view: nextView,
+        eventId: nextView === "events" ? prev.eventId : undefined,
+      }),
+    });
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -169,6 +192,33 @@ function SeasonOverviewPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Schedule</CardTitle>
+          <CardDescription>Browse events and matchups for this season</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Tabs value={view} onValueChange={handleViewChange}>
+            <TabsList>
+              <TabsTrigger value="events">Events</TabsTrigger>
+              <TabsTrigger value="matchups">Matchups</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {view === "events" ? (
+            <Suspense fallback={<EventsSkeleton />}>
+              <EventsDataTable seasonId={seasonId} />
+            </Suspense>
+          ) : (
+            <Suspense fallback={<MatchupsSkeleton />}>
+              <MatchupsDataTable seasonId={seasonId} />
+            </Suspense>
+          )}
+        </CardContent>
+      </Card>
+
+      <EventDetailsDrawer seasonId={seasonId} />
     </div>
   );
 }

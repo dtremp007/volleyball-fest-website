@@ -17,6 +17,7 @@ import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiUploadImageRouteImport } from './routes/api/upload-image'
 import { Route as ApiTeamPdfRouteImport } from './routes/api/team-pdf'
+import { Route as ApiEventPdfRouteImport } from './routes/api/event-pdf'
 import { Route as authenticatedSettingsRouteImport } from './routes/(authenticated)/settings'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
 import { Route as authPagesLoginRouteImport } from './routes/(auth-pages)/login'
@@ -67,6 +68,11 @@ const ApiUploadImageRoute = ApiUploadImageRouteImport.update({
 const ApiTeamPdfRoute = ApiTeamPdfRouteImport.update({
   id: '/api/team-pdf',
   path: '/api/team-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEventPdfRoute = ApiEventPdfRouteImport.update({
+  id: '/api/event-pdf',
+  path: '/api/event-pdf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authenticatedSettingsRoute = authenticatedSettingsRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/settings': typeof authenticatedSettingsRoute
+  '/api/event-pdf': typeof ApiEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
   '/api/upload-image': typeof ApiUploadImageRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/settings': typeof authenticatedSettingsRoute
+  '/api/event-pdf': typeof ApiEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
   '/api/upload-image': typeof ApiUploadImageRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
   '/(authenticated)/settings': typeof authenticatedSettingsRoute
+  '/api/event-pdf': typeof ApiEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
   '/api/upload-image': typeof ApiUploadImageRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/settings'
+    | '/api/event-pdf'
     | '/api/team-pdf'
     | '/api/upload-image'
     | '/api/auth/$'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/settings'
+    | '/api/event-pdf'
     | '/api/team-pdf'
     | '/api/upload-image'
     | '/api/auth/$'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
     | '/(authenticated)/settings'
+    | '/api/event-pdf'
     | '/api/team-pdf'
     | '/api/upload-image'
     | '/api/auth/$'
@@ -281,6 +293,7 @@ export interface RootRouteChildren {
   EquiposRoute: typeof EquiposRoute
   SignupFormRoute: typeof SignupFormRoute
   SignupSuccessRoute: typeof SignupSuccessRoute
+  ApiEventPdfRoute: typeof ApiEventPdfRoute
   ApiTeamPdfRoute: typeof ApiTeamPdfRoute
   ApiUploadImageRoute: typeof ApiUploadImageRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -343,6 +356,13 @@ declare module '@tanstack/react-router' {
       path: '/api/team-pdf'
       fullPath: '/api/team-pdf'
       preLoaderRoute: typeof ApiTeamPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/event-pdf': {
+      id: '/api/event-pdf'
+      path: '/api/event-pdf'
+      fullPath: '/api/event-pdf'
+      preLoaderRoute: typeof ApiEventPdfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(authenticated)/settings': {
@@ -504,6 +524,7 @@ const rootRouteChildren: RootRouteChildren = {
   EquiposRoute: EquiposRoute,
   SignupFormRoute: SignupFormRoute,
   SignupSuccessRoute: SignupSuccessRoute,
+  ApiEventPdfRoute: ApiEventPdfRoute,
   ApiTeamPdfRoute: ApiTeamPdfRoute,
   ApiUploadImageRoute: ApiUploadImageRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

@@ -30,7 +30,6 @@ import { Label } from "~/components/ui/label";
 import { NativeSelect } from "~/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { Textarea } from "~/components/ui/textarea";
-import type { SeasonState } from "~/lib/db/schema/team.schema";
 import { useTRPC } from "~/trpc/react";
 import { signupFormSchema } from "~/validators/signup-form.validators";
 
@@ -95,11 +94,15 @@ function SignupFormPage() {
       captainPhone: team?.captainPhone ?? "",
       coCaptainName: team?.coCaptainName ?? "",
       coCaptainPhone: team?.coCaptainPhone ?? "",
-      players: team?.players.map((player) => ({
-        name: player.name,
-        jerseyNumber: player.jerseyNumber,
-        positionId: player.position?.id ?? positions?.[0]?.id ?? "",
-      })) ?? [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
+      players:
+        team?.players.map((player) => ({
+          id: player.id,
+          name: player.name,
+          jerseyNumber: player.jerseyNumber,
+          positionId: player.position?.id ?? positions?.[0]?.id ?? "",
+        })) ?? [
+          { name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" },
+        ],
       unavailableDates: team?.unavailableDates.split(",") ?? ["", ""],
       comingFrom: team?.comingFrom,
       notes: team?.notes || undefined,
@@ -359,7 +362,7 @@ function SignupFormPage() {
                     <div className="flex flex-col gap-4">
                       {field.state.value.map((player, index) => (
                         <form.Field
-                          key={index}
+                          key={"id" in player && player.id ? player.id : `new-${index}`}
                           name={`players[${index}]`}
                           children={(playerField) => {
                             const invalid =
