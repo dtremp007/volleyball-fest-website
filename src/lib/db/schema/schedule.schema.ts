@@ -37,6 +37,7 @@ export const matchup = sqliteTable("matchup", {
   courtId: text("court_id"), // 'A' or 'B', null if unscheduled
   slotIndex: integer("slot_index"), // 0-based index for time slot, null if unscheduled
   duration: integer("duration").notNull().default(45), // in minutes
+  bestOf: integer("best_of").notNull().default(3),
 });
 
 // Relations

@@ -3,6 +3,7 @@ export type Team = {
   name: string;
   logoUrl: string;
   category: string;
+  unavailableDates?: string;
 };
 
 export type Matchup = {

@@ -73,13 +73,23 @@ export const position = sqliteTable("position", {
   name: text("name").notNull(),
 });
 
-export const points = sqliteTable("points", {
-  id: text("id").primaryKey(),
-  teamId: text("team_id").references(() => team.id, { onDelete: "cascade" }),
-  seasonId: text("season_id").references(() => season.id, { onDelete: "cascade" }),
-  matchupId: text("matchup_id").references(() => matchup.id, { onDelete: "cascade" }),
-  points: integer("points").notNull(),
-});
+export const points = sqliteTable(
+  "points",
+  {
+    teamId: text("team_id")
+      .notNull()
+      .references(() => team.id, { onDelete: "cascade" }),
+    seasonId: text("season_id")
+      .notNull()
+      .references(() => season.id, { onDelete: "cascade" }),
+    matchupId: text("matchup_id")
+      .notNull()
+      .references(() => matchup.id, { onDelete: "cascade" }),
+    // set: integer("set").notNull().default(1),
+    points: integer("points").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.matchupId, t.teamId] })],
+);
 
 // Relations
 

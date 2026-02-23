@@ -32,7 +32,11 @@ export function TeamRow({ row }: Props) {
         }
 
         // Open the team details drawer
-        navigate({ search: (prev) => ({ ...prev, teamId: row.original.id }) });
+        navigate({
+            search: (prev) => ({ ...prev, teamId: row.original.id }),
+            replace: true,
+            resetScroll: false,
+        });
     };
 
     return (

@@ -13,6 +13,7 @@ import {
 import { useTRPC } from "~/trpc/react";
 import { columns } from "./columns";
 import { EmptyMatchupsState } from "./empty-state";
+import { MatchupRowItem } from "./row";
 
 const TIME_SLOTS = [
   "4:15 PM",
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export function MatchupsDataTable({ seasonId }: Props) {
+  "use no memo";
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.matchup.getBySeasonId.queryOptions({ seasonId }));
 
@@ -51,6 +53,20 @@ export function MatchupsDataTable({ seasonId }: Props) {
         courtId: matchup.courtId,
         slotLabel,
         isScheduled: matchup.eventId !== null,
+        bestOf: matchup.bestOf,
+        teamASetsWon: matchup.teamASetsWon,
+        teamBSetsWon: matchup.teamBSetsWon,
+        setsSummary:
+          matchup.sets
+            .filter((setScore) => setScore.teamAScore !== null && setScore.teamBScore !== null)
+            .map((setScore) => `S${setScore.set} ${setScore.teamAScore}-${setScore.teamBScore}`)
+            .join(" | ") || "-",
+        winnerName:
+          matchup.teamASetsWon >= Math.floor(matchup.bestOf / 2) + 1
+            ? matchup.teamA.name
+            : matchup.teamBSetsWon >= Math.floor(matchup.bestOf / 2) + 1
+              ? matchup.teamB.name
+              : null,
       };
     })
     .sort((a, b) => {
@@ -67,6 +83,7 @@ export function MatchupsDataTable({ seasonId }: Props) {
     getRowId: (row) => row.id,
     getCoreRowModel: getCoreRowModel(),
   });
+  const leafColumnCount = table.getAllLeafColumns().length;
 
   if (!matchupRows.length) {
     return <EmptyMatchupsState />;
@@ -91,18 +108,12 @@ export function MatchupsDataTable({ seasonId }: Props) {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
+              <MatchupRowItem key={row.id} row={row} />
             ))}
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={4}>Total matchups</TableCell>
+              <TableCell colSpan={Math.max(leafColumnCount - 1, 1)}>Total matchups</TableCell>
               <TableCell className="font-medium tabular-nums text-right">{matchupRows.length}</TableCell>
             </TableRow>
           </TableFooter>

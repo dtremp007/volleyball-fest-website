@@ -1,5 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { env } from "~/env/server";
+import { formatUnavailableDates, parseUnavailableDates } from "~/lib/unavailable-dates";
 
 const styles = StyleSheet.create({
   page: {
@@ -209,6 +210,8 @@ type Props = {
 
 export function TeamSheetDocument({ team }: Props) {
   const hasPlayers = team.players.length > 0;
+  const unavailableDateValues = parseUnavailableDates(team.unavailableDates);
+  const unavailableDatesLabel = formatUnavailableDates(team.unavailableDates);
 
   return (
     <Document>
@@ -294,12 +297,12 @@ export function TeamSheetDocument({ team }: Props) {
               <Text style={styles.detailLabel}>Coming From</Text>
               <Text style={styles.detailValue}>{team.comingFrom || "Not specified"}</Text>
             </View>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Unavailable Dates</Text>
-              <Text style={styles.detailValue}>
-                {team.unavailableDates || "None specified"}
-              </Text>
-            </View>
+            {unavailableDateValues.length > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Unavailable Dates</Text>
+                <Text style={styles.detailValue}>{unavailableDatesLabel}</Text>
+              </View>
+            )}
             {team.notes && (
               <View style={[styles.detailItem, styles.notesSection]}>
                 <Text style={styles.detailLabel}>Notes</Text>

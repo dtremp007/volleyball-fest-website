@@ -11,16 +11,12 @@ export type MatchupRow = {
   courtId: string | null;
   slotLabel: string | null;
   isScheduled: boolean;
+  bestOf: number;
+  teamASetsWon: number;
+  teamBSetsWon: number;
+  setsSummary: string;
+  winnerName: string | null;
 };
-
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return "Unscheduled";
-  return new Date(dateStr).toLocaleDateString("es-MX", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export const columns: ColumnDef<MatchupRow>[] = [
   {
@@ -60,6 +56,33 @@ export const columns: ColumnDef<MatchupRow>[] = [
       className: "w-[120px] min-w-[120px]",
     },
     cell: ({ row }) => <span className="text-muted-foreground">{row.original.slotLabel ?? "-"}</span>,
+  },
+  {
+    header: "Scorecard",
+    accessorKey: "setsSummary",
+    meta: {
+      className: "w-[280px] min-w-[280px]",
+    },
+    cell: ({ row }) => (
+      <div className="space-y-0.5">
+        <div className="font-medium tabular-nums">
+          {row.original.teamASetsWon}-{row.original.teamBSetsWon} sets
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Bo{row.original.bestOf}: {row.original.setsSummary}
+        </div>
+      </div>
+    ),
+  },
+  {
+    header: "Winner",
+    accessorKey: "winnerName",
+    meta: {
+      className: "w-[180px] min-w-[180px]",
+    },
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.original.winnerName ?? "In progress"}</span>
+    ),
   },
   {
     header: "Status",

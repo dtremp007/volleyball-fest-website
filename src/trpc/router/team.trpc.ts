@@ -9,6 +9,7 @@ import {
   getTeamsBySeasonId,
   upsertTeam,
 } from "~/lib/db/queries/team";
+import { normalizeUnavailableDates } from "~/lib/unavailable-dates";
 
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
 import { signupFormSchema } from "~/validators/signup-form.validators";
@@ -52,7 +53,7 @@ export const teamRouter = {
   upsert: publicProcedure.input(signupFormSchema).mutation(async ({ input }) => {
     const teamData = {
       ...input,
-      unavailableDates: input.unavailableDates.join(","),
+      unavailableDates: normalizeUnavailableDates(input.unavailableDates),
       comingFrom: input.comingFrom ?? "",
     };
     await upsertTeam(db, teamData);

@@ -25,6 +25,7 @@ import {
   type TimeSlotData,
 } from "~/components/schedule-builder";
 import { Button } from "~/components/ui/button";
+import { isDateUnavailable } from "~/lib/unavailable-dates";
 import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/build")({
@@ -44,6 +45,16 @@ const START_MINUTE = 15;
 const SLOT_DURATION_MINUTES = 45;
 const DEFAULT_SLOTS_PER_COURT = 7;
 const AUTOSAVE_INTERVAL = 5000; // 5 seconds
+const MAX_GAMES_PER_EVENT = 2;
+
+function teamsOverlap(teamAId: string, teamBId: string, otherTeamAId: string, otherTeamBId: string) {
+  return (
+    teamAId === otherTeamAId ||
+    teamAId === otherTeamBId ||
+    teamBId === otherTeamAId ||
+    teamBId === otherTeamBId
+  );
+}
 
 function formatTime(hour: number, minute: number): string {
   const period = hour >= 12 ? "PM" : "AM";
@@ -418,8 +429,66 @@ function BuildPage() {
         const targetEvent = events.find((e) => e.id === eventId);
         const targetCourt = targetEvent?.courts.find((c) => c.id === courtId);
         const targetSlot = targetCourt?.slots.find((s) => s.id === slotId);
+        const targetSlotIndex = targetCourt?.slots.findIndex((s) => s.id === slotId) ?? -1;
 
+        if (!targetEvent || targetSlotIndex < 0) return;
         if (targetSlot?.matchup) return;
+
+        if (isDateUnavailable(matchup.teamA.unavailableDates ?? "", targetEvent.date)) {
+          toast.error(`${matchup.teamA.name} is unavailable on ${targetEvent.date}`);
+          return;
+        }
+
+        if (isDateUnavailable(matchup.teamB.unavailableDates ?? "", targetEvent.date)) {
+          toast.error(`${matchup.teamB.name} is unavailable on ${targetEvent.date}`);
+          return;
+        }
+
+        const scheduledInEvent = targetEvent.courts.flatMap((court) =>
+          court.slots.flatMap((slot, slotIndex) => {
+            if (!slot.matchup || slot.matchup.id === matchup.id) {
+              return [];
+            }
+            return [{ matchup: slot.matchup, slotIndex }];
+          }),
+        );
+
+        const slotConflict = scheduledInEvent.find(
+          (scheduled) =>
+            scheduled.slotIndex === targetSlotIndex &&
+            teamsOverlap(
+              matchup.teamA.id,
+              matchup.teamB.id,
+              scheduled.matchup.teamA.id,
+              scheduled.matchup.teamB.id,
+            ),
+        );
+        if (slotConflict) {
+          toast.error("A team cannot play two matches at the same time.");
+          return;
+        }
+
+        const teamAGamesInEvent =
+          scheduledInEvent.filter(
+            (scheduled) =>
+              scheduled.matchup.teamA.id === matchup.teamA.id ||
+              scheduled.matchup.teamB.id === matchup.teamA.id,
+          ).length + 1;
+        if (teamAGamesInEvent > MAX_GAMES_PER_EVENT) {
+          toast.error(`A team can only play ${MAX_GAMES_PER_EVENT} games per event.`);
+          return;
+        }
+
+        const teamBGamesInEvent =
+          scheduledInEvent.filter(
+            (scheduled) =>
+              scheduled.matchup.teamA.id === matchup.teamB.id ||
+              scheduled.matchup.teamB.id === matchup.teamB.id,
+          ).length + 1;
+        if (teamBGamesInEvent > MAX_GAMES_PER_EVENT) {
+          toast.error(`A team can only play ${MAX_GAMES_PER_EVENT} games per event.`);
+          return;
+        }
 
         if (source.type === "unscheduled") {
           setUnscheduledMatchups((prev) => prev.filter((m) => m.id !== matchup.id));

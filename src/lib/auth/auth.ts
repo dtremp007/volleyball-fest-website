@@ -1,4 +1,3 @@
-import { createServerOnlyFn } from "@tanstack/react-start";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -6,8 +5,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { env } from "~/env/server";
 import { db } from "~/lib/db";
 
-const getAuthConfig = createServerOnlyFn(() =>
-  betterAuth({
+export const auth = betterAuth({
     baseURL: env.VITE_BASE_URL,
     telemetry: {
       enabled: false,
@@ -48,7 +46,4 @@ const getAuthConfig = createServerOnlyFn(() =>
       // https://www.better-auth.com/docs/adapters/drizzle#joins-experimental
       joins: true,
     },
-  }),
-);
-
-export const auth = getAuthConfig();
+});

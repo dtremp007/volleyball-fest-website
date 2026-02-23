@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Calendar, CalendarDays, Settings2, Swords, Users } from "lucide-react";
 import z from "zod";
 import { EventDetailsDrawer } from "../../../../components/tables/events/event-details-drawer";
+import { MatchupDetailsDrawer } from "../../../../components/tables/matchups/matchup-details-drawer";
 import { EventsDataTable, EventsSkeleton } from "../../../../components/tables/events";
 import { MatchupsDataTable, MatchupsSkeleton } from "../../../../components/tables/matchups";
 import { Badge } from "~/components/ui/badge";
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   validateSearch: z.object({
     view: z.enum(["events", "matchups"]).optional(),
     eventId: z.string().optional(),
+    matchupId: z.string().optional(),
   }),
   loader: async ({ params, context }) => {
     const [matchupData, teams, season] = await Promise.all([
@@ -92,6 +94,7 @@ function SeasonOverviewPage() {
         ...prev,
         view: nextView,
         eventId: nextView === "events" ? prev.eventId : undefined,
+        matchupId: nextView === "matchups" ? prev.matchupId : undefined,
       }),
     });
   };
@@ -219,6 +222,7 @@ function SeasonOverviewPage() {
       </Card>
 
       <EventDetailsDrawer seasonId={seasonId} />
+      <MatchupDetailsDrawer seasonId={seasonId} />
     </div>
   );
 }

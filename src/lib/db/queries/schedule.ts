@@ -1,7 +1,8 @@
-import { and, asc, eq, gte, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
+import { isDateUnavailable } from "~/lib/unavailable-dates";
 
 // ============== Schedule Config ==============
 
@@ -115,8 +116,10 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       eventId: schema.matchup.eventId,
       courtId: schema.matchup.courtId,
       slotIndex: schema.matchup.slotIndex,
+      bestOf: schema.matchup.bestOf,
       teamAName: schema.team.name,
       teamALogo: schema.team.logoUrl,
+      teamAUnavailableDates: schema.team.unavailableDates,
     })
     .from(schema.matchup)
     .innerJoin(schema.team, eq(schema.matchup.teamAId, schema.team.id))
@@ -128,6 +131,7 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       matchupId: schema.matchup.id,
       teamBName: schema.team.name,
       teamBLogo: schema.team.logoUrl,
+      teamBUnavailableDates: schema.team.unavailableDates,
       category: schema.category.name,
     })
     .from(schema.matchup)
@@ -136,20 +140,144 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
     .where(eq(schema.matchup.seasonId, seasonId));
 
   const teamBMap = new Map(teamBInfo.map((t) => [t.matchupId, t]));
+  const pointRows = await db
+    .select({
+      matchupId: schema.points.matchupId,
+      teamId: schema.points.teamId,
+      set: schema.points.set,
+      score: schema.points.points,
+    })
+    .from(schema.points)
+    .where(eq(schema.points.seasonId, seasonId));
+
+  const pointRowsByMatchup = pointRows.reduce(
+    (acc, row) => {
+      const existing = acc.get(row.matchupId) ?? [];
+      existing.push(row);
+      acc.set(row.matchupId, existing);
+      return acc;
+    },
+    new Map<string, typeof pointRows>(),
+  );
 
   return matchups.map((m) => {
     const teamB = teamBMap.get(m.id);
+    const matchupPointRows = pointRowsByMatchup.get(m.id) ?? [];
+    const bySet = new Map<number, { teamAScore: number | null; teamBScore: number | null }>();
+
+    for (const row of matchupPointRows) {
+      const setScore = bySet.get(row.set) ?? { teamAScore: null, teamBScore: null };
+      if (row.teamId === m.teamAId) {
+        setScore.teamAScore = row.score;
+      }
+      if (row.teamId === m.teamBId) {
+        setScore.teamBScore = row.score;
+      }
+      bySet.set(row.set, setScore);
+    }
+
+    const sets = Array.from(bySet.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([set, score]) => ({
+        set,
+        teamAScore: score.teamAScore,
+        teamBScore: score.teamBScore,
+      }));
+
+    const teamASetsWon = sets.reduce((acc, score) => {
+      if (score.teamAScore === null || score.teamBScore === null) return acc;
+      return score.teamAScore > score.teamBScore ? acc + 1 : acc;
+    }, 0);
+    const teamBSetsWon = sets.reduce((acc, score) => {
+      if (score.teamAScore === null || score.teamBScore === null) return acc;
+      return score.teamBScore > score.teamAScore ? acc + 1 : acc;
+    }, 0);
+
     return {
       id: m.id,
-      teamA: { id: m.teamAId, name: m.teamAName, logoUrl: m.teamALogo },
-      teamB: { id: m.teamBId, name: teamB?.teamBName ?? "", logoUrl: teamB?.teamBLogo ?? "" },
+      teamA: {
+        id: m.teamAId,
+        name: m.teamAName,
+        logoUrl: m.teamALogo,
+        unavailableDates: m.teamAUnavailableDates,
+      },
+      teamB: {
+        id: m.teamBId,
+        name: teamB?.teamBName ?? "",
+        logoUrl: teamB?.teamBLogo ?? "",
+        unavailableDates: teamB?.teamBUnavailableDates ?? "",
+      },
       category: teamB?.category ?? "",
       seasonId: m.seasonId,
       eventId: m.eventId,
       courtId: m.courtId,
       slotIndex: m.slotIndex,
+      bestOf: m.bestOf,
+      sets,
+      teamASetsWon,
+      teamBSetsWon,
+      hasScores: sets.some((score) => score.teamAScore !== null && score.teamBScore !== null),
     };
   });
+}
+
+export async function saveMatchupScorecard(
+  db: Database,
+  params: {
+    seasonId: string;
+    matchupId: string;
+    bestOf: number;
+    sets: Array<{
+      set: number;
+      teamAScore: number;
+      teamBScore: number;
+    }>;
+  },
+) {
+  const [matchupRow] = await db
+    .select({
+      id: schema.matchup.id,
+      seasonId: schema.matchup.seasonId,
+      teamAId: schema.matchup.teamAId,
+      teamBId: schema.matchup.teamBId,
+    })
+    .from(schema.matchup)
+    .where(eq(schema.matchup.id, params.matchupId))
+    .limit(1);
+
+  if (!matchupRow || matchupRow.seasonId !== params.seasonId) {
+    throw new Error("Matchup not found");
+  }
+
+  await db
+    .update(schema.matchup)
+    .set({ bestOf: params.bestOf })
+    .where(eq(schema.matchup.id, params.matchupId));
+
+  await db.delete(schema.points).where(eq(schema.points.matchupId, params.matchupId));
+
+  if (params.sets.length === 0) {
+    return;
+  }
+
+  const rows = params.sets.flatMap((setScore) => [
+    {
+      matchupId: params.matchupId,
+      seasonId: params.seasonId,
+      teamId: matchupRow.teamAId,
+      set: setScore.set,
+      points: setScore.teamAScore,
+    },
+    {
+      matchupId: params.matchupId,
+      seasonId: params.seasonId,
+      teamId: matchupRow.teamBId,
+      set: setScore.set,
+      points: setScore.teamBScore,
+    },
+  ]);
+
+  await db.insert(schema.points).values(rows);
 }
 
 export async function generateMatchupsForSeason(db: Database, seasonId: string) {
@@ -232,6 +360,121 @@ export async function deleteMatchupsForSeason(db: Database, seasonId: string) {
   await db.delete(schema.matchup).where(eq(schema.matchup.seasonId, seasonId));
 }
 
+type ScheduledMatchupPlacement = {
+  id: string;
+  teamAId: string;
+  teamBId: string;
+  eventId: string;
+  courtId: "A" | "B";
+  slotIndex: number;
+};
+
+type ConstraintValidationContext = {
+  eventDateById: Map<string, string>;
+  teamUnavailableDatesById: Map<string, string>;
+  maxGamesPerEvent: number;
+};
+
+function teamsOverlap(
+  teamAId: string,
+  teamBId: string,
+  otherTeamAId: string,
+  otherTeamBId: string,
+) {
+  return (
+    teamAId === otherTeamAId ||
+    teamAId === otherTeamBId ||
+    teamBId === otherTeamAId ||
+    teamBId === otherTeamBId
+  );
+}
+
+function getPlacementViolationReason(
+  placement: ScheduledMatchupPlacement,
+  existingPlacements: ScheduledMatchupPlacement[],
+  context: ConstraintValidationContext,
+): string | null {
+  const eventDate = context.eventDateById.get(placement.eventId);
+  if (!eventDate) {
+    return "Selected event was not found.";
+  }
+
+  const teamAUnavailableDates = context.teamUnavailableDatesById.get(placement.teamAId) ?? "";
+  if (isDateUnavailable(teamAUnavailableDates, eventDate)) {
+    return "Team A is unavailable for this event date.";
+  }
+
+  const teamBUnavailableDates = context.teamUnavailableDatesById.get(placement.teamBId) ?? "";
+  if (isDateUnavailable(teamBUnavailableDates, eventDate)) {
+    return "Team B is unavailable for this event date.";
+  }
+
+  const slotConflict = existingPlacements.find(
+    (existing) =>
+      existing.eventId === placement.eventId &&
+      existing.slotIndex === placement.slotIndex &&
+      teamsOverlap(
+        placement.teamAId,
+        placement.teamBId,
+        existing.teamAId,
+        existing.teamBId,
+      ),
+  );
+  if (slotConflict) {
+    return "A team cannot play two matches at the same time.";
+  }
+
+  const teamAGamesInEvent =
+    existingPlacements.filter(
+      (existing) =>
+        existing.eventId === placement.eventId &&
+        (existing.teamAId === placement.teamAId || existing.teamBId === placement.teamAId),
+    ).length + 1;
+  if (teamAGamesInEvent > context.maxGamesPerEvent) {
+    return `A team can only play ${context.maxGamesPerEvent} games per event.`;
+  }
+
+  const teamBGamesInEvent =
+    existingPlacements.filter(
+      (existing) =>
+        existing.eventId === placement.eventId &&
+        (existing.teamAId === placement.teamBId || existing.teamBId === placement.teamBId),
+    ).length + 1;
+  if (teamBGamesInEvent > context.maxGamesPerEvent) {
+    return `A team can only play ${context.maxGamesPerEvent} games per event.`;
+  }
+
+  return null;
+}
+
+async function buildConstraintValidationContext(
+  db: Database,
+  params: {
+    eventDates: Array<{ id: string; date: string }>;
+    teamIds: string[];
+    maxGamesPerEvent: number;
+  },
+): Promise<ConstraintValidationContext> {
+  const teamUnavailableDateRows = params.teamIds.length
+    ? await db
+        .select({
+          id: schema.team.id,
+          unavailableDates: schema.team.unavailableDates,
+        })
+        .from(schema.team)
+        .where(inArray(schema.team.id, params.teamIds))
+    : [];
+  const teamUnavailableDatesById = new Map(
+    teamUnavailableDateRows.map((row) => [row.id, row.unavailableDates]),
+  );
+
+  return {
+    eventDateById: new Map(params.eventDates.map((event) => [event.id, event.date])),
+    teamUnavailableDatesById,
+    maxGamesPerEvent: params.maxGamesPerEvent,
+  };
+}
+
 /**
  * Auto-schedule matchups across events and courts
  * Distributes matchups evenly across events, alternating between courts A and B
@@ -242,70 +485,118 @@ export async function autoScheduleMatchups(
   eventIds: string[],
   gamesPerEvening: number,
 ) {
-  // Get all unscheduled matchups
-  const unscheduledMatchups = await db
+  const allSeasonMatchups = await db
     .select({
       id: schema.matchup.id,
+      teamAId: schema.matchup.teamAId,
+      teamBId: schema.matchup.teamBId,
+      eventId: schema.matchup.eventId,
+      courtId: schema.matchup.courtId,
+      slotIndex: schema.matchup.slotIndex,
     })
     .from(schema.matchup)
-    .where(
-      and(
-        eq(schema.matchup.seasonId, seasonId),
-        isNull(schema.matchup.eventId),
-      ),
-    );
+    .where(eq(schema.matchup.seasonId, seasonId));
+
+  const unscheduledMatchups = allSeasonMatchups.filter((matchup) => matchup.eventId === null);
 
   if (unscheduledMatchups.length === 0 || eventIds.length === 0) {
-    return;
+    return { scheduledCount: 0, unscheduledCount: unscheduledMatchups.length };
   }
 
   const courts: ("A" | "B")[] = ["A", "B"];
-  const totalSlotsPerEvent = gamesPerEvening * courts.length; // 2 courts per event
-  const totalCapacity = eventIds.length * totalSlotsPerEvent;
+  const events = await db
+    .select({
+      id: schema.scheduleEvent.id,
+      date: schema.scheduleEvent.startTime,
+    })
+    .from(schema.scheduleEvent)
+    .where(eq(schema.scheduleEvent.seasonId, seasonId));
 
-  if (unscheduledMatchups.length > totalCapacity) {
-    throw new Error(
-      `Cannot schedule ${unscheduledMatchups.length} matchups: only ${totalCapacity} slots available`,
-    );
-  }
+  const eventDates = events.filter((event) => eventIds.includes(event.id));
+  const teamIds = Array.from(
+    new Set(
+      allSeasonMatchups.flatMap((matchup) => [matchup.teamAId, matchup.teamBId]),
+    ),
+  );
+  const validationContext = await buildConstraintValidationContext(db, {
+    eventDates,
+    teamIds,
+    maxGamesPerEvent: 2,
+  });
 
   // Distribute matchups across events and courts
-  const updates: Array<{
-    id: string;
-    eventId: string;
-    courtId: "A" | "B";
-    slotIndex: number;
-  }> = [];
+  const acceptedPlacements: ScheduledMatchupPlacement[] = allSeasonMatchups
+    .filter(
+      (matchup): matchup is ScheduledMatchupPlacement =>
+        matchup.eventId !== null &&
+        matchup.courtId !== null &&
+        matchup.slotIndex !== null,
+    )
+    .map((matchup) => ({
+      id: matchup.id,
+      teamAId: matchup.teamAId,
+      teamBId: matchup.teamBId,
+      eventId: matchup.eventId,
+      courtId: matchup.courtId as "A" | "B",
+      slotIndex: matchup.slotIndex,
+    }));
+  let scheduledCount = 0;
 
-  let matchupIndex = 0;
   for (const eventId of eventIds) {
     for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
       for (const courtId of courts) {
-        if (matchupIndex >= unscheduledMatchups.length) break;
-        updates.push({
-          id: unscheduledMatchups[matchupIndex].id,
-          eventId,
-          courtId,
-          slotIndex,
-        });
-        matchupIndex++;
+        let selectedPlacement: ScheduledMatchupPlacement | null = null;
+
+        for (const matchup of unscheduledMatchups) {
+          if (acceptedPlacements.some((acceptedPlacement) => acceptedPlacement.id === matchup.id)) {
+            continue;
+          }
+
+          const candidatePlacement: ScheduledMatchupPlacement = {
+            id: matchup.id,
+            teamAId: matchup.teamAId,
+            teamBId: matchup.teamBId,
+            eventId,
+            courtId: courtId as "A" | "B",
+            slotIndex,
+          };
+
+          const violationReason = getPlacementViolationReason(
+            candidatePlacement,
+            acceptedPlacements,
+            validationContext,
+          );
+          if (!violationReason) {
+            selectedPlacement = candidatePlacement;
+            break;
+          }
+        }
+
+        if (!selectedPlacement) {
+          continue;
+        }
+
+        acceptedPlacements.push(selectedPlacement);
+        scheduledCount++;
+
+        await db
+          .update(schema.matchup)
+          .set({
+            eventId: selectedPlacement.eventId,
+            courtId: selectedPlacement.courtId,
+            slotIndex: selectedPlacement.slotIndex,
+          })
+          .where(eq(schema.matchup.id, selectedPlacement.id));
       }
-      if (matchupIndex >= unscheduledMatchups.length) break;
+      if (scheduledCount >= unscheduledMatchups.length) break;
     }
-    if (matchupIndex >= unscheduledMatchups.length) break;
+    if (scheduledCount >= unscheduledMatchups.length) break;
   }
 
-  // Batch update matchups
-  for (const update of updates) {
-    await db
-      .update(schema.matchup)
-      .set({
-        eventId: update.eventId,
-        courtId: update.courtId,
-        slotIndex: update.slotIndex,
-      })
-      .where(eq(schema.matchup.id, update.id));
-  }
+  return {
+    scheduledCount,
+    unscheduledCount: unscheduledMatchups.length - scheduledCount,
+  };
 }
 
 // ============== Bulk Save ==============
@@ -323,6 +614,58 @@ type ScheduleData = {
 
 export async function saveSchedule(db: Database, data: ScheduleData) {
   const { seasonId, events, matchups } = data;
+
+  const matchupRows = await db
+    .select({
+      id: schema.matchup.id,
+      teamAId: schema.matchup.teamAId,
+      teamBId: schema.matchup.teamBId,
+    })
+    .from(schema.matchup)
+    .where(eq(schema.matchup.seasonId, seasonId));
+  const matchupById = new Map(matchupRows.map((matchup) => [matchup.id, matchup]));
+  const scheduledPlacements = matchups.flatMap((matchup) => {
+    const matchupTeams = matchupById.get(matchup.id);
+    if (
+      !matchupTeams ||
+      matchup.eventId === null ||
+      matchup.courtId === null ||
+      matchup.slotIndex === null
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: matchup.id,
+        teamAId: matchupTeams.teamAId,
+        teamBId: matchupTeams.teamBId,
+        eventId: matchup.eventId,
+        courtId: matchup.courtId as "A" | "B",
+        slotIndex: matchup.slotIndex,
+      } satisfies ScheduledMatchupPlacement,
+    ];
+  });
+  const teamIds = Array.from(
+    new Set(matchupRows.flatMap((matchup) => [matchup.teamAId, matchup.teamBId])),
+  );
+  const validationContext = await buildConstraintValidationContext(db, {
+    eventDates: events.map((event) => ({ id: event.id, date: event.date })),
+    teamIds,
+    maxGamesPerEvent: 2,
+  });
+  const acceptedPlacements: ScheduledMatchupPlacement[] = [];
+  for (const placement of scheduledPlacements) {
+    const violationReason = getPlacementViolationReason(
+      placement,
+      acceptedPlacements,
+      validationContext,
+    );
+    if (violationReason) {
+      throw new Error(violationReason);
+    }
+    acceptedPlacements.push(placement);
+  }
 
   // Get existing events for this season
   const existingEvents = await getEventsBySeasonId(db, seasonId);

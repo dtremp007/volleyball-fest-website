@@ -30,6 +30,7 @@ import { Label } from "~/components/ui/label";
 import { NativeSelect } from "~/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { Textarea } from "~/components/ui/textarea";
+import { parseUnavailableDates } from "~/lib/unavailable-dates";
 import { useTRPC } from "~/trpc/react";
 import { signupFormSchema } from "~/validators/signup-form.validators";
 
@@ -82,6 +83,10 @@ function SignupFormPage() {
   const router = useRouter();
   const { returnTo } = Route.useSearch();
   const isEditing = Boolean(team?.id);
+  const defaultUnavailableDates = (() => {
+    const parsedUnavailableDates = parseUnavailableDates(team?.unavailableDates ?? "");
+    return [parsedUnavailableDates[0] ?? "", parsedUnavailableDates[1] ?? ""];
+  })();
 
   const form = useForm({
     defaultValues: {
@@ -103,7 +108,7 @@ function SignupFormPage() {
         })) ?? [
           { name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" },
         ],
-      unavailableDates: team?.unavailableDates.split(",") ?? ["", ""],
+      unavailableDates: defaultUnavailableDates,
       comingFrom: team?.comingFrom,
       notes: team?.notes || undefined,
       acceptTerms: false,

@@ -11,6 +11,7 @@ import {
   getMatchupsBySeasonId,
   getPublicSchedule,
   hasMatchupsForSeason,
+  saveMatchupScorecard,
   saveSchedule,
 } from "~/lib/db/queries/schedule";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
@@ -203,12 +204,52 @@ export const matchupRouter = {
       }
 
       // Auto-schedule matchups across events
-      await autoScheduleMatchups(db, seasonId, eventIds, gamesPerEvening);
+      const scheduleResult = await autoScheduleMatchups(
+        db,
+        seasonId,
+        eventIds,
+        gamesPerEvening,
+      );
 
       return {
         success: true,
         eventsCreated: eventIds.length,
         eventIds,
+        scheduledCount: scheduleResult.scheduledCount,
+        unscheduledCount: scheduleResult.unscheduledCount,
       };
+    }),
+
+  saveScorecard: protectedProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        matchupId: z.string(),
+        bestOf: z.number().int().positive(),
+        sets: z
+          .array(
+            z.object({
+              set: z.number().int().positive(),
+              teamAScore: z.number().int().min(0),
+              teamBScore: z.number().int().min(0),
+            }),
+          )
+          .superRefine((sets, ctx) => {
+            const seen = new Set<number>();
+            for (const setRow of sets) {
+              if (seen.has(setRow.set)) {
+                ctx.addIssue({
+                  code: "custom",
+                  message: "Duplicate set number",
+                });
+              }
+              seen.add(setRow.set);
+            }
+          }),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      await saveMatchupScorecard(db, input);
+      return { success: true };
     }),
 } satisfies TRPCRouterRecord;

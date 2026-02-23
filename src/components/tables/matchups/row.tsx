@@ -2,17 +2,16 @@ import { type Row, flexRender } from "@tanstack/react-table";
 import { TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId";
-import type { EventRow } from "./columns";
+import type { MatchupRow } from "./columns";
 
 type Props = {
-  row: Row<EventRow>;
+  row: Row<MatchupRow>;
 };
 
-export function EventRowItem({ row }: Props) {
+export function MatchupRowItem({ row }: Props) {
   const navigate = Route.useNavigate();
 
-  const handleRowClick = (cellId: string, e: React.MouseEvent) => {
-    if (cellId === "actions") return;
+  const handleRowClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement && (e.target.closest("a") || e.target.closest("button"))) {
       return;
     }
@@ -20,9 +19,9 @@ export function EventRowItem({ row }: Props) {
     navigate({
       search: (prev) => ({
         ...prev,
-        view: "events",
-        eventId: row.original.id,
-        matchupId: undefined,
+        view: "matchups",
+        eventId: undefined,
+        matchupId: row.original.id,
       }),
       replace: true,
       resetScroll: false,
@@ -35,7 +34,7 @@ export function EventRowItem({ row }: Props) {
         <TableCell
           key={cell.id}
           className={cn(cell.column.columnDef.meta?.className)}
-          onClick={(e) => handleRowClick(cell.column.id, e)}
+          onClick={handleRowClick}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
