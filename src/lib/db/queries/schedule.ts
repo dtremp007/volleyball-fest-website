@@ -2,7 +2,7 @@ import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
-import { isDateUnavailable } from "~/lib/unavailable-dates";
+import { isDateUnavailable, normalizeDateOnly } from "~/lib/unavailable-dates";
 
 // ============== Schedule Config ==============
 
@@ -360,6 +360,17 @@ export async function deleteMatchupsForSeason(db: Database, seasonId: string) {
   await db.delete(schema.matchup).where(eq(schema.matchup.seasonId, seasonId));
 }
 
+export async function clearMatchupPlacementsForSeason(db: Database, seasonId: string) {
+  await db
+    .update(schema.matchup)
+    .set({
+      eventId: null,
+      courtId: null,
+      slotIndex: null,
+    })
+    .where(eq(schema.matchup.seasonId, seasonId));
+}
+
 type ScheduledMatchupPlacement = {
   id: string;
   teamAId: string;
@@ -447,6 +458,44 @@ function getPlacementViolationReason(
   return null;
 }
 
+function getConsecutiveEventPreferenceScore(
+  placement: ScheduledMatchupPlacement,
+  existingPlacements: ScheduledMatchupPlacement[],
+  orderedEventIds: string[],
+): number {
+  const eventIndex = orderedEventIds.indexOf(placement.eventId);
+  if (eventIndex === -1) {
+    return 0;
+  }
+
+  const previousEventId = orderedEventIds[eventIndex - 1];
+  const nextEventId = orderedEventIds[eventIndex + 1];
+  const adjacentEventIds = [previousEventId, nextEventId].filter(
+    (eventId): eventId is string => Boolean(eventId),
+  );
+  if (adjacentEventIds.length === 0) {
+    return 0;
+  }
+
+  const getTeamEventIds = (teamId: string) =>
+    new Set(
+      existingPlacements
+        .filter((existing) => existing.teamAId === teamId || existing.teamBId === teamId)
+        .map((existing) => existing.eventId),
+    );
+
+  const teamAEventIds = getTeamEventIds(placement.teamAId);
+  const teamBEventIds = getTeamEventIds(placement.teamBId);
+
+  let score = 0;
+  for (const adjacentEventId of adjacentEventIds) {
+    if (teamAEventIds.has(adjacentEventId)) score += 1;
+    if (teamBEventIds.has(adjacentEventId)) score += 1;
+  }
+
+  return score;
+}
+
 async function buildConstraintValidationContext(
   db: Database,
   params: {
@@ -513,6 +562,10 @@ export async function autoScheduleMatchups(
     .where(eq(schema.scheduleEvent.seasonId, seasonId));
 
   const eventDates = events.filter((event) => eventIds.includes(event.id));
+  const orderedEventIds = eventDates
+    .slice()
+    .sort((a, b) => normalizeDateOnly(a.date).localeCompare(normalizeDateOnly(b.date)))
+    .map((event) => event.id);
   const teamIds = Array.from(
     new Set(
       allSeasonMatchups.flatMap((matchup) => [matchup.teamAId, matchup.teamBId]),
@@ -542,10 +595,11 @@ export async function autoScheduleMatchups(
     }));
   let scheduledCount = 0;
 
-  for (const eventId of eventIds) {
+  for (const eventId of orderedEventIds) {
     for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
       for (const courtId of courts) {
         let selectedPlacement: ScheduledMatchupPlacement | null = null;
+        let selectedPlacementScore = Number.POSITIVE_INFINITY;
 
         for (const matchup of unscheduledMatchups) {
           if (acceptedPlacements.some((acceptedPlacement) => acceptedPlacement.id === matchup.id)) {
@@ -567,8 +621,18 @@ export async function autoScheduleMatchups(
             validationContext,
           );
           if (!violationReason) {
-            selectedPlacement = candidatePlacement;
-            break;
+            const preferenceScore = getConsecutiveEventPreferenceScore(
+              candidatePlacement,
+              acceptedPlacements,
+              orderedEventIds,
+            );
+            if (preferenceScore < selectedPlacementScore) {
+              selectedPlacementScore = preferenceScore;
+              selectedPlacement = candidatePlacement;
+            }
+            if (selectedPlacementScore === 0) {
+              break;
+            }
           }
         }
 

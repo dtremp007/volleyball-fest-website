@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarPlus, Check, Cloud, Loader2, RefreshCw } from "lucide-react";
+import { CalendarPlus, Check, Cloud, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -103,7 +103,12 @@ function BuildPage() {
 
   // Mutations
   const saveMutation = useMutation(trpc.matchup.saveSchedule.mutationOptions());
+  const regenerateMutation = useMutation(
+    trpc.matchup.regenerateSchedule.mutationOptions(),
+  );
   const { mutateAsync: saveScheduleAsync } = saveMutation;
+  const { mutateAsync: regenerateScheduleAsync, isPending: isRegenerating } =
+    regenerateMutation;
 
   // Build initial state from DB data
   const initialState = useMemo(() => {
@@ -205,7 +210,14 @@ function BuildPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Track data identity to reset state when it changes
-  const dataKey = `${seasonId}-${data.matchups.length}-${data.events.length}`;
+  const scheduleSignature = data.scheduled
+    .map(
+      (matchup) =>
+        `${matchup.id}:${matchup.eventId ?? "none"}:${matchup.courtId ?? "none"}:${matchup.slotIndex ?? -1}`,
+    )
+    .sort()
+    .join("|");
+  const dataKey = `${seasonId}-${data.matchups.length}-${data.events.length}-${scheduleSignature}`;
   const [prevDataKey, setPrevDataKey] = useState(dataKey);
   if (dataKey !== prevDataKey) {
     setPrevDataKey(dataKey);
@@ -285,6 +297,31 @@ function BuildPage() {
 
   // Mark dirty on any state change
   const markDirty = useCallback(() => setIsDirty(true), []);
+
+  const handleRegenerate = useCallback(async () => {
+    const confirmationMessage = isDirty
+      ? "Regenerate schedule?\n\nThis will overwrite current matchup placements. Unsaved local changes will be lost."
+      : "Regenerate schedule?\n\nThis will overwrite current matchup placements for this season.";
+    const confirmed = window.confirm(confirmationMessage);
+    if (!confirmed) return;
+
+    try {
+      const result = await regenerateScheduleAsync({ seasonId });
+      await refetch();
+      setIsDirty(false);
+      setLastSaved(new Date());
+
+      if (result.unscheduledCount > 0) {
+        toast.success(
+          `Regenerated schedule: ${result.scheduledCount} placed, ${result.unscheduledCount} unscheduled.`,
+        );
+      } else {
+        toast.success(`Regenerated schedule: ${result.scheduledCount} matchups placed.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to regenerate schedule");
+    }
+  }, [isDirty, refetch, regenerateScheduleAsync, seasonId]);
 
   // DnD sensors
   const mouseSensor = useSensor(MouseSensor, {
@@ -592,13 +629,20 @@ function BuildPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refetch()}
-                disabled={isRefetching}
+                onClick={handleRegenerate}
+                disabled={isRegenerating || isRefetching || saveMutation.isPending}
               >
-                <RefreshCw
-                  className={`mr-2 size-4 ${isRefetching ? "animate-spin" : ""}`}
-                />
-                Refresh
+                {isRegenerating || isRefetching ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Regenerating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 size-4" />
+                    Regenerate
+                  </>
+                )}
               </Button>
 
               <Button onClick={handleAddEvent}>

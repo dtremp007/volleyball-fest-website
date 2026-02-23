@@ -85,7 +85,7 @@ export const points = sqliteTable(
     matchupId: text("matchup_id")
       .notNull()
       .references(() => matchup.id, { onDelete: "cascade" }),
-    // set: integer("set").notNull().default(1),
+    set: integer("set").notNull().default(1),
     points: integer("points").notNull(),
   },
   (t) => [primaryKey({ columns: [t.matchupId, t.teamId] })],

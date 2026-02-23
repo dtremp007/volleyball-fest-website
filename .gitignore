@@ -10,6 +10,11 @@ node_modules
 .cache
 .env
 
+# SQLite database and WAL files
+sqlite.db
+sqlite.db-shm
+sqlite.db-wal
+
 .data
 .vercel
 .output

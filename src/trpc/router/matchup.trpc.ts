@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "~/lib/db";
 import {
   autoScheduleMatchups,
+  clearMatchupPlacementsForSeason,
   configureGroupsAndGenerateMatchups,
   createEvent,
   deleteMatchupsForSeason,
@@ -10,6 +11,7 @@ import {
   getEventsBySeasonId,
   getMatchupsBySeasonId,
   getPublicSchedule,
+  getScheduleConfig,
   hasMatchupsForSeason,
   saveMatchupScorecard,
   saveSchedule,
@@ -136,6 +138,26 @@ export const matchupRouter = {
       await deleteMatchupsForSeason(db, input.seasonId);
       const count = await generateMatchupsForSeason(db, input.seasonId);
       return { generated: count };
+    }),
+
+  /**
+   * Regenerate schedule placements using existing events
+   */
+  regenerateSchedule: protectedProcedure
+    .input(z.object({ seasonId: z.string() }))
+    .mutation(async ({ input }) => {
+      const [events, scheduleConfig] = await Promise.all([
+        getEventsBySeasonId(db, input.seasonId),
+        getScheduleConfig(db, input.seasonId),
+      ]);
+      await clearMatchupPlacementsForSeason(db, input.seasonId);
+
+      return await autoScheduleMatchups(
+        db,
+        input.seasonId,
+        events.map((event) => event.id),
+        scheduleConfig?.gamesPerEvening ?? 7,
+      );
     }),
 
   /**
