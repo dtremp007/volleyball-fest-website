@@ -33,7 +33,7 @@ export function EventCard({ event, onAddSlot, onDeleteEvent, onUpdateEvent }: Ev
             <Calendar className="size-4" />
             <input
               type="date"
-              value={event.date}
+              value={event.date.split("T")[0]}
               onChange={(e) => onUpdateEvent(event.id, { date: e.target.value })}
               className="bg-transparent border-none outline-none focus:ring-0"
             />

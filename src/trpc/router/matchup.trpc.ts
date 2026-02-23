@@ -1,4 +1,5 @@
 import type { TRPCRouterRecord } from "@trpc/server";
+import { format } from "date-fns";
 import { z } from "zod";
 import { db } from "~/lib/db";
 import {
@@ -217,11 +218,11 @@ export const matchupRouter = {
       // Create events from dates
       const eventIds: string[] = [];
       for (const date of dates) {
-        const event = await createEvent(db, {
-          seasonId,
-          name: `Game Day ${date}`,
-          date,
-        });
+      const event = await createEvent(db, {
+        seasonId,
+        name: format(new Date(`${date}T12:00:00`), "MMM d, yyyy"),
+        date,
+      });
         eventIds.push(event.id);
       }
 

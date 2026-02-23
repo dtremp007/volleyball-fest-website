@@ -1,4 +1,4 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import type { EventWithMatchups } from "~/lib/db/queries/schedule";
 
@@ -13,12 +13,27 @@ const TIME_SLOTS = [
   "9:30 PM",
 ];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  "Varonil Libre": "#000000",
+  "Segunda Fuerza": "#dc2626", // Red
+  "Femenil": "#9333ea", // Purple
+};
+
 const styles = StyleSheet.create({
   page: {
     padding: 36,
     fontFamily: "Helvetica",
     fontSize: 10,
     backgroundColor: "#ffffff",
+  },
+  headerContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    marginBottom: 10,
   },
   title: {
     fontSize: 20,
@@ -28,7 +43,17 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: "#4b5563",
-    marginBottom: 20,
+    fontSize: 12,
+  },
+  legendContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingHorizontal: 20,
+  },
+  legendItem: {
+    fontSize: 10,
+    fontWeight: "bold",
   },
   table: {
     border: "1px solid #e5e7eb",
@@ -57,12 +82,25 @@ const styles = StyleSheet.create({
   },
   colTime: {
     width: "20%",
+    textAlign: "center",
   },
   colCourtA: {
     width: "40%",
+    textAlign: "center",
   },
   colCourtB: {
     width: "40%",
+    textAlign: "center",
+  },
+  matchupText: {
+    fontSize: 10,
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  emptyCell: {
+    fontSize: 10,
+    textAlign: "center",
+    color: "#9ca3af",
   },
   empty: {
     marginTop: 14,
@@ -84,6 +122,7 @@ const styles = StyleSheet.create({
 
 type Props = {
   event: EventWithMatchups;
+  baseUrl: string;
 };
 
 function formatSlot(slotIndex: number | null) {
@@ -96,10 +135,10 @@ function formatMatchup(matchup: {
   teamB: { name: string };
   category: string;
 }) {
-  return `${matchup.teamA.name} vs ${matchup.teamB.name}\n${matchup.category}`;
+  return `${matchup.teamA.name} vs ${matchup.teamB.name}`;
 }
 
-export function EventSheetDocument({ event }: Props) {
+export function EventSheetDocument({ event, baseUrl }: Props) {
   const scheduledMatchups = event.matchups.filter((matchup) => matchup.slotIndex !== null);
   const unscheduledCount = event.matchups.length - scheduledMatchups.length;
 
@@ -124,27 +163,48 @@ export function EventSheetDocument({ event }: Props) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>Volleyball Fest</Text>
-        <Text style={styles.subtitle}>{format(new Date(event.date), "MMM d, yyyy")}</Text>
+        <View style={styles.headerContainer}>
+          <Image src={`${baseUrl}/icon-no-bg-512.png`} style={styles.logo} />
+          <Text style={styles.title}>Volleyball Fest</Text>
+          <Text style={styles.subtitle}>{format(new Date(event.date), "MMM d, yyyy")}</Text>
+        </View>
+
+        <View style={styles.legendContainer}>
+          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Varonil Libre"] }}>VARONIL LIBRE</Text>
+          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Segunda Fuerza"] }}>SEGUNDA FUERZA</Text>
+          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Femenil"] }}>FEMENIL</Text>
+        </View>
 
         {sortedSlotIndices.length > 0 ? (
           <View style={styles.table}>
             <View style={[styles.row, styles.headerRow]}>
-              <Text style={[styles.headerCell, styles.colTime]}>Time</Text>
               <Text style={[styles.headerCell, styles.colCourtA]}>Court A</Text>
+              <Text style={[styles.headerCell, styles.colTime]}>Time</Text>
               <Text style={[styles.headerCell, styles.colCourtB]}>Court B</Text>
             </View>
             {sortedSlotIndices.map((slotIndex) => {
               const slot = slotRows.get(slotIndex)!;
               return (
                 <View key={slotIndex} style={styles.row}>
+                  <View style={styles.colCourtA}>
+                    {slot.courtA ? (
+                      <Text style={[styles.matchupText, { color: CATEGORY_COLORS[slot.courtA.category] || "#374151" }]}>
+                        {formatMatchup(slot.courtA)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.emptyCell}>-</Text>
+                    )}
+                  </View>
                   <Text style={[styles.cell, styles.colTime]}>{formatSlot(slotIndex)}</Text>
-                  <Text style={[styles.cell, styles.colCourtA]}>
-                    {slot.courtA ? formatMatchup(slot.courtA) : "-"}
-                  </Text>
-                  <Text style={[styles.cell, styles.colCourtB]}>
-                    {slot.courtB ? formatMatchup(slot.courtB) : "-"}
-                  </Text>
+                  <View style={styles.colCourtB}>
+                    {slot.courtB ? (
+                      <Text style={[styles.matchupText, { color: CATEGORY_COLORS[slot.courtB.category] || "#374151" }]}>
+                        {formatMatchup(slot.courtB)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.emptyCell}>-</Text>
+                    )}
+                  </View>
                 </View>
               );
             })}

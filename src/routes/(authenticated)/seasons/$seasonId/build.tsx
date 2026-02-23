@@ -10,6 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { format } from "date-fns";
 import { CalendarPlus, Check, Cloud, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -219,12 +220,15 @@ function BuildPage() {
     .join("|");
   const dataKey = `${seasonId}-${data.matchups.length}-${data.events.length}-${scheduleSignature}`;
   const [prevDataKey, setPrevDataKey] = useState(dataKey);
-  if (dataKey !== prevDataKey) {
-    setPrevDataKey(dataKey);
-    setEvents(initialState.events);
-    setUnscheduledMatchups(initialState.unscheduled);
-    setIsDirty(false);
-  }
+
+  useEffect(() => {
+    if (dataKey !== prevDataKey) {
+      setPrevDataKey(dataKey);
+      setEvents(initialState.events);
+      setUnscheduledMatchups(initialState.unscheduled);
+      setIsDirty(false);
+    }
+  }, [dataKey, prevDataKey, initialState]);
 
   // Autosave
   const saveSchedule = useCallback(async () => {
@@ -335,10 +339,9 @@ function BuildPage() {
   // Event handlers
   const handleAddEvent = useCallback(() => {
     const today = new Date().toISOString().split("T")[0];
-    const eventNumber = events.length + 1;
-    setEvents((prev) => [...prev, createNewEvent(`Event ${eventNumber}`, today)]);
+    setEvents((prev) => [...prev, createNewEvent(format(new Date(), "MMM d, yyyy"), today)]);
     markDirty();
-  }, [events.length, markDirty]);
+  }, [markDirty]);
 
   const handleDeleteEvent = useCallback(
     (eventId: string) => {

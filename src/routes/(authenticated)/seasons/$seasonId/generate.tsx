@@ -68,19 +68,13 @@ function GeneratePage() {
   const selectedDatesCount = selectedDates.length;
   const courtsPerEvent = 2; // Court A and Court B
   const totalCapacity = selectedDatesCount * gamesPerEvening * courtsPerEvent;
-  const hasEnoughCapacity = totalCapacity >= totalMatchups;
+  const estimatedSlotsNeeded = Math.ceil(totalMatchups * 1.25);
+  const hasEnoughCapacity = totalCapacity >= estimatedSlotsNeeded;
   const capacityStatus = hasEnoughCapacity ? "sufficient" : "insufficient";
 
   const handleGenerateSchedule = async () => {
     if (selectedDates.length === 0) {
       toast.error("Please select at least one date");
-      return;
-    }
-
-    if (!hasEnoughCapacity) {
-      toast.error(
-        `Not enough capacity: ${totalMatchups} matchups need ${totalMatchups} slots, but only ${totalCapacity} are available`,
-      );
       return;
     }
 
@@ -233,14 +227,13 @@ function GeneratePage() {
                 </p>
               </div>
 
-              {!hasEnoughCapacity && (
+              {!hasEnoughCapacity && selectedDatesCount > 0 && (
                 <div className="bg-destructive/10 border-destructive/20 flex items-start gap-2 rounded-md border p-3">
                   <AlertCircle className="text-destructive mt-0.5 size-4 shrink-0" />
                   <div className="text-destructive text-sm">
-                    <p className="font-medium">Insufficient Capacity</p>
+                    <p className="font-medium">Low Capacity Warning</p>
                     <p className="mt-1 text-xs">
-                      Need {totalMatchups} slots but only {totalCapacity} available. Add
-                      more dates or increase games per evening.
+                      You might need ~{estimatedSlotsNeeded} slots to schedule all {totalMatchups} matchups due to constraints. Unplaced matchups will remain in the unscheduled panel.
                     </p>
                   </div>
                 </div>
@@ -252,7 +245,7 @@ function GeneratePage() {
                   <div className="text-sm text-green-600">
                     <p className="font-medium">Ready to Generate</p>
                     <p className="mt-1 text-xs">
-                      Capacity is sufficient to schedule all {totalMatchups} matchups.
+                      Capacity seems sufficient to schedule all {totalMatchups} matchups.
                     </p>
                   </div>
                 </div>
@@ -263,7 +256,6 @@ function GeneratePage() {
                 onClick={handleGenerateSchedule}
                 disabled={
                   selectedDatesCount === 0 ||
-                  !hasEnoughCapacity ||
                   generateScheduleMutation.isPending
                 }
                 className="w-full"
