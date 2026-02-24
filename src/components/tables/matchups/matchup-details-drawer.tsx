@@ -144,7 +144,8 @@ export function MatchupDetailsDrawer({ seasonId }: Props) {
       return;
     }
 
-    const payloadSets: Array<{ set: number; teamAScore: number; teamBScore: number }> = [];
+    const payloadSets: Array<{ set: number; teamAScore: number; teamBScore: number }> =
+      [];
 
     for (const row of sets) {
       const teamAText = row.teamAScore.trim();
@@ -194,7 +195,9 @@ export function MatchupDetailsDrawer({ seasonId }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <DrawerTitle>
-                {matchup ? `${matchup.teamA.name} vs ${matchup.teamB.name}` : "Matchup details"}
+                {matchup
+                  ? `${matchup.teamA.name} vs ${matchup.teamB.name}`
+                  : "Matchup details"}
               </DrawerTitle>
               <DrawerDescription>
                 {matchup
@@ -218,11 +221,15 @@ export function MatchupDetailsDrawer({ seasonId }: Props) {
             <div className="space-y-5">
               <div className="grid gap-3 rounded-md border p-4 md:grid-cols-2">
                 <div>
-                  <p className="text-muted-foreground text-xs uppercase tracking-wide">Team A</p>
+                  <p className="text-muted-foreground text-xs tracking-wide uppercase">
+                    Team A
+                  </p>
                   <p className="font-medium">{matchup.teamA.name}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs uppercase tracking-wide">Team B</p>
+                  <p className="text-muted-foreground text-xs tracking-wide uppercase">
+                    Team B
+                  </p>
                   <p className="font-medium">{matchup.teamB.name}</p>
                 </div>
               </div>
@@ -250,7 +257,9 @@ export function MatchupDetailsDrawer({ seasonId }: Props) {
                     >
                       <div className="text-sm font-medium">Set {setRow.set}</div>
                       <div className="space-y-1">
-                        <Label htmlFor={`set-${setRow.set}-team-a`}>{matchup.teamA.name}</Label>
+                        <Label htmlFor={`set-${setRow.set}-team-a`}>
+                          {matchup.teamA.name}
+                        </Label>
                         <Input
                           id={`set-${setRow.set}-team-a`}
                           type="number"
@@ -263,7 +272,9 @@ export function MatchupDetailsDrawer({ seasonId }: Props) {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor={`set-${setRow.set}-team-b`}>{matchup.teamB.name}</Label>
+                        <Label htmlFor={`set-${setRow.set}-team-b`}>
+                          {matchup.teamB.name}
+                        </Label>
                         <Input
                           id={`set-${setRow.set}-team-b`}
                           type="number"
@@ -281,7 +292,7 @@ export function MatchupDetailsDrawer({ seasonId }: Props) {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Matchup not found</p>
+            <p className="text-muted-foreground text-sm">Matchup not found</p>
           )}
         </ScrollArea>
 

@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   type ColumnFiltersState,
   type RowSelectionState,
@@ -9,7 +10,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Table,
@@ -39,9 +39,7 @@ export function TeamsDataTable() {
   });
 
   // Fetch all teams for the season (no categoryId filter)
-  const { data: teams } = useSuspenseQuery(
-    trpc.team.list.queryOptions({ seasonId }),
-  );
+  const { data: teams } = useSuspenseQuery(trpc.team.list.queryOptions({ seasonId }));
 
   // Compute column filters from URL search params
   const columnFilters: ColumnFiltersState = useMemo(
@@ -120,7 +118,7 @@ export function TeamsDataTable() {
 
   return (
     <div className="w-full">
-      <div className="border-border rounded-lg border overflow-x-auto">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader
             table={table}

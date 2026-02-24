@@ -11,9 +11,9 @@ node_modules
 .env
 
 # SQLite database and WAL files
-sqlite.db
-sqlite.db-shm
-sqlite.db-wal
+*.db
+*.db-shm
+*.db-wal
 
 .data
 .vercel

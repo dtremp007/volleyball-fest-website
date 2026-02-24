@@ -1,11 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense } from "react";
 import { Calendar, CalendarDays, Settings2, Swords, Users } from "lucide-react";
+import { Suspense } from "react";
 import z from "zod";
-import { EventDetailsDrawer } from "../../../../components/tables/events/event-details-drawer";
-import { MatchupDetailsDrawer } from "../../../../components/tables/matchups/matchup-details-drawer";
-import { EventsDataTable, EventsSkeleton } from "../../../../components/tables/events";
-import { MatchupsDataTable, MatchupsSkeleton } from "../../../../components/tables/matchups";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -16,6 +12,13 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { EventsDataTable, EventsSkeleton } from "../../../../components/tables/events";
+import { EventDetailsDrawer } from "../../../../components/tables/events/event-details-drawer";
+import {
+  MatchupsDataTable,
+  MatchupsSkeleton,
+} from "../../../../components/tables/matchups";
+import { MatchupDetailsDrawer } from "../../../../components/tables/matchups/matchup-details-drawer";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   component: SeasonOverviewPage,

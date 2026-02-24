@@ -4,6 +4,7 @@ export type Team = {
   logoUrl: string;
   category: string;
   unavailableDates?: string;
+  isFarAway?: boolean;
 };
 
 export type Matchup = {
@@ -37,7 +38,13 @@ export type DragData = {
   matchup: Matchup;
   source:
     | { type: "unscheduled" }
-    | { type: "scheduled"; eventId: string; courtId: "A" | "B"; slotId: string };
+    | {
+        type: "scheduled";
+        eventId: string;
+        courtId: "A" | "B";
+        slotId: string;
+        slotIndex: number;
+      };
 };
 
 export type DropData = {

@@ -31,7 +31,7 @@ import { useTRPC } from "~/trpc/react";
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/configure")({
   component: ConfigurePage,
   loader: async ({ params, context }) => {
-    const [categories, teams, season] = await Promise.all([
+    const [categories, teams, season, groups] = await Promise.all([
       context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
       context.queryClient.fetchQuery(
         context.trpc.team.list.queryOptions({ seasonId: params.seasonId }),
@@ -39,9 +39,12 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/configu
       context.queryClient.fetchQuery(
         context.trpc.season.getById.queryOptions({ id: params.seasonId }),
       ),
+      context.queryClient.fetchQuery(
+        context.trpc.group.listForSeason.queryOptions({ seasonId: params.seasonId }),
+      ),
     ]);
 
-    return { categories, teams, season };
+    return { categories, teams, season, groups };
   },
 });
 
@@ -51,6 +54,7 @@ type Team = {
   name: string;
   logoUrl: string;
   category: { id: string; name: string };
+  groupId?: string | null;
 };
 
 type GroupAssignment = {
@@ -86,6 +90,58 @@ function distributeTeams(teams: Team[], groupCount: number): GroupAssignment {
     assignments[team.id] = index % groupCount;
   });
   return assignments;
+}
+
+// Build initial category state from existing groups and team assignments
+function buildInitialCategoryStates(
+  categories: { id: string }[],
+  teams: Team[],
+  groups: { id: string; name: string; categoryId: string }[],
+): Record<string, CategoryState> {
+  const initial: Record<string, CategoryState> = {};
+  const teamsByCategory = new Map<string, Team[]>();
+  teams.forEach((team) => {
+    const categoryId = team.category.id;
+    if (!teamsByCategory.has(categoryId)) {
+      teamsByCategory.set(categoryId, []);
+    }
+    teamsByCategory.get(categoryId)!.push(team);
+  });
+
+  const groupsByCategory = new Map<string, typeof groups>();
+  groups.forEach((g) => {
+    if (!groupsByCategory.has(g.categoryId)) {
+      groupsByCategory.set(g.categoryId, []);
+    }
+    groupsByCategory.get(g.categoryId)!.push(g);
+  });
+
+  categories.forEach((cat) => {
+    const catTeams = teamsByCategory.get(cat.id) || [];
+    const catGroups = groupsByCategory.get(cat.id) || [];
+
+    if (catGroups.length > 0) {
+      const groupIdToIndex = new Map<string, number>();
+      catGroups.forEach((g, i) => groupIdToIndex.set(g.id, i));
+      const assignments: GroupAssignment = {};
+      catTeams.forEach((team) => {
+        const groupIndex =
+          team.groupId != null ? (groupIdToIndex.get(team.groupId) ?? 0) : 0;
+        assignments[team.id] = groupIndex;
+      });
+      initial[cat.id] = {
+        groupCount: catGroups.length,
+        assignments,
+      };
+    } else {
+      initial[cat.id] = {
+        groupCount: 1,
+        assignments: distributeTeams(catTeams, 1),
+      };
+    }
+  });
+
+  return initial;
 }
 
 // Draggable Team Card Component
@@ -198,7 +254,7 @@ function GroupDropZone({
 
 function ConfigurePage() {
   const { seasonId } = Route.useParams();
-  const { categories, teams, season } = Route.useLoaderData();
+  const { categories, teams, season, groups } = Route.useLoaderData();
   const navigate = useNavigate();
   const trpc = useTRPC();
 
@@ -215,20 +271,9 @@ function ConfigurePage() {
     return map;
   }, [teams]);
 
-  // Initialize state per category with auto-distribution
+  // Initialize state from existing groups or auto-distribute
   const [categoryStates, setCategoryStates] = useState<Record<string, CategoryState>>(
-    () => {
-      const initial: Record<string, CategoryState> = {};
-      categories.forEach((cat) => {
-        const catTeams = teamsByCategory.get(cat.id) || [];
-        const groupCount = 1;
-        initial[cat.id] = {
-          groupCount,
-          assignments: distributeTeams(catTeams, groupCount),
-        };
-      });
-      return initial;
-    },
+    () => buildInitialCategoryStates(categories, teams, groups),
   );
 
   // Track active drag for overlay

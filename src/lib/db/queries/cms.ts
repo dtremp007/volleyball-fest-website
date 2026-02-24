@@ -69,18 +69,12 @@ const getDescendants = async (
 };
 
 export const getCmsEntryById = async (db: Database, id: string) => {
-  const [entry] = await db
-    .select()
-    .from(schema.cms)
-    .where(eq(schema.cms.id, id));
+  const [entry] = await db.select().from(schema.cms).where(eq(schema.cms.id, id));
   return entry;
 };
 
 export const getRootCmsEntries = async (db: Database) => {
-  return await db
-    .select()
-    .from(schema.cms)
-    .where(isNull(schema.cms.parentId));
+  return await db.select().from(schema.cms).where(isNull(schema.cms.parentId));
 };
 
 type CreateCmsEntryParams = {
@@ -91,10 +85,7 @@ type CreateCmsEntryParams = {
   parentId?: string | null;
 };
 
-export const createCmsEntry = async (
-  db: Database,
-  params: CreateCmsEntryParams,
-) => {
+export const createCmsEntry = async (db: Database, params: CreateCmsEntryParams) => {
   const [entry] = await db
     .insert(schema.cms)
     .values({
@@ -130,10 +121,7 @@ export const updateCmsEntry = async (
 };
 
 export const deleteCmsEntry = async (db: Database, id: string) => {
-  const [entry] = await db
-    .delete(schema.cms)
-    .where(eq(schema.cms.id, id))
-    .returning();
+  const [entry] = await db.delete(schema.cms).where(eq(schema.cms.id, id)).returning();
   return entry;
 };
 
@@ -209,8 +197,17 @@ async function createChildrenFromDefaults(
     });
 
     // Recursively create children for objects
-    if (valueType === "object" && typeof value === "object" && value !== null && !Array.isArray(value)) {
-      await createChildrenFromDefaults(db, entry.id, value as Record<string, ContentValue>);
+    if (
+      valueType === "object" &&
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      await createChildrenFromDefaults(
+        db,
+        entry.id,
+        value as Record<string, ContentValue>,
+      );
     }
   }
 }
@@ -260,11 +257,16 @@ function serializeValue(value: ContentValue, valueType: CmsValueType): string | 
 function deserializeValue(value: string | null, valueType: CmsValueType): ContentValue {
   if (value === null || value === undefined) {
     switch (valueType) {
-      case "number": return 0;
-      case "boolean": return false;
-      case "array": return [];
-      case "object": return {};
-      default: return "";
+      case "number":
+        return 0;
+      case "boolean":
+        return false;
+      case "array":
+        return [];
+      case "object":
+        return {};
+      default:
+        return "";
     }
   }
 
@@ -377,9 +379,7 @@ export async function updateContent(
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
-    targetEntry = entries.find(
-      (e) => e.name === part && e.parentId === currentParentId,
-    );
+    targetEntry = entries.find((e) => e.name === part && e.parentId === currentParentId);
 
     if (!targetEntry) {
       throw new Error(`Content path "${path}" not found in "${rootKey}"`);

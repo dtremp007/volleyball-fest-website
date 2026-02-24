@@ -1,8 +1,20 @@
 import { useNavigate } from "@tanstack/react-router";
-import { type Row, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  type Row,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { Calendar } from "lucide-react";
 import { Card, CardContent } from "~/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import { type Season, columns } from "./columns";
 
@@ -20,7 +32,10 @@ function SeasonRow({ row }: { row: Row<Season> }) {
     }
 
     // Don't navigate if clicking on a link or button
-    if (e.target instanceof HTMLElement && (e.target.closest("a") || e.target.closest("button"))) {
+    if (
+      e.target instanceof HTMLElement &&
+      (e.target.closest("a") || e.target.closest("button"))
+    ) {
       return;
     }
 
@@ -54,9 +69,9 @@ export function SeasonsDataTable({ seasons }: Props) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-16">
-          <Calendar className="text-muted-foreground/50 size-12 mb-4" />
+          <Calendar className="text-muted-foreground/50 mb-4 size-12" />
           <h3 className="text-lg font-medium">No seasons found</h3>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             Create a season first to start building schedules
           </p>
         </CardContent>
@@ -80,7 +95,7 @@ export function SeasonsDataTable({ seasons }: Props) {
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
-                ))
+                )),
               )}
             </TableRow>
           </TableHeader>

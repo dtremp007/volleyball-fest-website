@@ -1,10 +1,17 @@
 import { Skeleton } from "~/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 
 export function TeamsSkeleton() {
   return (
     <div className="w-full">
-      <div className="overflow-x-auto md:border-l md:border-r border-border">
+      <div className="border-border overflow-x-auto md:border-r md:border-l">
         <Table>
           <TableHeader>
             <TableRow>

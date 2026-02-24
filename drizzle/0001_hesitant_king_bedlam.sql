@@ -1,0 +1,1 @@
+ALTER TABLE `team` ADD `is_far_away` integer DEFAULT 0 NOT NULL;

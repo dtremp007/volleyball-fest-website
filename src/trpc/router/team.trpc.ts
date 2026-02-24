@@ -7,6 +7,7 @@ import {
   getPublicTeamsBySeasonId,
   getTeamById,
   getTeamsBySeasonId,
+  updateTeamIsFarAway,
   upsertTeam,
 } from "~/lib/db/queries/team";
 import { normalizeUnavailableDates } from "~/lib/unavailable-dates";
@@ -63,5 +64,11 @@ export const teamRouter = {
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await deleteTeam(db, input.id);
+    }),
+  updateIsFarAway: protectedProcedure
+    .input(z.object({ id: z.string(), isFarAway: z.boolean() }))
+    .mutation(async ({ input }) => {
+      await updateTeamIsFarAway(db, input.id, input.isFarAway);
+      return { success: true };
     }),
 } satisfies TRPCRouterRecord;

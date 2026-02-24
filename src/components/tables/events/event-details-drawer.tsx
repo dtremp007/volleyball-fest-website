@@ -13,7 +13,14 @@ import {
 } from "~/components/ui/drawer";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId";
 import { useTRPC } from "~/trpc/react";
 
@@ -135,11 +142,13 @@ export function EventDetailsDrawer({ seasonId }: Props) {
             <DrawerLoadingSkeleton />
           ) : event ? (
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 {matchups.length} game{matchups.length === 1 ? "" : "s"} in this event
               </div>
               {sortedSlotIndices.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No games have been scheduled yet.</p>
+                <p className="text-muted-foreground text-sm">
+                  No games have been scheduled yet.
+                </p>
               ) : (
                 <div className="border-border overflow-hidden rounded-md border">
                   <Table>
@@ -161,21 +170,29 @@ export function EventDetailsDrawer({ seasonId }: Props) {
                             <TableCell className="whitespace-normal">
                               {slot.courtA ? (
                                 <div>
-                                  <div className="text-sm font-medium">{formatMatchup(slot.courtA)}</div>
-                                  <div className="text-xs text-muted-foreground">{slot.courtA.category}</div>
+                                  <div className="text-sm font-medium">
+                                    {formatMatchup(slot.courtA)}
+                                  </div>
+                                  <div className="text-muted-foreground text-xs">
+                                    {slot.courtA.category}
+                                  </div>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
+                                <span className="text-muted-foreground text-xs">-</span>
                               )}
                             </TableCell>
                             <TableCell className="whitespace-normal">
                               {slot.courtB ? (
                                 <div>
-                                  <div className="text-sm font-medium">{formatMatchup(slot.courtB)}</div>
-                                  <div className="text-xs text-muted-foreground">{slot.courtB.category}</div>
+                                  <div className="text-sm font-medium">
+                                    {formatMatchup(slot.courtB)}
+                                  </div>
+                                  <div className="text-muted-foreground text-xs">
+                                    {slot.courtB.category}
+                                  </div>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
+                                <span className="text-muted-foreground text-xs">-</span>
                               )}
                             </TableCell>
                           </TableRow>
@@ -186,21 +203,25 @@ export function EventDetailsDrawer({ seasonId }: Props) {
                 </div>
               )}
               {unscheduledCount > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {unscheduledCount} game{unscheduledCount === 1 ? "" : "s"} without a time slot are not shown in
-                  this table.
+                <p className="text-muted-foreground text-xs">
+                  {unscheduledCount} game{unscheduledCount === 1 ? "" : "s"} without a
+                  time slot are not shown in this table.
                 </p>
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Event not found</p>
+            <p className="text-muted-foreground text-sm">Event not found</p>
           )}
         </ScrollArea>
 
         <DrawerFooter className="border-t">
           {event && (
             <Button asChild className="w-full">
-              <a href={`/api/event-pdf?id=${event.id}`} target="_blank" rel="noopener noreferrer">
+              <a
+                href={`/api/event-pdf?id=${event.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <FileText className="mr-2 size-4" />
                 View PDF
               </a>

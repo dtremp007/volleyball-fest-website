@@ -5,12 +5,22 @@ import {
   assignTeamToGroup,
   createGroup,
   deleteGroup,
+  getGroupsBySeason,
   getGroupsBySeasonAndCategory,
   getTeamsByGroup,
 } from "~/lib/db/queries/group";
 import { protectedProcedure } from "~/trpc/init";
 
 export const groupRouter = {
+  /**
+   * List all groups for a season (all categories)
+   */
+  listForSeason: protectedProcedure
+    .input(z.object({ seasonId: z.string() }))
+    .query(async ({ input }) => {
+      return await getGroupsBySeason(db, input.seasonId);
+    }),
+
   /**
    * List all groups for a season and category
    */

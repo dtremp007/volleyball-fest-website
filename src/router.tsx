@@ -5,18 +5,14 @@ import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import {
-  createTRPCClient,
-  httpBatchStreamLink,
-  loggerLink,
-} from "@trpc/client";
+import { createTRPCClient, httpBatchStreamLink, loggerLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import superjson from "superjson";
 import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { DefaultNotFound } from "~/components/default-not-found";
+import { getUrl } from "~/lib/utils";
 import { TRPCProvider } from "~/trpc/react";
 import type { AppRouter } from "~/trpc/router";
-import { getUrl } from "~/lib/utils";
 import { routeTree } from "./routeTree.gen";
 
 const getHeaders = createServerFn({ method: "GET" }).handler(async () => {

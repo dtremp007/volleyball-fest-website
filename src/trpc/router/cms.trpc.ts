@@ -85,11 +85,9 @@ export const cmsRouter = {
   /**
    * Create a new CMS entry
    */
-  create: protectedProcedure
-    .input(createCmsEntrySchema)
-    .mutation(async ({ input }) => {
-      return await createCmsEntry(db, input);
-    }),
+  create: protectedProcedure.input(createCmsEntrySchema).mutation(async ({ input }) => {
+    return await createCmsEntry(db, input);
+  }),
 
   /**
    * Update an existing CMS entry

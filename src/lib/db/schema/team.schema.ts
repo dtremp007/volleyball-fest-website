@@ -57,6 +57,7 @@ export const team = sqliteTable("team", {
   coCaptainPhone: text("co_captain_phone").notNull(),
   unavailableDates: text("unavailable_dates").notNull(),
   comingFrom: text("coming_from").notNull(),
+  isFarAway: integer("is_far_away").notNull().default(0), // 0 = false, 1 = true (SQLite boolean)
   notes: text("notes"),
 });
 

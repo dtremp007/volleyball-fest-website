@@ -12,7 +12,10 @@ export function MatchupRowItem({ row }: Props) {
   const navigate = Route.useNavigate();
 
   const handleRowClick = (e: React.MouseEvent) => {
-    if (e.target instanceof HTMLElement && (e.target.closest("a") || e.target.closest("button"))) {
+    if (
+      e.target instanceof HTMLElement &&
+      (e.target.closest("a") || e.target.closest("button"))
+    ) {
       return;
     }
 

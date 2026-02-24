@@ -1,8 +1,17 @@
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
+import {
+  DEFAULT_MAX_GAMES_PER_EVENT,
+  FAR_AWAY_MAX_GAMES_PER_EVENT,
+  getPlacementPreferenceScore,
+  getPlacementViolationReason,
+  type ConstraintValidationContext,
+  type PlacementWithCategory,
+  type ScheduledMatchupPlacement,
+} from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
-import { isDateUnavailable, normalizeDateOnly } from "~/lib/unavailable-dates";
+import { normalizeDateOnly } from "~/lib/unavailable-dates";
 
 // ============== Schedule Config ==============
 
@@ -120,6 +129,7 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       teamAName: schema.team.name,
       teamALogo: schema.team.logoUrl,
       teamAUnavailableDates: schema.team.unavailableDates,
+      teamAIsFarAway: schema.team.isFarAway,
     })
     .from(schema.matchup)
     .innerJoin(schema.team, eq(schema.matchup.teamAId, schema.team.id))
@@ -132,6 +142,7 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       teamBName: schema.team.name,
       teamBLogo: schema.team.logoUrl,
       teamBUnavailableDates: schema.team.unavailableDates,
+      teamBIsFarAway: schema.team.isFarAway,
       category: schema.category.name,
     })
     .from(schema.matchup)
@@ -150,20 +161,20 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
     .from(schema.points)
     .where(eq(schema.points.seasonId, seasonId));
 
-  const pointRowsByMatchup = pointRows.reduce(
-    (acc, row) => {
-      const existing = acc.get(row.matchupId) ?? [];
-      existing.push(row);
-      acc.set(row.matchupId, existing);
-      return acc;
-    },
-    new Map<string, typeof pointRows>(),
-  );
+  const pointRowsByMatchup = pointRows.reduce((acc, row) => {
+    const existing = acc.get(row.matchupId) ?? [];
+    existing.push(row);
+    acc.set(row.matchupId, existing);
+    return acc;
+  }, new Map<string, typeof pointRows>());
 
   return matchups.map((m) => {
     const teamB = teamBMap.get(m.id);
     const matchupPointRows = pointRowsByMatchup.get(m.id) ?? [];
-    const bySet = new Map<number, { teamAScore: number | null; teamBScore: number | null }>();
+    const bySet = new Map<
+      number,
+      { teamAScore: number | null; teamBScore: number | null }
+    >();
 
     for (const row of matchupPointRows) {
       const setScore = bySet.get(row.set) ?? { teamAScore: null, teamBScore: null };
@@ -200,12 +211,14 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
         name: m.teamAName,
         logoUrl: m.teamALogo,
         unavailableDates: m.teamAUnavailableDates,
+        isFarAway: Boolean(m.teamAIsFarAway),
       },
       teamB: {
         id: m.teamBId,
         name: teamB?.teamBName ?? "",
         logoUrl: teamB?.teamBLogo ?? "",
         unavailableDates: teamB?.teamBUnavailableDates ?? "",
+        isFarAway: Boolean(teamB?.teamBIsFarAway),
       },
       category: teamB?.category ?? "",
       seasonId: m.seasonId,
@@ -216,7 +229,9 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       sets,
       teamASetsWon,
       teamBSetsWon,
-      hasScores: sets.some((score) => score.teamAScore !== null && score.teamBScore !== null),
+      hasScores: sets.some(
+        (score) => score.teamAScore !== null && score.teamBScore !== null,
+      ),
     };
   });
 }
@@ -371,156 +386,44 @@ export async function clearMatchupPlacementsForSeason(db: Database, seasonId: st
     .where(eq(schema.matchup.seasonId, seasonId));
 }
 
-type ScheduledMatchupPlacement = {
-  id: string;
-  teamAId: string;
-  teamBId: string;
-  eventId: string;
-  courtId: "A" | "B";
-  slotIndex: number;
-};
-
-type ConstraintValidationContext = {
-  eventDateById: Map<string, string>;
-  teamUnavailableDatesById: Map<string, string>;
-  maxGamesPerEvent: number;
-};
-
-function teamsOverlap(
-  teamAId: string,
-  teamBId: string,
-  otherTeamAId: string,
-  otherTeamBId: string,
-) {
-  return (
-    teamAId === otherTeamAId ||
-    teamAId === otherTeamBId ||
-    teamBId === otherTeamAId ||
-    teamBId === otherTeamBId
-  );
-}
-
-function getPlacementViolationReason(
-  placement: ScheduledMatchupPlacement,
-  existingPlacements: ScheduledMatchupPlacement[],
-  context: ConstraintValidationContext,
-): string | null {
-  const eventDate = context.eventDateById.get(placement.eventId);
-  if (!eventDate) {
-    return "Selected event was not found.";
-  }
-
-  const teamAUnavailableDates = context.teamUnavailableDatesById.get(placement.teamAId) ?? "";
-  if (isDateUnavailable(teamAUnavailableDates, eventDate)) {
-    return "Team A is unavailable for this event date.";
-  }
-
-  const teamBUnavailableDates = context.teamUnavailableDatesById.get(placement.teamBId) ?? "";
-  if (isDateUnavailable(teamBUnavailableDates, eventDate)) {
-    return "Team B is unavailable for this event date.";
-  }
-
-  const slotConflict = existingPlacements.find(
-    (existing) =>
-      existing.eventId === placement.eventId &&
-      existing.slotIndex === placement.slotIndex &&
-      teamsOverlap(
-        placement.teamAId,
-        placement.teamBId,
-        existing.teamAId,
-        existing.teamBId,
-      ),
-  );
-  if (slotConflict) {
-    return "A team cannot play two matches at the same time.";
-  }
-
-  const teamAGamesInEvent =
-    existingPlacements.filter(
-      (existing) =>
-        existing.eventId === placement.eventId &&
-        (existing.teamAId === placement.teamAId || existing.teamBId === placement.teamAId),
-    ).length + 1;
-  if (teamAGamesInEvent > context.maxGamesPerEvent) {
-    return `A team can only play ${context.maxGamesPerEvent} games per event.`;
-  }
-
-  const teamBGamesInEvent =
-    existingPlacements.filter(
-      (existing) =>
-        existing.eventId === placement.eventId &&
-        (existing.teamAId === placement.teamBId || existing.teamBId === placement.teamBId),
-    ).length + 1;
-  if (teamBGamesInEvent > context.maxGamesPerEvent) {
-    return `A team can only play ${context.maxGamesPerEvent} games per event.`;
-  }
-
-  return null;
-}
-
-function getConsecutiveEventPreferenceScore(
-  placement: ScheduledMatchupPlacement,
-  existingPlacements: ScheduledMatchupPlacement[],
-  orderedEventIds: string[],
-): number {
-  const eventIndex = orderedEventIds.indexOf(placement.eventId);
-  if (eventIndex === -1) {
-    return 0;
-  }
-
-  const previousEventId = orderedEventIds[eventIndex - 1];
-  const nextEventId = orderedEventIds[eventIndex + 1];
-  const adjacentEventIds = [previousEventId, nextEventId].filter(
-    (eventId): eventId is string => Boolean(eventId),
-  );
-  if (adjacentEventIds.length === 0) {
-    return 0;
-  }
-
-  const getTeamEventIds = (teamId: string) =>
-    new Set(
-      existingPlacements
-        .filter((existing) => existing.teamAId === teamId || existing.teamBId === teamId)
-        .map((existing) => existing.eventId),
-    );
-
-  const teamAEventIds = getTeamEventIds(placement.teamAId);
-  const teamBEventIds = getTeamEventIds(placement.teamBId);
-
-  let score = 0;
-  for (const adjacentEventId of adjacentEventIds) {
-    if (teamAEventIds.has(adjacentEventId)) score += 1;
-    if (teamBEventIds.has(adjacentEventId)) score += 1;
-  }
-
-  return score;
-}
-
 async function buildConstraintValidationContext(
   db: Database,
   params: {
     eventDates: Array<{ id: string; date: string }>;
     teamIds: string[];
-    maxGamesPerEvent: number;
   },
 ): Promise<ConstraintValidationContext> {
-  const teamUnavailableDateRows = params.teamIds.length
-    ? await db
-        .select({
-          id: schema.team.id,
-          unavailableDates: schema.team.unavailableDates,
-        })
-        .from(schema.team)
-        .where(inArray(schema.team.id, params.teamIds))
-    : [];
+  if (params.teamIds.length === 0) {
+    return {
+      eventDateById: new Map(params.eventDates.map((event) => [event.id, event.date])),
+      teamUnavailableDatesById: new Map(),
+      maxGamesPerTeamId: new Map(),
+    };
+  }
+
+  const teamRows = await db
+    .select({
+      id: schema.team.id,
+      unavailableDates: schema.team.unavailableDates,
+      isFarAway: schema.team.isFarAway,
+    })
+    .from(schema.team)
+    .where(inArray(schema.team.id, params.teamIds));
+
   const teamUnavailableDatesById = new Map(
-    teamUnavailableDateRows.map((row) => [row.id, row.unavailableDates]),
+    teamRows.map((row) => [row.id, row.unavailableDates]),
+  );
+  const maxGamesPerTeamId = new Map(
+    teamRows.map((row) => [
+      row.id,
+      row.isFarAway ? FAR_AWAY_MAX_GAMES_PER_EVENT : DEFAULT_MAX_GAMES_PER_EVENT,
+    ]),
   );
 
   return {
     eventDateById: new Map(params.eventDates.map((event) => [event.id, event.date])),
     teamUnavailableDatesById,
-    maxGamesPerEvent: params.maxGamesPerEvent,
+    maxGamesPerTeamId,
   };
 }
 
@@ -546,7 +449,9 @@ export async function autoScheduleMatchups(
     .from(schema.matchup)
     .where(eq(schema.matchup.seasonId, seasonId));
 
-  const unscheduledMatchups = allSeasonMatchups.filter((matchup) => matchup.eventId === null);
+  const unscheduledMatchups = allSeasonMatchups.filter(
+    (matchup) => matchup.eventId === null,
+  );
 
   if (unscheduledMatchups.length === 0 || eventIds.length === 0) {
     return { scheduledCount: 0, unscheduledCount: unscheduledMatchups.length };
@@ -567,15 +472,28 @@ export async function autoScheduleMatchups(
     .sort((a, b) => normalizeDateOnly(a.date).localeCompare(normalizeDateOnly(b.date)))
     .map((event) => event.id);
   const teamIds = Array.from(
-    new Set(
-      allSeasonMatchups.flatMap((matchup) => [matchup.teamAId, matchup.teamBId]),
-    ),
+    new Set(allSeasonMatchups.flatMap((matchup) => [matchup.teamAId, matchup.teamBId])),
   );
   const validationContext = await buildConstraintValidationContext(db, {
     eventDates,
     teamIds,
-    maxGamesPerEvent: 2,
   });
+
+  // Build matchup category map (both teams in a matchup have same category)
+  const teamRows = await db
+    .select({
+      id: schema.team.id,
+      categoryId: schema.team.categoryId,
+    })
+    .from(schema.team)
+    .where(inArray(schema.team.id, teamIds));
+  const teamCategoryById = new Map(teamRows.map((r) => [r.id, r.categoryId]));
+  const matchupCategoryById = new Map(
+    allSeasonMatchups.map((m) => [
+      m.id,
+      teamCategoryById.get(m.teamAId) ?? teamCategoryById.get(m.teamBId) ?? null,
+    ]),
+  );
 
   // Distribute matchups across events and courts
   const acceptedPlacements: ScheduledMatchupPlacement[] = allSeasonMatchups
@@ -593,7 +511,15 @@ export async function autoScheduleMatchups(
       courtId: matchup.courtId as "A" | "B",
       slotIndex: matchup.slotIndex,
     }));
+  const acceptedPlacementsWithCategory: PlacementWithCategory[] = acceptedPlacements.map(
+    (p) => ({
+      ...p,
+      categoryId: matchupCategoryById.get(p.id) ?? null,
+    }),
+  );
   let scheduledCount = 0;
+
+  const maxSlotIndex = gamesPerEvening - 1;
 
   for (const eventId of orderedEventIds) {
     for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
@@ -602,7 +528,11 @@ export async function autoScheduleMatchups(
         let selectedPlacementScore = Number.POSITIVE_INFINITY;
 
         for (const matchup of unscheduledMatchups) {
-          if (acceptedPlacements.some((acceptedPlacement) => acceptedPlacement.id === matchup.id)) {
+          if (
+            acceptedPlacements.some(
+              (acceptedPlacement) => acceptedPlacement.id === matchup.id,
+            )
+          ) {
             continue;
           }
 
@@ -621,11 +551,15 @@ export async function autoScheduleMatchups(
             validationContext,
           );
           if (!violationReason) {
-            const preferenceScore = getConsecutiveEventPreferenceScore(
-              candidatePlacement,
-              acceptedPlacements,
+            const categoryId = matchupCategoryById.get(matchup.id) ?? null;
+            const preferenceScore = getPlacementPreferenceScore({
+              placement: candidatePlacement,
+              categoryId,
+              existingPlacements: acceptedPlacements,
+              existingPlacementsWithCategory: acceptedPlacementsWithCategory,
               orderedEventIds,
-            );
+              maxSlotIndex,
+            });
             if (preferenceScore < selectedPlacementScore) {
               selectedPlacementScore = preferenceScore;
               selectedPlacement = candidatePlacement;
@@ -640,7 +574,12 @@ export async function autoScheduleMatchups(
           continue;
         }
 
+        const placementCategoryId = matchupCategoryById.get(selectedPlacement.id) ?? null;
         acceptedPlacements.push(selectedPlacement);
+        acceptedPlacementsWithCategory.push({
+          ...selectedPlacement,
+          categoryId: placementCategoryId,
+        });
         scheduledCount++;
 
         await db
@@ -716,7 +655,6 @@ export async function saveSchedule(db: Database, data: ScheduleData) {
   const validationContext = await buildConstraintValidationContext(db, {
     eventDates: events.map((event) => ({ id: event.id, date: event.date })),
     teamIds,
-    maxGamesPerEvent: 2,
   });
   const acceptedPlacements: ScheduledMatchupPlacement[] = [];
   for (const placement of scheduledPlacements) {
@@ -918,9 +856,7 @@ export async function getPublicSchedule(
     .where(and(...conditions))
     .orderBy(asc(schema.scheduleEvent.startTime));
 
-  const events = limit
-    ? await eventsQuery.limit(limit)
-    : await eventsQuery;
+  const events = limit ? await eventsQuery.limit(limit) : await eventsQuery;
 
   if (events.length === 0) return [];
 

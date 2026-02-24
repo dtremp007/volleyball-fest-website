@@ -79,7 +79,7 @@ function EquiposPage() {
       {/* Header */}
       <section className="overflow-hidden py-16">
         <div className="relative mx-auto max-w-6xl px-6">
-          <div className="flex flex-col gap-4 mt-16">
+          <div className="mt-16 flex flex-col gap-4">
             <div>
               <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
                 Equipos

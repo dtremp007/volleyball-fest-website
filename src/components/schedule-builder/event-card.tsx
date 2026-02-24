@@ -1,4 +1,6 @@
 import { Calendar, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -7,35 +9,51 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { CourtColumn } from "./court-column";
-import type { ScheduleEvent } from "./types";
+import { useScheduleStore } from "./store";
 
 type EventCardProps = {
-  event: ScheduleEvent;
-  onAddSlot: (eventId: string) => void;
-  onDeleteEvent: (eventId: string) => void;
-  onUpdateEvent: (eventId: string, updates: Partial<Pick<ScheduleEvent, "name" | "date">>) => void;
+  eventId: string;
 };
 
-export function EventCard({ event, onAddSlot, onDeleteEvent, onUpdateEvent }: EventCardProps) {
+export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
+  const eventName = useScheduleStore(
+    (state) => state.events.find((e) => e.id === eventId)?.name ?? "",
+  );
+  const eventDate = useScheduleStore(
+    (state) => state.events.find((e) => e.id === eventId)?.date ?? "",
+  );
+  const courtIds = useScheduleStore(
+    useShallow(
+      (state) =>
+        state.events.find((e) => e.id === eventId)?.courts.map((c) => c.id) ?? [],
+    ),
+  );
+
+  const updateEvent = useScheduleStore((state) => state.updateEvent);
+  const deleteEvent = useScheduleStore((state) => state.deleteEvent);
+  const addSlot = useScheduleStore((state) => state.addSlot);
+
+  if (!eventName && !eventDate) return null;
+
   return (
-    <div className="shrink-0 min-w-[600px] w-full max-w-[1000px] bg-card rounded-xl border shadow-sm">
+    <div className="bg-card w-full max-w-[1000px] min-w-[600px] shrink-0 rounded-xl border shadow-sm">
       {/* Event header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between border-b p-4">
         <div className="flex-1">
           <input
             type="text"
-            value={event.name}
-            onChange={(e) => onUpdateEvent(event.id, { name: e.target.value })}
-            className="text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 w-full"
+            value={eventName}
+            onChange={(e) => updateEvent(eventId, { name: e.target.value })}
+            className="w-full border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
             placeholder="Event name"
           />
-          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+          <div className="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
             <Calendar className="size-4" />
             <input
               type="date"
-              value={event.date.split("T")[0]}
-              onChange={(e) => onUpdateEvent(event.id, { date: e.target.value })}
-              className="bg-transparent border-none outline-none focus:ring-0"
+              value={eventDate.split("T")[0]}
+              onChange={(e) => updateEvent(eventId, { date: e.target.value })}
+              className="border-none bg-transparent outline-none focus:ring-0"
             />
           </div>
         </div>
@@ -47,15 +65,15 @@ export function EventCard({ event, onAddSlot, onDeleteEvent, onUpdateEvent }: Ev
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onAddSlot(event.id)}>
-              <Plus className="size-4 mr-2" />
+            <DropdownMenuItem onClick={() => addSlot(eventId)}>
+              <Plus className="mr-2 size-4" />
               Add time slot
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => onDeleteEvent(event.id)}
+              onClick={() => deleteEvent(eventId)}
               className="text-destructive focus:text-destructive"
             >
-              <Trash2 className="size-4 mr-2" />
+              <Trash2 className="mr-2 size-4" />
               Delete event
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -64,18 +82,23 @@ export function EventCard({ event, onAddSlot, onDeleteEvent, onUpdateEvent }: Ev
 
       {/* Courts */}
       <div className="flex gap-2 p-4">
-        {event.courts.map((court) => (
-          <CourtColumn key={court.id} court={court} eventId={event.id} />
+        {courtIds.map((courtId) => (
+          <CourtColumn key={courtId} courtId={courtId} eventId={eventId} />
         ))}
       </div>
 
       {/* Add slot button */}
       <div className="px-4 pb-4">
-        <Button variant="outline" size="sm" className="w-full" onClick={() => onAddSlot(event.id)}>
-          <Plus className="size-4 mr-2" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => addSlot(eventId)}
+        >
+          <Plus className="mr-2 size-4" />
           Add time slot
         </Button>
       </div>
     </div>
   );
-}
+});

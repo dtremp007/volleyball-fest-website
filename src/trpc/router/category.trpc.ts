@@ -25,11 +25,9 @@ export const categoryRouter = {
       return await getCategoryById(db, input.id);
     }),
 
-  create: protectedProcedure
-    .input(createCategorySchema)
-    .mutation(async ({ input }) => {
-      return await createCategory(db, input);
-    }),
+  create: protectedProcedure.input(createCategorySchema).mutation(async ({ input }) => {
+    return await createCategory(db, input);
+  }),
 
   update: protectedProcedure
     .input(z.object({ id: z.string(), data: updateCategorySchema }))

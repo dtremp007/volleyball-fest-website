@@ -11,7 +11,6 @@ export type EventRow = {
   matchupCount: number;
 };
 
-
 export const columns: ColumnDef<EventRow>[] = [
   {
     header: "Date",
@@ -20,7 +19,9 @@ export const columns: ColumnDef<EventRow>[] = [
       className: "w-[220px] min-w-[220px]",
     },
     cell: ({ row }) => (
-      <span className="text-muted-foreground">{format(new Date(row.original.date), "MMM d, yyyy")}</span>
+      <span className="text-muted-foreground">
+        {format(new Date(row.original.date), "MMM d, yyyy")}
+      </span>
     ),
   },
   {

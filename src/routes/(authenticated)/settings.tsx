@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -22,7 +23,6 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import { NativeSelect } from "~/components/ui/native-select";
 import { Textarea } from "~/components/ui/textarea";
@@ -31,7 +31,10 @@ import type { SeasonState } from "~/lib/db/schema/team.schema";
 import { useTRPC } from "~/trpc/react";
 
 // Season state display configuration
-const seasonStateConfig: Record<SeasonState, { label: string; variant: "default" | "secondary" | "outline" }> = {
+const seasonStateConfig: Record<
+  SeasonState,
+  { label: string; variant: "default" | "secondary" | "outline" }
+> = {
   draft: { label: "Borrador", variant: "secondary" },
   signup_open: { label: "Inscripciones Abiertas", variant: "default" },
   signup_closed: { label: "Inscripciones Cerradas", variant: "outline" },
@@ -162,15 +165,17 @@ function SeasonsSection() {
               season={season}
               isEditing={editingId === season.id}
               onEdit={() => setEditingId(season.id)}
-              onSave={(data) =>
-                updateMutation.mutate({ id: season.id, data })
-              }
+              onSave={(data) => updateMutation.mutate({ id: season.id, data })}
               onStateChange={(state) =>
                 updateStateMutation.mutate({ id: season.id, state })
               }
               onCancel={() => setEditingId(null)}
               onDelete={() => deleteMutation.mutate({ id: season.id })}
-              isPending={updateMutation.isPending || deleteMutation.isPending || updateStateMutation.isPending}
+              isPending={
+                updateMutation.isPending ||
+                deleteMutation.isPending ||
+                updateStateMutation.isPending
+              }
             />
           ))}
           {seasons.length === 0 && !isAdding && (
@@ -185,7 +190,13 @@ function SeasonsSection() {
 }
 
 interface SeasonRowProps {
-  season?: { id: string; name: string; startDate: string; endDate: string; state: SeasonState | null };
+  season?: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    state: SeasonState | null;
+  };
   isNew?: boolean;
   isEditing?: boolean;
   onEdit?: () => void;
@@ -386,9 +397,7 @@ function CategoriesSection() {
               category={category}
               isEditing={editingId === category.id}
               onEdit={() => setEditingId(category.id)}
-              onSave={(data) =>
-                updateMutation.mutate({ id: category.id, data })
-              }
+              onSave={(data) => updateMutation.mutate({ id: category.id, data })}
               onCancel={() => setEditingId(null)}
               onDelete={() => deleteMutation.mutate({ id: category.id })}
               isPending={updateMutation.isPending || deleteMutation.isPending}
@@ -537,9 +546,7 @@ function PositionsSection() {
     <Card>
       <CardHeader>
         <CardTitle>Positions</CardTitle>
-        <CardDescription>
-          Player positions available for roster selection
-        </CardDescription>
+        <CardDescription>Player positions available for roster selection</CardDescription>
         <CardAction>
           <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
             <Plus className="size-4" />
@@ -563,9 +570,7 @@ function PositionsSection() {
               position={position}
               isEditing={editingId === position.id}
               onEdit={() => setEditingId(position.id)}
-              onSave={(data) =>
-                updateMutation.mutate({ id: position.id, data })
-              }
+              onSave={(data) => updateMutation.mutate({ id: position.id, data })}
               onCancel={() => setEditingId(null)}
               onDelete={() => deleteMutation.mutate({ id: position.id })}
               isPending={updateMutation.isPending || deleteMutation.isPending}
@@ -718,7 +723,8 @@ function CmsSection() {
           Site Content (CMS)
         </CardTitle>
         <CardDescription>
-          Manage editable content for the website like hero text, images, and other dynamic content
+          Manage editable content for the website like hero text, images, and other
+          dynamic content
         </CardDescription>
         <CardAction>
           <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
@@ -881,9 +887,7 @@ function CmsEntryTree({
       <div style={{ paddingLeft: level * 16 }}>
         <CmsValueEditor
           entry={entry}
-          onSave={(value) =>
-            updateMutation.mutate({ id: entry.id, data: { value } })
-          }
+          onSave={(value) => updateMutation.mutate({ id: entry.id, data: { value } })}
           onCancel={() => setIsEditing(false)}
           isPending={updateMutation.isPending}
         />
@@ -913,7 +917,7 @@ function CmsEntryTree({
             )}
           </Button>
         ) : (
-          <div className="size-6 flex items-center justify-center">
+          <div className="flex size-6 items-center justify-center">
             {entry.valueType === "file" ? (
               <Image className="text-muted-foreground size-4" />
             ) : (
@@ -925,9 +929,7 @@ function CmsEntryTree({
         {/* Entry info */}
         <div className="flex flex-1 items-center gap-3 overflow-hidden">
           <span className="font-medium">{label}</span>
-          <span className="text-muted-foreground font-mono text-xs">
-            {entry.name}
-          </span>
+          <span className="text-muted-foreground font-mono text-xs">{entry.name}</span>
           {!isObject && entry.value && (
             <span className="text-muted-foreground truncate text-sm">
               {entry.valueType === "file" ? (
@@ -1173,9 +1175,7 @@ function CmsValueEditor({ entry, onSave, onCancel, isPending }: CmsValueEditorPr
 
   return (
     <div className="bg-muted/50 flex flex-wrap items-start gap-2 rounded-lg p-3">
-      <span className="text-muted-foreground pt-2 text-sm font-medium">
-        {label}:
-      </span>
+      <span className="text-muted-foreground pt-2 text-sm font-medium">{label}:</span>
       {renderInput()}
       <div className="flex gap-1">
         <Button size="icon" variant="ghost" onClick={handleSave} disabled={isPending}>

@@ -1,5 +1,4 @@
-import { inferRouterOutputs } from "@trpc/server";
-import { inferRouterInputs } from "@trpc/server";
+import { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { createTRPCRouter } from "~/trpc/init";
 import { categoryRouter } from "~/trpc/router/category.trpc";
 import { cmsRouter } from "~/trpc/router/cms.trpc";

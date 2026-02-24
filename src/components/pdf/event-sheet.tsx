@@ -16,7 +16,7 @@ const TIME_SLOTS = [
 const CATEGORY_COLORS: Record<string, string> = {
   "Varonil Libre": "#000000",
   "Segunda Fuerza": "#dc2626", // Red
-  "Femenil": "#9333ea", // Purple
+  Femenil: "#9333ea", // Purple
 };
 
 const styles = StyleSheet.create({
@@ -139,7 +139,9 @@ function formatMatchup(matchup: {
 }
 
 export function EventSheetDocument({ event, baseUrl }: Props) {
-  const scheduledMatchups = event.matchups.filter((matchup) => matchup.slotIndex !== null);
+  const scheduledMatchups = event.matchups.filter(
+    (matchup) => matchup.slotIndex !== null,
+  );
   const unscheduledCount = event.matchups.length - scheduledMatchups.length;
 
   const slotRows = new Map<
@@ -166,13 +168,23 @@ export function EventSheetDocument({ event, baseUrl }: Props) {
         <View style={styles.headerContainer}>
           <Image src={`${baseUrl}/icon-no-bg-512.png`} style={styles.logo} />
           <Text style={styles.title}>Volleyball Fest</Text>
-          <Text style={styles.subtitle}>{format(new Date(event.date), "MMM d, yyyy")}</Text>
+          <Text style={styles.subtitle}>
+            {format(new Date(event.date), "MMM d, yyyy")}
+          </Text>
         </View>
 
         <View style={styles.legendContainer}>
-          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Varonil Libre"] }}>VARONIL LIBRE</Text>
-          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Segunda Fuerza"] }}>SEGUNDA FUERZA</Text>
-          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Femenil"] }}>FEMENIL</Text>
+          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Varonil Libre"] }}>
+            VARONIL LIBRE
+          </Text>
+          <Text
+            style={{ ...styles.legendItem, color: CATEGORY_COLORS["Segunda Fuerza"] }}
+          >
+            SEGUNDA FUERZA
+          </Text>
+          <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Femenil"] }}>
+            FEMENIL
+          </Text>
         </View>
 
         {sortedSlotIndices.length > 0 ? (
@@ -188,17 +200,29 @@ export function EventSheetDocument({ event, baseUrl }: Props) {
                 <View key={slotIndex} style={styles.row}>
                   <View style={styles.colCourtA}>
                     {slot.courtA ? (
-                      <Text style={[styles.matchupText, { color: CATEGORY_COLORS[slot.courtA.category] || "#374151" }]}>
+                      <Text
+                        style={[
+                          styles.matchupText,
+                          { color: CATEGORY_COLORS[slot.courtA.category] || "#374151" },
+                        ]}
+                      >
                         {formatMatchup(slot.courtA)}
                       </Text>
                     ) : (
                       <Text style={styles.emptyCell}>-</Text>
                     )}
                   </View>
-                  <Text style={[styles.cell, styles.colTime]}>{formatSlot(slotIndex)}</Text>
+                  <Text style={[styles.cell, styles.colTime]}>
+                    {formatSlot(slotIndex)}
+                  </Text>
                   <View style={styles.colCourtB}>
                     {slot.courtB ? (
-                      <Text style={[styles.matchupText, { color: CATEGORY_COLORS[slot.courtB.category] || "#374151" }]}>
+                      <Text
+                        style={[
+                          styles.matchupText,
+                          { color: CATEGORY_COLORS[slot.courtB.category] || "#374151" },
+                        ]}
+                      >
                         {formatMatchup(slot.courtB)}
                       </Text>
                     ) : (
@@ -210,12 +234,14 @@ export function EventSheetDocument({ event, baseUrl }: Props) {
             })}
           </View>
         ) : (
-          <Text style={styles.empty}>No games are currently scheduled for this event.</Text>
+          <Text style={styles.empty}>
+            No games are currently scheduled for this event.
+          </Text>
         )}
         {unscheduledCount > 0 && (
           <Text style={styles.empty}>
-            {unscheduledCount} game{unscheduledCount === 1 ? "" : "s"} without a time slot are not shown in this
-            table.
+            {unscheduledCount} game{unscheduledCount === 1 ? "" : "s"} without a time slot
+            are not shown in this table.
           </Text>
         )}
 

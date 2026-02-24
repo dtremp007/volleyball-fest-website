@@ -38,15 +38,15 @@ export const seasonRouter = {
       return await getSeasonById(db, input.id);
     }),
 
-  getByState: publicProcedure.input(z.object({ state: seasonStateEnum })).query(async ({ input }) => {
-    return await getSeasonByState(db, input.state);
-  }),
-
-  create: protectedProcedure
-    .input(createSeasonSchema)
-    .mutation(async ({ input }) => {
-      return await createSeason(db, input);
+  getByState: publicProcedure
+    .input(z.object({ state: seasonStateEnum }))
+    .query(async ({ input }) => {
+      return await getSeasonByState(db, input.state);
     }),
+
+  create: protectedProcedure.input(createSeasonSchema).mutation(async ({ input }) => {
+    return await createSeason(db, input);
+  }),
 
   update: protectedProcedure
     .input(z.object({ id: z.string(), data: updateSeasonSchema }))

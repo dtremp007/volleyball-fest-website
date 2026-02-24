@@ -13,6 +13,7 @@ const teamColumns = {
   coCaptainPhone: schema.team.coCaptainPhone,
   unavailableDates: schema.team.unavailableDates,
   comingFrom: schema.team.comingFrom,
+  isFarAway: schema.team.isFarAway,
   season: {
     id: schema.season.id,
     name: schema.season.name,
@@ -77,7 +78,10 @@ export const getTeamsBySeasonId = async (
   }
 
   return await db
-    .select(teamColumns)
+    .select({
+      ...teamColumns,
+      groupId: schema.seasonTeam.groupId,
+    })
     .from(schema.team)
     .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
     .innerJoin(schema.season, eq(schema.seasonTeam.seasonId, schema.season.id))
@@ -103,24 +107,32 @@ type UpsertTeamParams = {
   coCaptainPhone: string;
   unavailableDates: string;
   comingFrom: string;
+  isFarAway?: boolean;
   seasonId: string;
   players: UpsertPlayerInput[];
 };
 
 export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
-  const { id, players, ...teamParams } = params;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured to exclude from teamParams
+  const { id, players, seasonId, ...teamParams } = params;
+  const { isFarAway, ...restTeamParams } = teamParams;
   const teamId = id ?? uuidv4();
+
+  const teamInsertValues = {
+    ...restTeamParams,
+    ...(isFarAway !== undefined && { isFarAway: isFarAway ? 1 : 0 }),
+  };
 
   await db.transaction(async (tx) => {
     await tx
       .insert(schema.team)
       .values({
         id: teamId,
-        ...teamParams,
+        ...teamInsertValues,
       })
       .onConflictDoUpdate({
         target: [schema.team.id],
-        set: teamParams,
+        set: teamInsertValues,
       });
 
     await tx
@@ -132,7 +144,12 @@ export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
       .onConflictDoNothing();
 
     const existingPlayers = await tx
-      .select({ id: schema.player.id, name: schema.player.name, jerseyNumber: schema.player.jerseyNumber, positionId: schema.player.positionId })
+      .select({
+        id: schema.player.id,
+        name: schema.player.name,
+        jerseyNumber: schema.player.jerseyNumber,
+        positionId: schema.player.positionId,
+      })
       .from(schema.player)
       .where(eq(schema.player.teamId, teamId));
 
@@ -299,4 +316,15 @@ export const deleteTeam = async (db: Database, id: string) => {
   });
 
   return { success: true };
+};
+
+export const updateTeamIsFarAway = async (
+  db: Database,
+  teamId: string,
+  isFarAway: boolean,
+) => {
+  await db
+    .update(schema.team)
+    .set({ isFarAway: isFarAway ? 1 : 0 })
+    .where(eq(schema.team.id, teamId));
 };

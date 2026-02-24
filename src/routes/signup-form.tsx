@@ -100,15 +100,12 @@ function SignupFormPage() {
       captainPhone: team?.captainPhone ?? "",
       coCaptainName: team?.coCaptainName ?? "",
       coCaptainPhone: team?.coCaptainPhone ?? "",
-      players:
-        team?.players.map((player) => ({
-          id: player.id,
-          name: player.name,
-          jerseyNumber: player.jerseyNumber,
-          positionId: player.position?.id ?? positions?.[0]?.id ?? "",
-        })) ?? [
-          { name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" },
-        ],
+      players: team?.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        jerseyNumber: player.jerseyNumber,
+        positionId: player.position?.id ?? positions?.[0]?.id ?? "",
+      })) ?? [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
       unavailableDates: defaultUnavailableDates,
       comingFrom: team?.comingFrom,
       notes: team?.notes || undefined,

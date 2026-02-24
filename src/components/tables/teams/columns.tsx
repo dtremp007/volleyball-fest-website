@@ -1,11 +1,10 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import { CellEditor } from "~/components/cell-editor";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { cn } from "~/lib/utils";
-import { ActionsMenu } from "./actions-menu";
 import type { RouterOutputs } from "~/trpc/router";
+import { ActionsMenu } from "./actions-menu";
 
 export type Team = RouterOutputs["team"]["list"][number];
 

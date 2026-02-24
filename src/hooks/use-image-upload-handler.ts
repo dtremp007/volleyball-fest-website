@@ -36,7 +36,9 @@ export function useImageUploadHandler(options: UseImageUploadHandlerOptions = {}
     }
 
     if (file.size > maxFileSize) {
-      const error = new Error(`${file.name} is too large (max ${formatBytes(maxFileSize)})`);
+      const error = new Error(
+        `${file.name} is too large (max ${formatBytes(maxFileSize)})`,
+      );
       toast.error(error.message);
       onError?.(file.name, error);
       return null;

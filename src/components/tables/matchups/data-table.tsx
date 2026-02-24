@@ -1,6 +1,5 @@
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { flexRender } from "@tanstack/react-table";
+import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -33,7 +32,9 @@ type Props = {
 export function MatchupsDataTable({ seasonId }: Props) {
   "use no memo";
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.matchup.getBySeasonId.queryOptions({ seasonId }));
+  const { data } = useSuspenseQuery(
+    trpc.matchup.getBySeasonId.queryOptions({ seasonId }),
+  );
 
   const eventsById = new Map(data.events.map((event) => [event.id, event]));
 
@@ -41,7 +42,9 @@ export function MatchupsDataTable({ seasonId }: Props) {
     .map((matchup) => {
       const event = matchup.eventId ? eventsById.get(matchup.eventId) : null;
       const slotLabel =
-        matchup.slotIndex !== null ? (TIME_SLOTS[matchup.slotIndex] ?? `Slot ${matchup.slotIndex + 1}`) : null;
+        matchup.slotIndex !== null
+          ? (TIME_SLOTS[matchup.slotIndex] ?? `Slot ${matchup.slotIndex + 1}`)
+          : null;
 
       return {
         id: matchup.id,
@@ -58,8 +61,13 @@ export function MatchupsDataTable({ seasonId }: Props) {
         teamBSetsWon: matchup.teamBSetsWon,
         setsSummary:
           matchup.sets
-            .filter((setScore) => setScore.teamAScore !== null && setScore.teamBScore !== null)
-            .map((setScore) => `S${setScore.set} ${setScore.teamAScore}-${setScore.teamBScore}`)
+            .filter(
+              (setScore) => setScore.teamAScore !== null && setScore.teamBScore !== null,
+            )
+            .map(
+              (setScore) =>
+                `S${setScore.set} ${setScore.teamAScore}-${setScore.teamBScore}`,
+            )
             .join(" | ") || "-",
         winnerName:
           matchup.teamASetsWon >= Math.floor(matchup.bestOf / 2) + 1
@@ -97,7 +105,10 @@ export function MatchupsDataTable({ seasonId }: Props) {
             <TableRow>
               {table.getHeaderGroups().map((headerGroup) =>
                 headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
+                  <TableHead
+                    key={header.id}
+                    className={header.column.columnDef.meta?.className}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -113,8 +124,12 @@ export function MatchupsDataTable({ seasonId }: Props) {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={Math.max(leafColumnCount - 1, 1)}>Total matchups</TableCell>
-              <TableCell className="font-medium tabular-nums text-right">{matchupRows.length}</TableCell>
+              <TableCell colSpan={Math.max(leafColumnCount - 1, 1)}>
+                Total matchups
+              </TableCell>
+              <TableCell className="text-right font-medium tabular-nums">
+                {matchupRows.length}
+              </TableCell>
             </TableRow>
           </TableFooter>
         </Table>

@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import z from "zod";
 import {
   CategoryTabs,
-  SeasonTabs,
   TeamDetailsDrawer,
   TeamsDataTable,
   TeamsSkeleton,

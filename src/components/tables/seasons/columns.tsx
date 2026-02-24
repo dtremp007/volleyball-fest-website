@@ -44,9 +44,7 @@ export const columns: ColumnDef<Season>[] = [
     meta: {
       className: "w-[200px] min-w-[200px]",
     },
-    cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("name")}</span>
-    ),
+    cell: ({ row }) => <span className="font-medium">{row.getValue("name")}</span>,
   },
   {
     header: "Dates",
@@ -69,10 +67,7 @@ export const columns: ColumnDef<Season>[] = [
     cell: ({ row }) => {
       const state = row.getValue("state") as string;
       return (
-        <Badge
-          className={stateColors[state] || stateColors.draft}
-          variant="secondary"
-        >
+        <Badge className={stateColors[state] || stateColors.draft} variant="secondary">
           {stateLabels[state] || state}
         </Badge>
       );
@@ -94,9 +89,7 @@ export const columns: ColumnDef<Season>[] = [
     meta: {
       className: "w-[100px] min-w-[100px] text-center",
     },
-    cell: ({ row }) => (
-      <span className="tabular-nums">{row.getValue("eventCount")}</span>
-    ),
+    cell: ({ row }) => <span className="tabular-nums">{row.getValue("eventCount")}</span>,
   },
   {
     id: "actions",

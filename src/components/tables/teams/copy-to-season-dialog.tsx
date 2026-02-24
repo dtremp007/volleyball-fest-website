@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { Copy } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -12,8 +12,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { Label } from "~/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { useTRPC } from "~/trpc/react";
 
 type Props = {
@@ -35,7 +35,7 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
       onSuccess: async () => {
         await queryClient.invalidateQueries({ queryKey: trpc.team.list.queryKey() });
         toast.success(
-          `Copied ${selectedTeamIds.length} team${selectedTeamIds.length !== 1 ? "s" : ""} to season`
+          `Copied ${selectedTeamIds.length} team${selectedTeamIds.length !== 1 ? "s" : ""} to season`,
         );
         setOpen(false);
         setSelectedSeasonId("");
@@ -44,7 +44,7 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
       onError: () => {
         toast.error("Failed to copy teams to season");
       },
-    })
+    }),
   );
 
   const handleCopy = () => {
@@ -72,8 +72,8 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
           <DialogTitle>Copy Teams to Season</DialogTitle>
           <DialogDescription>
             Copy {selectedTeamIds.length} selected team
-            {selectedTeamIds.length !== 1 ? "s" : ""} to another season. Teams
-            that already exist in the target season will be skipped.
+            {selectedTeamIds.length !== 1 ? "s" : ""} to another season. Teams that
+            already exist in the target season will be skipped.
           </DialogDescription>
         </DialogHeader>
 

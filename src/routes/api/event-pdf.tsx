@@ -27,7 +27,9 @@ async function handleGetEventPDF({ request }: { request: Request }) {
 
     const baseUrl = `${url.protocol}//${url.host}`;
 
-    const pdfBuffer = await renderToBuffer(<EventSheetDocument event={event} baseUrl={baseUrl} />);
+    const pdfBuffer = await renderToBuffer(
+      <EventSheetDocument event={event} baseUrl={baseUrl} />,
+    );
     const pdfBytes = Uint8Array.from(pdfBuffer);
     const sanitizedName = event.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
     const filename = `${sanitizedName}_event_schedule.pdf`;

@@ -53,9 +53,7 @@ function GeneratePage() {
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
 
   // State for schedule config
-  const [startTime, setStartTime] = useState(
-    scheduleConfig?.defaultStartTime || "16:15",
-  );
+  const [startTime, setStartTime] = useState(scheduleConfig?.defaultStartTime || "16:15");
   const [gamesPerEvening, setGamesPerEvening] = useState(
     scheduleConfig?.gamesPerEvening || 7,
   );
@@ -80,14 +78,16 @@ function GeneratePage() {
 
     try {
       // Convert dates to YYYY-MM-DD format and dedupe
-      const dateStrings = [...new Set(
-        selectedDates.map((date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          return `${year}-${month}-${day}`;
-        }),
-      )];
+      const dateStrings = [
+        ...new Set(
+          selectedDates.map((date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+          }),
+        ),
+      ];
 
       const result = await generateScheduleMutation.mutateAsync({
         seasonId,
@@ -101,7 +101,9 @@ function GeneratePage() {
           `Scheduled ${result.scheduledCount} matchups. ${result.unscheduledCount} could not be auto-scheduled and were left unscheduled.`,
         );
       } else {
-        toast.success(`Schedule generated successfully! ${result.scheduledCount} matchups placed.`);
+        toast.success(
+          `Schedule generated successfully! ${result.scheduledCount} matchups placed.`,
+        );
       }
       navigate({
         to: "/seasons/$seasonId/build",
@@ -235,7 +237,9 @@ function GeneratePage() {
                   <div className="text-destructive text-sm">
                     <p className="font-medium">Low Capacity Warning</p>
                     <p className="mt-1 text-xs">
-                      You might need ~{estimatedSlotsNeeded} slots to schedule all {totalMatchups} matchups due to constraints. Unplaced matchups will remain in the unscheduled panel.
+                      You might need ~{estimatedSlotsNeeded} slots to schedule all{" "}
+                      {totalMatchups} matchups due to constraints. Unplaced matchups will
+                      remain in the unscheduled panel.
                     </p>
                   </div>
                 </div>
@@ -256,10 +260,7 @@ function GeneratePage() {
             <CardFooter>
               <Button
                 onClick={handleGenerateSchedule}
-                disabled={
-                  selectedDatesCount === 0 ||
-                  generateScheduleMutation.isPending
-                }
+                disabled={selectedDatesCount === 0 || generateScheduleMutation.isPending}
                 className="w-full"
                 size="lg"
               >

@@ -14,15 +14,15 @@ This folder contains the React/Next.js version of the navbar components, convert
 ## Usage Example
 
 ```jsx
-import Link from 'next/link';
+import Link from "next/link";
 import {
   Navbar,
   NavHeader,
   Logo,
   Hamburger,
   NavItem,
-  NavList
-} from '@/lib/components/navbar';
+  NavList,
+} from "@/lib/components/navbar";
 
 export default function Navigation() {
   return (
@@ -34,7 +34,7 @@ export default function Navigation() {
         </div>
       </NavHeader>
 
-      <div className="hidden md:flex md:items-center md:justify-between md:px-8 h-full">
+      <div className="hidden h-full md:flex md:items-center md:justify-between md:px-8">
         <Logo />
         <NavList>
           <NavItem>
@@ -48,7 +48,10 @@ export default function Navigation() {
             </Link>
           </NavItem>
           <NavItem>
-            <Link href="/casas-prefabricadas" className="text-gray-700 hover:text-gray-900">
+            <Link
+              href="/casas-prefabricadas"
+              className="text-gray-700 hover:text-gray-900"
+            >
               Casas Prefabricadas
             </Link>
           </NavItem>
@@ -69,17 +72,26 @@ export default function Navigation() {
             </Link>
           </NavItem>
           <NavItem>
-            <Link href="/about" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+            <Link
+              href="/about"
+              className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+            >
               About
             </Link>
           </NavItem>
           <NavItem>
-            <Link href="/casas-prefabricadas" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+            <Link
+              href="/casas-prefabricadas"
+              className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+            >
               Casas Prefabricadas
             </Link>
           </NavItem>
           <NavItem>
-            <Link href="/contact" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+            <Link
+              href="/contact"
+              className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+            >
               Contact
             </Link>
           </NavItem>
@@ -93,16 +105,20 @@ export default function Navigation() {
 ## Component Props
 
 ### Navbar
+
 - `className`: Additional CSS classes
 - `children`: Child components
 
 ### NavHeader
+
 - `children`: Child components
 
 ### Logo
+
 - No props (uses predefined logo from assets)
 
 ### Hamburger
+
 - `className`: Additional CSS classes
 - `styles`: Object with custom style properties:
   - `background`: Background color
@@ -111,10 +127,12 @@ export default function Navigation() {
   - `colorChecked`: Hamburger line color when menu is open
 
 ### NavItem
+
 - `className`: Additional CSS classes
 - `children`: Child components
 
 ### NavList
+
 - `className`: Additional CSS classes
 - `children`: Child components
 

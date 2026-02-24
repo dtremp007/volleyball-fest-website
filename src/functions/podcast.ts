@@ -24,32 +24,30 @@ export interface PodcastEpisode {
 }
 
 // Server function to fetch and parse RSS feed
-export const fetchPodcastData = createServerFn({ method: "GET" }).handler(
-  async () => {
-    try {
-      const rssUrl = "https://anchor.fm/s/51db89f8/podcast/rss";
-      const response = await fetch(rssUrl);
+export const fetchPodcastData = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const rssUrl = "https://anchor.fm/s/51db89f8/podcast/rss";
+    const response = await fetch(rssUrl);
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
-      }
-
-      const xmlText = await response.text();
-
-      // Parse XML manually (since we're in a server environment)
-      const podcastInfo = extractPodcastInfo(xmlText);
-      const episodes = extractEpisodes(xmlText);
-
-      return {
-        podcastInfo,
-        episodes,
-      };
-    } catch (error) {
-      console.error("Error fetching podcast data:", error);
-      throw new Error("Failed to load podcast data");
+    if (!response.ok) {
+      throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
     }
+
+    const xmlText = await response.text();
+
+    // Parse XML manually (since we're in a server environment)
+    const podcastInfo = extractPodcastInfo(xmlText);
+    const episodes = extractEpisodes(xmlText);
+
+    return {
+      podcastInfo,
+      episodes,
+    };
+  } catch (error) {
+    console.error("Error fetching podcast data:", error);
+    throw new Error("Failed to load podcast data");
   }
-);
+});
 
 // Helper function to extract podcast info from RSS XML
 function extractPodcastInfo(xml: string): PodcastInfo {
@@ -58,9 +56,7 @@ function extractPodcastInfo(xml: string): PodcastInfo {
   const title = titleMatch ? titleMatch[1] : "Pludastund";
 
   // Extract description
-  const descMatch = xml.match(
-    /<description><!\[CDATA\[(.*?)\]\]><\/description>/
-  );
+  const descMatch = xml.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
   const description = descMatch
     ? descMatch[1]
     : "A Low German (Plautdietsche) podcast about creativity, entrepreneurship, and life.";
@@ -112,9 +108,7 @@ function extractEpisodes(xml: string): PodcastEpisode[] {
     const title = titleMatch ? titleMatch[1] : "Untitled Episode";
 
     // Extract description
-    const descMatch = itemXml.match(
-      /<description><!\[CDATA\[(.*?)\]\]><\/description>/
-    );
+    const descMatch = itemXml.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
     let description = descMatch ? descMatch[1] : "";
 
     // Clean up HTML tags from description
@@ -134,22 +128,16 @@ function extractEpisodes(xml: string): PodcastEpisode[] {
     const audioUrl = enclosureMatch ? enclosureMatch[1] : "";
 
     // Extract duration
-    const durationMatch = itemXml.match(
-      /<itunes:duration>(.*?)<\/itunes:duration>/
-    );
+    const durationMatch = itemXml.match(/<itunes:duration>(.*?)<\/itunes:duration>/);
     const duration = durationMatch ? durationMatch[1] : undefined;
 
     // Extract episode number
-    const episodeMatch = itemXml.match(
-      /<itunes:episode>(.*?)<\/itunes:episode>/
-    );
+    const episodeMatch = itemXml.match(/<itunes:episode>(.*?)<\/itunes:episode>/);
     const episodeNumber = episodeMatch ? parseInt(episodeMatch[1]) : undefined;
 
     // Extract file size (approximate)
     const lengthMatch = itemXml.match(/<enclosure.*?length="(.*?)"/);
-    const size = lengthMatch
-      ? formatFileSize(parseInt(lengthMatch[1]))
-      : undefined;
+    const size = lengthMatch ? formatFileSize(parseInt(lengthMatch[1])) : undefined;
 
     if (audioUrl) {
       episodes.push({
@@ -166,8 +154,7 @@ function extractEpisodes(xml: string): PodcastEpisode[] {
   }
 
   return episodes.sort(
-    (a, b) =>
-      new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
+    (a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime(),
   );
 }
 
@@ -200,7 +187,7 @@ export const downloadPodcastEpisode = createServerFn({
     z.object({
       audioUrl: z.string().url(),
       filename: z.string(),
-    })
+    }),
   )
   .handler(async ({ data }) => {
     try {

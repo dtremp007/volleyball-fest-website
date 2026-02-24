@@ -1,7 +1,23 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
+
+/**
+ * Get all groups for a season, ordered by category then name
+ */
+export async function getGroupsBySeason(db: Database, seasonId: string) {
+  return await db
+    .select({
+      id: schema.group.id,
+      name: schema.group.name,
+      seasonId: schema.group.seasonId,
+      categoryId: schema.group.categoryId,
+    })
+    .from(schema.group)
+    .where(eq(schema.group.seasonId, seasonId))
+    .orderBy(asc(schema.group.categoryId), asc(schema.group.name));
+}
 
 /**
  * Get all groups for a specific season and category
@@ -20,10 +36,7 @@ export async function getGroupsBySeasonAndCategory(
     })
     .from(schema.group)
     .where(
-      and(
-        eq(schema.group.seasonId, seasonId),
-        eq(schema.group.categoryId, categoryId),
-      ),
+      and(eq(schema.group.seasonId, seasonId), eq(schema.group.categoryId, categoryId)),
     )
     .orderBy(schema.group.name);
 }
@@ -53,10 +66,7 @@ export async function assignTeamToGroup(
     .update(schema.seasonTeam)
     .set({ groupId })
     .where(
-      and(
-        eq(schema.seasonTeam.seasonId, seasonId),
-        eq(schema.seasonTeam.teamId, teamId),
-      ),
+      and(eq(schema.seasonTeam.seasonId, seasonId), eq(schema.seasonTeam.teamId, teamId)),
     );
 }
 
@@ -90,11 +100,7 @@ export async function deleteGroup(db: Database, groupId: string) {
 /**
  * Get all teams in a specific group
  */
-export async function getTeamsByGroup(
-  db: Database,
-  seasonId: string,
-  groupId: string,
-) {
+export async function getTeamsByGroup(db: Database, seasonId: string, groupId: string) {
   return await db
     .select({
       id: schema.team.id,

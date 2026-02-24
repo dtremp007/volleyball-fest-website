@@ -231,7 +231,10 @@ export function TeamSheetDocument({ team }: Props) {
             <Text style={styles.teamName}>{team.name}</Text>
             <Text style={styles.category}>{team.category.name}</Text>
           </View>
-          <Image src={env.VITE_BASE_URL + "/icon-no-bg-512.png"} style={styles.siteLogo} />
+          <Image
+            src={env.VITE_BASE_URL + "/icon-no-bg-512.png"}
+            style={styles.siteLogo}
+          />
         </View>
 
         {/* Contact Information */}
@@ -313,9 +316,7 @@ export function TeamSheetDocument({ team }: Props) {
         </View>
 
         {/* Footer */}
-        <Text style={styles.footer}>
-          Volleyball Fest
-        </Text>
+        <Text style={styles.footer}>Volleyball Fest</Text>
       </Page>
     </Document>
   );

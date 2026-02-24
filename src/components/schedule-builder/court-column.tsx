@@ -1,33 +1,52 @@
+import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { cn } from "~/lib/utils";
+import { useScheduleStore } from "./store";
 import { TimeSlot } from "./time-slot";
-import type { Court } from "./types";
 
 type CourtColumnProps = {
-  court: Court;
+  courtId: "A" | "B";
   eventId: string;
 };
 
-export function CourtColumn({ court, eventId }: CourtColumnProps) {
+export const CourtColumn = memo(function CourtColumn({
+  courtId,
+  eventId,
+}: CourtColumnProps) {
+  const slotIds = useScheduleStore(
+    useShallow((state) => {
+      const event = state.events.find((e) => e.id === eventId);
+      const court = event?.courts.find((c) => c.id === courtId);
+      return court?.slots.map((s) => s.id) ?? [];
+    }),
+  );
+
   return (
-    <div className="flex-1 min-w-[200px]">
+    <div className="min-w-[200px] flex-1">
       {/* Court header */}
       <div
         className={cn(
-          "text-center font-semibold text-sm py-2 rounded-t-lg",
-          court.id === "A"
+          "rounded-t-lg py-2 text-center text-sm font-semibold",
+          courtId === "A"
             ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
             : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
         )}
       >
-        Court {court.id}
+        Court {courtId}
       </div>
 
       {/* Time slots */}
-      <div className="space-y-2 p-2 pl-24 bg-card/50 rounded-b-lg border border-t-0 border-border/50">
-        {court.slots.map((slot) => (
-          <TimeSlot key={slot.id} slot={slot} eventId={eventId} courtId={court.id} />
+      <div className="bg-card/50 border-border/50 space-y-2 rounded-b-lg border border-t-0 p-2 pl-24">
+        {slotIds.map((slotId, slotIndex) => (
+          <TimeSlot
+            key={slotId}
+            slotId={slotId}
+            eventId={eventId}
+            courtId={courtId}
+            slotIndex={slotIndex}
+          />
         ))}
       </div>
     </div>
   );
-}
+});

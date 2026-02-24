@@ -25,11 +25,9 @@ export const positionRouter = {
       return await getPositionById(db, input.id);
     }),
 
-  create: protectedProcedure
-    .input(createPositionSchema)
-    .mutation(async ({ input }) => {
-      return await createPosition(db, input);
-    }),
+  create: protectedProcedure.input(createPositionSchema).mutation(async ({ input }) => {
+    return await createPosition(db, input);
+  }),
 
   update: protectedProcedure
     .input(z.object({ id: z.string(), data: updatePositionSchema }))

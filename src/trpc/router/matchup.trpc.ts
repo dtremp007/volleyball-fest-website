@@ -202,7 +202,9 @@ export const matchupRouter = {
     .input(
       z.object({
         seasonId: z.string(),
-        dates: z.array(z.string().min(1, "Date cannot be empty")).min(1, "At least one date is required"),
+        dates: z
+          .array(z.string().min(1, "Date cannot be empty"))
+          .min(1, "At least one date is required"),
         defaultStartTime: z.string(),
         gamesPerEvening: z.number().int().positive(),
       }),

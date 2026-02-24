@@ -1,19 +1,20 @@
 import { useDroppable } from "@dnd-kit/core";
 import { Inbox } from "lucide-react";
+import { memo, useMemo } from "react";
 import { cn } from "~/lib/utils";
 import { MatchupBlock } from "./matchup-block";
+import { useScheduleStore } from "./store";
 import type { Matchup } from "./types";
-import { ScrollArea } from "../ui/scroll-area";
 
 type UnscheduledPanelProps = {
-  matchups: Matchup[];
   matchupsByCategory: Record<string, Matchup[]>;
 };
 
-export function UnscheduledPanel({
-  matchups,
+export const UnscheduledPanel = memo(function UnscheduledPanel({
   matchupsByCategory,
 }: UnscheduledPanelProps) {
+  const matchups = useScheduleStore((state) => state.unscheduledMatchups);
+
   const { isOver, setNodeRef, active } = useDroppable({
     id: "unscheduled-panel",
     data: { type: "unscheduled" },
@@ -23,7 +24,8 @@ export function UnscheduledPanel({
     active?.data?.current?.type === "matchup" &&
     active?.data?.current?.source?.type === "scheduled";
 
-  const categories = Object.keys(matchupsByCategory);
+  const categories = useMemo(() => Object.keys(matchupsByCategory), [matchupsByCategory]);
+  const unscheduledIds = useMemo(() => new Set(matchups.map((m) => m.id)), [matchups]);
 
   return (
     <div
@@ -34,7 +36,7 @@ export function UnscheduledPanel({
       )}
     >
       {/* Header */}
-      <div className="border-b p-4 h-[87px]">
+      <div className="h-[87px] border-b p-4">
         <h2 className="flex items-center gap-2 font-semibold">
           <Inbox className="size-5" />
           Unscheduled
@@ -46,41 +48,41 @@ export function UnscheduledPanel({
 
       {/* Matchups by category */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
+        <div className="h-full overflow-y-auto">
           <div className="space-y-6 p-4">
-          {matchups.length === 0 ? (
-            <div className="text-muted-foreground py-8 text-center">
-              <Inbox className="mx-auto mb-3 size-12 opacity-30" />
-              <p className="text-sm">All matchups scheduled!</p>
-            </div>
-          ) : (
-            categories.map((category) => {
-              const categoryMatchups = matchupsByCategory[category]?.filter((m) =>
-                matchups.some((um) => um.id === m.id),
-              );
+            {matchups.length === 0 ? (
+              <div className="text-muted-foreground py-8 text-center">
+                <Inbox className="mx-auto mb-3 size-12 opacity-30" />
+                <p className="text-sm">All matchups scheduled!</p>
+              </div>
+            ) : (
+              categories.map((category) => {
+                const categoryMatchups =
+                  matchupsByCategory[category]?.filter((m) => unscheduledIds.has(m.id)) ??
+                  [];
 
-              if (!categoryMatchups || categoryMatchups.length === 0) return null;
+                if (categoryMatchups.length === 0) return null;
 
-              return (
-                <div key={category}>
-                  <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
-                    {category}
-                  </h3>
-                  <div className="space-y-2">
-                    {categoryMatchups.map((matchup) => (
-                      <MatchupBlock
-                        key={matchup.id}
-                        matchup={matchup}
-                        source={{ type: "unscheduled" }}
-                      />
-                    ))}
+                return (
+                  <div key={category}>
+                    <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+                      {category}
+                    </h3>
+                    <div className="space-y-2">
+                      {categoryMatchups.map((matchup) => (
+                        <MatchupBlock
+                          key={matchup.id}
+                          matchup={matchup}
+                          source={{ type: "unscheduled" }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Drop indicator */}
@@ -98,4 +100,4 @@ export function UnscheduledPanel({
       )}
     </div>
   );
-}
+});

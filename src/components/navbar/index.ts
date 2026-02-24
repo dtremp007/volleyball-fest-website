@@ -1,5 +1,5 @@
-export { default as Navbar } from './Navbar'
-export { default as NavHeader } from './NavHeader'
-export { default as Hamburger } from './Hamburger'
-export { default as NavItem } from './NavItem'
-export { default as NavList } from './NavList'
+export { default as Hamburger } from "./Hamburger";
+export { default as Navbar } from "./Navbar";
+export { default as NavHeader } from "./NavHeader";
+export { default as NavItem } from "./NavItem";
+export { default as NavList } from "./NavList";

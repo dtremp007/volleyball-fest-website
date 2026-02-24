@@ -1,5 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
+import { memo, useMemo } from "react";
 import { cn } from "~/lib/utils";
 import type { DragData, Matchup } from "./types";
 
@@ -9,16 +10,16 @@ type MatchupBlockProps = {
   isOverlay?: boolean;
 };
 
-// Category color mapping for visual distinction
-const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
-  default: {
-    bg: "bg-slate-50 dark:bg-slate-900/50",
-    border: "border-slate-200 dark:border-slate-700",
-    text: "text-slate-700 dark:text-slate-300",
-  },
-};
+const categoryColorCache = new Map<
+  string,
+  { bg: string; border: string; text: string }
+>();
 
 function getCategoryColor(category: string) {
+  const cached = categoryColorCache.get(category);
+  if (cached) {
+    return cached;
+  }
   // Generate consistent colors based on category name hash
   const colors = [
     {
@@ -58,22 +59,36 @@ function getCategoryColor(category: string) {
   for (let i = 0; i < category.length; i++) {
     hash = category.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return colors[Math.abs(hash) % colors.length];
+  const selected = colors[Math.abs(hash) % colors.length];
+  categoryColorCache.set(category, selected);
+  return selected;
 }
 
-export function MatchupBlock({ matchup, source, isOverlay }: MatchupBlockProps) {
-  const dragData: DragData = {
-    type: "matchup",
-    matchup,
-    source,
-  };
+export const MatchupBlock = memo(function MatchupBlock({
+  matchup,
+  source,
+  isOverlay,
+}: MatchupBlockProps) {
+  const dragData: DragData = useMemo(
+    () => ({
+      type: "matchup",
+      matchup,
+      source,
+    }),
+    [matchup, source],
+  );
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `matchup-${matchup.id}-${source.type === "unscheduled" ? "unscheduled" : `${source.eventId}-${source.courtId}-${source.slotId}`}`,
     data: dragData,
   });
 
-  const colors = getCategoryColor(matchup.category);
+  const colors = useMemo(() => getCategoryColor(matchup.category), [matchup.category]);
+  const draggableAttributes = useMemo(() => {
+    const nextAttributes = { ...attributes };
+    delete (nextAttributes as { tabIndex?: number }).tabIndex;
+    return nextAttributes;
+  }, [attributes]);
 
   return (
     <div
@@ -83,48 +98,52 @@ export function MatchupBlock({ matchup, source, isOverlay }: MatchupBlockProps) 
         colors.bg,
         colors.border,
         isDragging && !isOverlay && "opacity-40",
-        isOverlay && "shadow-xl ring-2 ring-primary/50 rotate-2 scale-105",
-        !isOverlay && "hover:shadow-md cursor-grab active:cursor-grabbing",
+        isOverlay && "ring-primary/50 scale-105 rotate-2 shadow-xl ring-2",
+        !isOverlay && "cursor-grab hover:shadow-md active:cursor-grabbing",
       )}
       {...listeners}
-      {...attributes}
+      {...draggableAttributes}
     >
-      <GripVertical className="size-4 text-muted-foreground/50 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className={cn("text-sm font-medium truncate", colors.text)}>
+      <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className={cn("truncate text-sm font-medium", colors.text)}>
           {matchup.teamA.name}
         </div>
-        <div className="text-xs text-muted-foreground my-0.5">vs</div>
-        <div className={cn("text-sm font-medium truncate", colors.text)}>
+        <div className="text-muted-foreground my-0.5 text-xs">vs</div>
+        <div className={cn("truncate text-sm font-medium", colors.text)}>
           {matchup.teamB.name}
         </div>
       </div>
     </div>
   );
-}
+});
 
-export function MatchupBlockOverlay({ matchup }: { matchup: Matchup }) {
-  const colors = getCategoryColor(matchup.category);
+export const MatchupBlockOverlay = memo(function MatchupBlockOverlay({
+  matchup,
+}: {
+  matchup: Matchup;
+}) {
+  const colors = useMemo(() => getCategoryColor(matchup.category), [matchup.category]);
 
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg border-2 px-3 py-2 shadow-2xl rotate-2 scale-105",
+        "flex scale-105 rotate-2 items-center gap-2 rounded-lg border-2 px-3 py-2 shadow-2xl",
         colors.bg,
         colors.border,
-        "ring-2 ring-primary/50",
+        "ring-primary/50 ring-2",
       )}
     >
-      <GripVertical className="size-4 text-muted-foreground/50 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className={cn("text-sm font-medium truncate", colors.text)}>
+      <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className={cn("truncate text-sm font-medium", colors.text)}>
           {matchup.teamA.name}
         </div>
-        <div className="text-xs text-muted-foreground my-0.5">vs</div>
-        <div className={cn("text-sm font-medium truncate", colors.text)}>
+        <div className="text-muted-foreground my-0.5 text-xs">vs</div>
+        <div className={cn("truncate text-sm font-medium", colors.text)}>
           {matchup.teamB.name}
         </div>
       </div>
     </div>
   );
-}
+});

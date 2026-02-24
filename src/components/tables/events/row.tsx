@@ -13,7 +13,10 @@ export function EventRowItem({ row }: Props) {
 
   const handleRowClick = (cellId: string, e: React.MouseEvent) => {
     if (cellId === "actions") return;
-    if (e.target instanceof HTMLElement && (e.target.closest("a") || e.target.closest("button"))) {
+    if (
+      e.target instanceof HTMLElement &&
+      (e.target.closest("a") || e.target.closest("button"))
+    ) {
       return;
     }
 

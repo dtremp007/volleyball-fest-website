@@ -163,12 +163,12 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard/': typeof authenticatedDashboardIndexRoute
-  '/seasons': typeof authenticatedSeasonsIndexRoute
-  '/teams': typeof authenticatedTeamsIndexRoute
+  '/seasons/': typeof authenticatedSeasonsIndexRoute
+  '/teams/': typeof authenticatedTeamsIndexRoute
   '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
   '/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
-  '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdIndexRoute
+  '/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -233,12 +233,12 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard/'
-    | '/seasons'
-    | '/teams'
+    | '/seasons/'
+    | '/teams/'
     | '/seasons/$seasonId/build'
     | '/seasons/$seasonId/configure'
     | '/seasons/$seasonId/generate'
-    | '/seasons/$seasonId'
+    | '/seasons/$seasonId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -396,14 +396,14 @@ declare module '@tanstack/react-router' {
     '/(authenticated)/teams/': {
       id: '/(authenticated)/teams/'
       path: '/teams'
-      fullPath: '/teams'
+      fullPath: '/teams/'
       preLoaderRoute: typeof authenticatedTeamsIndexRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }
     '/(authenticated)/seasons/': {
       id: '/(authenticated)/seasons/'
       path: '/seasons'
-      fullPath: '/seasons'
+      fullPath: '/seasons/'
       preLoaderRoute: typeof authenticatedSeasonsIndexRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }
@@ -431,7 +431,7 @@ declare module '@tanstack/react-router' {
     '/(authenticated)/seasons/$seasonId/': {
       id: '/(authenticated)/seasons/$seasonId/'
       path: '/seasons/$seasonId'
-      fullPath: '/seasons/$seasonId'
+      fullPath: '/seasons/$seasonId/'
       preLoaderRoute: typeof authenticatedSeasonsSeasonIdIndexRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }

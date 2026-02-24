@@ -64,11 +64,22 @@ export const getExampleById = async (db: Database, id: string) => {
 };
 
 export const createExample = async (db: Database, params: CreateExampleParams) => {
-  return await db.insert(schema.example).values({ id: uuidv4(), ...params }).returning();
+  return await db
+    .insert(schema.example)
+    .values({ id: uuidv4(), ...params })
+    .returning();
 };
 
-export const updateExample = async (db: Database, id: string, params: UpdateExampleParams) => {
-  return await db.update(schema.example).set(params).where(eq(schema.example.id, id)).returning();
+export const updateExample = async (
+  db: Database,
+  id: string,
+  params: UpdateExampleParams,
+) => {
+  return await db
+    .update(schema.example)
+    .set(params)
+    .where(eq(schema.example.id, id))
+    .returning();
 };
 
 export const deleteExample = async (db: Database, id: string) => {
@@ -123,11 +134,9 @@ export const exampleRouter = {
       return await getExampleById(db, input.id);
     }),
 
-  create: protectedProcedure
-    .input(createExampleSchema)
-    .mutation(async ({ input }) => {
-      return await createExample(db, input);
-    }),
+  create: protectedProcedure.input(createExampleSchema).mutation(async ({ input }) => {
+    return await createExample(db, input);
+  }),
 } satisfies TRPCRouterRecord;
 ```
 
