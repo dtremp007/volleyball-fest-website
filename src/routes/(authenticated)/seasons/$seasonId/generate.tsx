@@ -79,13 +79,15 @@ function GeneratePage() {
     }
 
     try {
-      // Convert dates to YYYY-MM-DD format
-      const dateStrings = selectedDates.map((date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      });
+      // Convert dates to YYYY-MM-DD format and dedupe
+      const dateStrings = [...new Set(
+        selectedDates.map((date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        }),
+      )];
 
       const result = await generateScheduleMutation.mutateAsync({
         seasonId,

@@ -7,6 +7,7 @@ import {
   clearMatchupPlacementsForSeason,
   configureGroupsAndGenerateMatchups,
   createEvent,
+  deleteEvent,
   deleteMatchupsForSeason,
   generateMatchupsForSeason,
   getEventsBySeasonId,
@@ -201,13 +202,18 @@ export const matchupRouter = {
     .input(
       z.object({
         seasonId: z.string(),
-        dates: z.array(z.string()), // Array of date strings (YYYY-MM-DD)
-        defaultStartTime: z.string(), // e.g., "4:15 PM"
+        dates: z.array(z.string().min(1, "Date cannot be empty")).min(1, "At least one date is required"),
+        defaultStartTime: z.string(),
         gamesPerEvening: z.number().int().positive(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { seasonId, dates, gamesPerEvening } = input;
+      const { seasonId, gamesPerEvening } = input;
+      // Normalize: trim, filter empty, dedupe
+      const dates = [...new Set(input.dates.map((d) => d.trim()).filter(Boolean))];
+      if (dates.length === 0) {
+        throw new Error("At least one valid date is required");
+      }
 
       // Generate matchups if they don't exist
       const hasMatchups = await hasMatchupsForSeason(db, seasonId);
@@ -215,14 +221,20 @@ export const matchupRouter = {
         await generateMatchupsForSeason(db, seasonId);
       }
 
+      // Replace existing schedule: delete all events for this season so matchups become unscheduled
+      const existingEvents = await getEventsBySeasonId(db, seasonId);
+      for (const event of existingEvents) {
+        await deleteEvent(db, event.id);
+      }
+
       // Create events from dates
       const eventIds: string[] = [];
       for (const date of dates) {
-      const event = await createEvent(db, {
-        seasonId,
-        name: format(new Date(`${date}T12:00:00`), "MMM d, yyyy"),
-        date,
-      });
+        const event = await createEvent(db, {
+          seasonId,
+          name: format(new Date(`${date}T12:00:00`), "MMM d, yyyy"),
+          date,
+        });
         eventIds.push(event.id);
       }
 

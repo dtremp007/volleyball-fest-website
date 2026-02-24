@@ -2,7 +2,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash } from "lucide-react";
 import z from "zod";
 import AvatarUpload from "~/components/avatar-upload";
@@ -87,6 +87,7 @@ function SignupFormPage() {
     const parsedUnavailableDates = parseUnavailableDates(team?.unavailableDates ?? "");
     return [parsedUnavailableDates[0] ?? "", parsedUnavailableDates[1] ?? ""];
   })();
+  const queryClient = useQueryClient();
 
   const form = useForm({
     defaultValues: {
@@ -130,6 +131,8 @@ function SignupFormPage() {
         });
 
         router.invalidate();
+        // invalidate all
+        queryClient.invalidateQueries();
 
         if (isEditing) {
           if (returnTo) {
