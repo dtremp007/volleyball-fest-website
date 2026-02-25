@@ -5,15 +5,22 @@ import {
   DEFAULT_MAX_GAMES_PER_EVENT,
   FAR_AWAY_MAX_GAMES_PER_EVENT,
   evaluatePlacementSwap,
+  getEstimatedFemenilNetSwitchCount,
   getPlacementPreferenceScore,
+  getScheduleQualityScore,
   getPlacementViolationReason,
-  OPTIMIZATION_MAX_PASSES,
+  type CategoryBalanceContext,
   type ConstraintValidationContext,
   type PlacementWithCategory,
   type ScheduledMatchupPlacement,
 } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
 import { normalizeDateOnly } from "~/lib/unavailable-dates";
+
+const CATEGORY_BALANCE_MAX_PASSES = 6;
+const FEMENIL_CLUSTERING_MAX_PASSES = 6;
+const GENERAL_SWAP_MAX_PASSES = 8;
+const MAX_SWAP_EVALUATIONS_PER_PASS = 1200;
 
 // ============== Schedule Config ==============
 
@@ -429,6 +436,325 @@ async function buildConstraintValidationContext(
   };
 }
 
+function buildCategoryBalanceContext(
+  matchupOrder: Array<{ id: string }>,
+  matchupCategoryById: Map<string, string | null>,
+  orderedEventIds: string[],
+): CategoryBalanceContext | null {
+  if (orderedEventIds.length === 0) return null;
+
+  const totalByCategoryId = new Map<string, number>();
+  for (const matchup of matchupOrder) {
+    const categoryId = matchupCategoryById.get(matchup.id);
+    if (!categoryId) continue;
+    totalByCategoryId.set(categoryId, (totalByCategoryId.get(categoryId) ?? 0) + 1);
+  }
+
+  const categoryIds = Array.from(totalByCategoryId.keys()).sort();
+  if (categoryIds.length === 0) return null;
+
+  const eventCategoryTargetByEventId = new Map<string, Map<string, number>>();
+  for (const eventId of orderedEventIds) {
+    const targetsByCategory = new Map<string, number>();
+    for (const categoryId of categoryIds) {
+      const totalForCategory = totalByCategoryId.get(categoryId) ?? 0;
+      targetsByCategory.set(categoryId, totalForCategory / orderedEventIds.length);
+    }
+    eventCategoryTargetByEventId.set(eventId, targetsByCategory);
+  }
+
+  return {
+    categoryIds,
+    eventCategoryTargetByEventId,
+  };
+}
+
+function applySwapToPlacements(
+  placements: PlacementWithCategory[],
+  swappedA: PlacementWithCategory,
+  swappedB: PlacementWithCategory,
+): PlacementWithCategory[] {
+  return placements.map((placement) => {
+    if (placement.id === swappedA.id) return swappedA;
+    if (placement.id === swappedB.id) return swappedB;
+    return placement;
+  });
+}
+
+function getTotalCategoryDeviationFromTargets(
+  placements: PlacementWithCategory[],
+  categoryBalanceContext: CategoryBalanceContext | null,
+): number {
+  if (!categoryBalanceContext || categoryBalanceContext.categoryIds.length === 0) {
+    return 0;
+  }
+
+  const countsByEventId = new Map<string, Map<string, number>>();
+  for (const placement of placements) {
+    if (!placement.categoryId) continue;
+    const eventCounts = countsByEventId.get(placement.eventId) ?? new Map<string, number>();
+    eventCounts.set(placement.categoryId, (eventCounts.get(placement.categoryId) ?? 0) + 1);
+    countsByEventId.set(placement.eventId, eventCounts);
+  }
+
+  let totalDeviation = 0;
+  for (const [eventId, targetsByCategory] of categoryBalanceContext.eventCategoryTargetByEventId) {
+    const eventCounts = countsByEventId.get(eventId);
+    for (const categoryId of categoryBalanceContext.categoryIds) {
+      const count = eventCounts?.get(categoryId) ?? 0;
+      const target = targetsByCategory.get(categoryId) ?? 0;
+      totalDeviation += Math.abs(count - target);
+    }
+  }
+
+  return totalDeviation;
+}
+
+function improveEventCategoryBalance(
+  placements: PlacementWithCategory[],
+  validationContext: ConstraintValidationContext,
+  params: {
+    orderedEventIds: string[];
+    maxSlotIndex: number;
+    totalMatchups: number;
+    categoryBalanceContext: CategoryBalanceContext | null;
+  },
+): PlacementWithCategory[] {
+  if (placements.length < 2 || !params.categoryBalanceContext) {
+    return placements;
+  }
+
+  let improvedPlacements = [...placements];
+
+  for (let pass = 0; pass < CATEGORY_BALANCE_MAX_PASSES; pass++) {
+    const currentDeviation = getTotalCategoryDeviationFromTargets(
+      improvedPlacements,
+      params.categoryBalanceContext,
+    );
+    let improvementFound = false;
+    let evaluations = 0;
+
+    for (let i = 0; i < improvedPlacements.length; i++) {
+      for (let j = i + 1; j < improvedPlacements.length; j++) {
+        evaluations++;
+        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
+          break;
+        }
+
+        if (improvedPlacements[i]?.eventId === improvedPlacements[j]?.eventId) {
+          continue;
+        }
+
+        const result = evaluatePlacementSwap(
+          improvedPlacements[i],
+          improvedPlacements[j],
+          improvedPlacements,
+          validationContext,
+          {
+            orderedEventIds: params.orderedEventIds,
+            maxSlotIndex: params.maxSlotIndex,
+            totalMatchups: params.totalMatchups,
+            categoryBalanceContext: params.categoryBalanceContext,
+          },
+        );
+        if (!result.valid) continue;
+
+        const [swappedA, swappedB] = result.swappedPlacements;
+        const placementsAfterSwap = applySwapToPlacements(improvedPlacements, swappedA, swappedB);
+        const deviationAfter = getTotalCategoryDeviationFromTargets(
+          placementsAfterSwap,
+          params.categoryBalanceContext,
+        );
+        const deviationImprovement = currentDeviation - deviationAfter;
+        if (deviationImprovement > 0) {
+          improvedPlacements = placementsAfterSwap;
+          improvementFound = true;
+          break;
+        }
+      }
+      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
+        break;
+      }
+    }
+
+    if (!improvementFound) {
+      break;
+    }
+  }
+
+  return improvedPlacements;
+}
+
+function improveFemenilNetChangeClustering(
+  placements: PlacementWithCategory[],
+  validationContext: ConstraintValidationContext,
+  params: {
+    orderedEventIds: string[];
+    maxSlotIndex: number;
+    totalMatchups: number;
+    categoryBalanceContext: CategoryBalanceContext | null;
+  },
+): PlacementWithCategory[] {
+  if (placements.length < 2) {
+    return placements;
+  }
+
+  let improvedPlacements = [...placements];
+
+  for (let pass = 0; pass < FEMENIL_CLUSTERING_MAX_PASSES; pass++) {
+    const currentNetSwitches = getEstimatedFemenilNetSwitchCount(improvedPlacements);
+    const currentDeviation = getTotalCategoryDeviationFromTargets(
+      improvedPlacements,
+      params.categoryBalanceContext,
+    );
+    let improvementFound = false;
+    let evaluations = 0;
+
+    for (let i = 0; i < improvedPlacements.length; i++) {
+      for (let j = i + 1; j < improvedPlacements.length; j++) {
+        evaluations++;
+        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
+          break;
+        }
+
+        const result = evaluatePlacementSwap(
+          improvedPlacements[i],
+          improvedPlacements[j],
+          improvedPlacements,
+          validationContext,
+          {
+            orderedEventIds: params.orderedEventIds,
+            maxSlotIndex: params.maxSlotIndex,
+            totalMatchups: params.totalMatchups,
+            categoryBalanceContext: params.categoryBalanceContext,
+          },
+        );
+        if (!result.valid) continue;
+
+        const [swappedA, swappedB] = result.swappedPlacements;
+        const placementsAfterSwap = applySwapToPlacements(improvedPlacements, swappedA, swappedB);
+        const netSwitchesAfter = getEstimatedFemenilNetSwitchCount(placementsAfterSwap);
+        const netSwitchImprovement = currentNetSwitches - netSwitchesAfter;
+        if (netSwitchImprovement <= 0) continue;
+
+        const deviationAfter = getTotalCategoryDeviationFromTargets(
+          placementsAfterSwap,
+          params.categoryBalanceContext,
+        );
+        if (deviationAfter > currentDeviation) continue;
+
+        improvedPlacements = placementsAfterSwap;
+        improvementFound = true;
+        break;
+      }
+      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
+        break;
+      }
+    }
+
+    if (!improvementFound) {
+      break;
+    }
+  }
+
+  return improvedPlacements;
+}
+
+function improveByGeneralSwaps(
+  placements: PlacementWithCategory[],
+  validationContext: ConstraintValidationContext,
+  params: {
+    orderedEventIds: string[];
+    maxSlotIndex: number;
+    totalMatchups: number;
+    categoryBalanceContext: CategoryBalanceContext | null;
+  },
+): PlacementWithCategory[] {
+  if (placements.length < 2) {
+    return placements;
+  }
+
+  let improvedPlacements = [...placements];
+
+  for (let pass = 0; pass < GENERAL_SWAP_MAX_PASSES; pass++) {
+    let improvementFound = false;
+    let evaluations = 0;
+
+    for (let i = 0; i < improvedPlacements.length; i++) {
+      for (let j = i + 1; j < improvedPlacements.length; j++) {
+        evaluations++;
+        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
+          break;
+        }
+
+        const result = evaluatePlacementSwap(
+          improvedPlacements[i],
+          improvedPlacements[j],
+          improvedPlacements,
+          validationContext,
+          {
+            orderedEventIds: params.orderedEventIds,
+            maxSlotIndex: params.maxSlotIndex,
+            totalMatchups: params.totalMatchups,
+            categoryBalanceContext: params.categoryBalanceContext,
+          },
+        );
+
+        if (result.valid && result.scoreImprovement > 0) {
+          const [swappedA, swappedB] = result.swappedPlacements;
+          improvedPlacements = applySwapToPlacements(improvedPlacements, swappedA, swappedB);
+          improvementFound = true;
+          break;
+        }
+      }
+      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) break;
+    }
+
+    if (!improvementFound) break;
+  }
+
+  return improvedPlacements;
+}
+
+function buildSchedulingMetrics(
+  placements: PlacementWithCategory[],
+  params: {
+    orderedEventIds: string[];
+    maxSlotIndex: number;
+    totalMatchups: number;
+    categoryBalanceContext: CategoryBalanceContext | null;
+  },
+) {
+  const categoryCountsByEventId: Record<string, Record<string, number>> = {};
+  for (const eventId of params.orderedEventIds) {
+    categoryCountsByEventId[eventId] = {};
+  }
+  for (const placement of placements) {
+    if (!placement.categoryId) continue;
+    if (!categoryCountsByEventId[placement.eventId]) {
+      categoryCountsByEventId[placement.eventId] = {};
+    }
+    const existing = categoryCountsByEventId[placement.eventId][placement.categoryId] ?? 0;
+    categoryCountsByEventId[placement.eventId][placement.categoryId] = existing + 1;
+  }
+
+  return {
+    categoryCountsByEventId,
+    totalCategoryDeviation: getTotalCategoryDeviationFromTargets(
+      placements,
+      params.categoryBalanceContext,
+    ),
+    estimatedFemenilNetSwitches: getEstimatedFemenilNetSwitchCount(placements),
+    qualityScore: getScheduleQualityScore({
+      placementsWithCategory: placements,
+      orderedEventIds: params.orderedEventIds,
+      maxSlotIndex: params.maxSlotIndex,
+      totalMatchups: params.totalMatchups,
+      categoryBalanceContext: params.categoryBalanceContext,
+    }),
+  };
+}
+
 /**
  * Auto-schedule matchups across events and courts
  * Distributes matchups evenly across events, alternating between courts A and B
@@ -451,12 +777,14 @@ export async function autoScheduleMatchups(
     .from(schema.matchup)
     .where(eq(schema.matchup.seasonId, seasonId));
 
-  const unscheduledMatchups = allSeasonMatchups.filter(
-    (matchup) => matchup.eventId === null,
-  );
+  const candidateMatchups = allSeasonMatchups.map((matchup) => ({
+    id: matchup.id,
+    teamAId: matchup.teamAId,
+    teamBId: matchup.teamBId,
+  }));
 
-  if (unscheduledMatchups.length === 0 || eventIds.length === 0) {
-    return { scheduledCount: 0, unscheduledCount: unscheduledMatchups.length };
+  if (candidateMatchups.length === 0 || eventIds.length === 0) {
+    return { scheduledCount: 0, unscheduledCount: candidateMatchups.length };
   }
 
   const courts: ("A" | "B")[] = ["A", "B"];
@@ -497,172 +825,127 @@ export async function autoScheduleMatchups(
     ]),
   );
 
-  // Distribute matchups across events and courts
-  const acceptedPlacements: ScheduledMatchupPlacement[] = allSeasonMatchups
-    .filter(
-      (matchup): matchup is ScheduledMatchupPlacement =>
-        matchup.eventId !== null &&
-        matchup.courtId !== null &&
-        matchup.slotIndex !== null,
-    )
-    .map((matchup) => ({
-      id: matchup.id,
-      teamAId: matchup.teamAId,
-      teamBId: matchup.teamBId,
-      eventId: matchup.eventId,
-      courtId: matchup.courtId as "A" | "B",
-      slotIndex: matchup.slotIndex,
-    }));
-  const acceptedPlacementsWithCategory: PlacementWithCategory[] = acceptedPlacements.map(
-    (p) => ({
-      ...p,
-      categoryId: matchupCategoryById.get(p.id) ?? null,
-    }),
+  const categoryBalanceContext = buildCategoryBalanceContext(
+    candidateMatchups,
+    matchupCategoryById,
+    orderedEventIds,
   );
-  let scheduledCount = 0;
-
   const maxSlotIndex = gamesPerEvening - 1;
+  const runInitialPlacementPass = (
+    matchupOrder: typeof candidateMatchups,
+  ): PlacementWithCategory[] => {
+    const acceptedPlacements: ScheduledMatchupPlacement[] = [];
+    const acceptedPlacementsWithCategory: PlacementWithCategory[] = [];
+    const acceptedMatchupIds = new Set<string>();
 
-  for (const eventId of orderedEventIds) {
     for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
       for (const courtId of courts) {
-        let selectedPlacement: ScheduledMatchupPlacement | null = null;
-        let selectedPlacementScore = Number.POSITIVE_INFINITY;
+        for (const eventId of orderedEventIds) {
+          let selectedPlacement: ScheduledMatchupPlacement | null = null;
+          let selectedPlacementScore = Number.POSITIVE_INFINITY;
 
-        for (const matchup of unscheduledMatchups) {
-          if (
-            acceptedPlacements.some(
-              (acceptedPlacement) => acceptedPlacement.id === matchup.id,
-            )
-          ) {
+          for (const matchup of matchupOrder) {
+            if (acceptedMatchupIds.has(matchup.id)) {
+              continue;
+            }
+
+            const candidatePlacement: ScheduledMatchupPlacement = {
+              id: matchup.id,
+              teamAId: matchup.teamAId,
+              teamBId: matchup.teamBId,
+              eventId,
+              courtId: courtId as "A" | "B",
+              slotIndex,
+            };
+
+            const violationReason = getPlacementViolationReason(
+              candidatePlacement,
+              acceptedPlacements,
+              validationContext,
+            );
+            if (!violationReason) {
+              const categoryId = matchupCategoryById.get(matchup.id) ?? null;
+              const preferenceScore = getPlacementPreferenceScore({
+                placement: candidatePlacement,
+                categoryId,
+                existingPlacements: acceptedPlacements,
+                existingPlacementsWithCategory: acceptedPlacementsWithCategory,
+                orderedEventIds,
+                maxSlotIndex,
+                totalMatchups: matchupOrder.length,
+                categoryBalanceContext,
+              });
+              if (preferenceScore < selectedPlacementScore) {
+                selectedPlacementScore = preferenceScore;
+                selectedPlacement = candidatePlacement;
+              }
+              if (selectedPlacementScore === 0) {
+                break;
+              }
+            }
+          }
+
+          if (!selectedPlacement) {
             continue;
           }
 
-          const candidatePlacement: ScheduledMatchupPlacement = {
-            id: matchup.id,
-            teamAId: matchup.teamAId,
-            teamBId: matchup.teamBId,
-            eventId,
-            courtId: courtId as "A" | "B",
-            slotIndex,
-          };
-
-          const violationReason = getPlacementViolationReason(
-            candidatePlacement,
-            acceptedPlacements,
-            validationContext,
-          );
-          if (!violationReason) {
-            const categoryId = matchupCategoryById.get(matchup.id) ?? null;
-            const preferenceScore = getPlacementPreferenceScore({
-              placement: candidatePlacement,
-              categoryId,
-              existingPlacements: acceptedPlacements,
-              existingPlacementsWithCategory: acceptedPlacementsWithCategory,
-              orderedEventIds,
-              maxSlotIndex,
-            });
-            if (preferenceScore < selectedPlacementScore) {
-              selectedPlacementScore = preferenceScore;
-              selectedPlacement = candidatePlacement;
-            }
-            if (selectedPlacementScore === 0) {
-              break;
-            }
-          }
+          acceptedPlacements.push(selectedPlacement);
+          acceptedPlacementsWithCategory.push({
+            ...selectedPlacement,
+            categoryId: matchupCategoryById.get(selectedPlacement.id) ?? null,
+          });
+          acceptedMatchupIds.add(selectedPlacement.id);
         }
-
-        if (!selectedPlacement) {
-          continue;
-        }
-
-        const placementCategoryId = matchupCategoryById.get(selectedPlacement.id) ?? null;
-        acceptedPlacements.push(selectedPlacement);
-        acceptedPlacementsWithCategory.push({
-          ...selectedPlacement,
-          categoryId: placementCategoryId,
-        });
-        scheduledCount++;
-
-        await db
-          .update(schema.matchup)
-          .set({
-            eventId: selectedPlacement.eventId,
-            courtId: selectedPlacement.courtId,
-            slotIndex: selectedPlacement.slotIndex,
-          })
-          .where(eq(schema.matchup.id, selectedPlacement.id));
       }
-      if (scheduledCount >= unscheduledMatchups.length) break;
     }
-    if (scheduledCount >= unscheduledMatchups.length) break;
-  }
+    return acceptedPlacementsWithCategory;
+  };
+  const improvementParams = {
+    orderedEventIds,
+    maxSlotIndex,
+    totalMatchups: candidateMatchups.length,
+    categoryBalanceContext,
+  };
+  let finalPlacements = runInitialPlacementPass(candidateMatchups);
+  finalPlacements = improveEventCategoryBalance(
+    finalPlacements,
+    validationContext,
+    improvementParams,
+  );
+  finalPlacements = improveFemenilNetChangeClustering(
+    finalPlacements,
+    validationContext,
+    improvementParams,
+  );
+  finalPlacements = improveByGeneralSwaps(finalPlacements, validationContext, improvementParams);
+  const schedulingMetrics = buildSchedulingMetrics(finalPlacements, improvementParams);
+  const scheduledCount = finalPlacements.length;
 
-  // Multi-pass swap optimization: try swapping placements to improve schedule quality
-  if (acceptedPlacementsWithCategory.length >= 2) {
-    for (let pass = 0; pass < OPTIMIZATION_MAX_PASSES; pass++) {
-      let improvementFound = false;
-      const placements = [...acceptedPlacementsWithCategory];
+  // Always rebuild from scratch: clear current placements first.
+  await db
+    .update(schema.matchup)
+    .set({
+      eventId: null,
+      courtId: null,
+      slotIndex: null,
+    })
+    .where(eq(schema.matchup.seasonId, seasonId));
 
-      for (let i = 0; i < placements.length; i++) {
-        for (let j = i + 1; j < placements.length; j++) {
-          const result = evaluatePlacementSwap(
-            placements[i],
-            placements[j],
-            placements,
-            validationContext,
-            { orderedEventIds, maxSlotIndex },
-          );
-
-          if (result.valid && result.scoreImprovement > 0) {
-            const [swappedA, swappedB] = result.swappedPlacements;
-
-            // Update in-memory state
-            const idxA = acceptedPlacementsWithCategory.findIndex(
-              (p) => p.id === swappedA.id,
-            );
-            const idxB = acceptedPlacementsWithCategory.findIndex(
-              (p) => p.id === swappedB.id,
-            );
-            if (idxA >= 0 && idxB >= 0) {
-              acceptedPlacementsWithCategory[idxA] = swappedA;
-              acceptedPlacementsWithCategory[idxB] = swappedB;
-              acceptedPlacements[idxA] = swappedA;
-              acceptedPlacements[idxB] = swappedB;
-            }
-
-            // Persist to DB
-            await db
-              .update(schema.matchup)
-              .set({
-                eventId: swappedA.eventId,
-                courtId: swappedA.courtId,
-                slotIndex: swappedA.slotIndex,
-              })
-              .where(eq(schema.matchup.id, swappedA.id));
-            await db
-              .update(schema.matchup)
-              .set({
-                eventId: swappedB.eventId,
-                courtId: swappedB.courtId,
-                slotIndex: swappedB.slotIndex,
-              })
-              .where(eq(schema.matchup.id, swappedB.id));
-
-            improvementFound = true;
-            break;
-          }
-        }
-        if (improvementFound) break;
-      }
-
-      if (!improvementFound) break;
-    }
+  for (const placement of finalPlacements) {
+    await db
+      .update(schema.matchup)
+      .set({
+        eventId: placement.eventId,
+        courtId: placement.courtId,
+        slotIndex: placement.slotIndex,
+      })
+      .where(eq(schema.matchup.id, placement.id));
   }
 
   return {
     scheduledCount,
-    unscheduledCount: unscheduledMatchups.length - scheduledCount,
+    unscheduledCount: candidateMatchups.length - scheduledCount,
+    metrics: schedulingMetrics,
   };
 }
 

@@ -66,8 +66,7 @@ function GeneratePage() {
   const selectedDatesCount = selectedDates.length;
   const courtsPerEvent = 2; // Court A and Court B
   const totalCapacity = selectedDatesCount * gamesPerEvening * courtsPerEvent;
-  const estimatedSlotsNeeded = Math.ceil(totalMatchups * 1.25);
-  const hasEnoughCapacity = totalCapacity >= estimatedSlotsNeeded;
+  const hasEnoughCapacity = totalCapacity >= totalMatchups;
   const capacityStatus = hasEnoughCapacity ? "sufficient" : "insufficient";
 
   const handleGenerateSchedule = async () => {
@@ -237,9 +236,8 @@ function GeneratePage() {
                   <div className="text-destructive text-sm">
                     <p className="font-medium">Low Capacity Warning</p>
                     <p className="mt-1 text-xs">
-                      You might need ~{estimatedSlotsNeeded} slots to schedule all{" "}
-                      {totalMatchups} matchups due to constraints. Unplaced matchups will
-                      remain in the unscheduled panel.
+                      You might need {totalMatchups} slots to schedule all {totalMatchups}{" "}
+                      matchups. Unplaced matchups will remain in the unscheduled panel.
                     </p>
                   </div>
                 </div>

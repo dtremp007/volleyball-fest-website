@@ -28,20 +28,16 @@ export const DEFAULT_MAX_GAMES_PER_EVENT = 2;
 /** Max games per event for far-away teams (they travel farther, so we try to schedule them 3x) */
 export const FAR_AWAY_MAX_GAMES_PER_EVENT = 3;
 
-/** Penalty when femenil matchup is not placed back-to-back on same court */
-export const FEMENIL_COURT_CLUSTERING_PENALTY = 10;
-
-/** Penalty when adding matchup would create 3+ consecutive same-category matches in event */
-export const CATEGORY_DISTRIBUTION_PENALTY = 5;
-
-/** Penalty per slot index for femenil in later slots (femenil prefers earlier in the night) */
-export const FEMENIL_EARLY_PENALTY_PER_SLOT = 2;
-
-/** Penalty when category is over-represented in an event */
-export const EVENT_CATEGORY_BALANCE_PENALTY = 15;
-
-/** Penalty when femenil is over-concentrated in one event (cross-event distribution) */
-export const FEMENIL_EVENT_DISTRIBUTION_PENALTY = 20;
+/** Centralized weights for all soft scheduling preferences. Higher means "more important". */
+export const SCHEDULING_WEIGHTS = {
+  eventCategoryBalance: 20,
+  eventLoadBalance: 15,
+  teamRestAdjacentEvent: 10,
+  femenilEarlyPerSlot: 10,
+  femenilCourtClustering: 8,
+  categoryDistributionRun: 3,
+  varonilLatePerSlot: 1,
+} as const;
 
 /** Max iterations for swap-based optimization pass */
 export const OPTIMIZATION_MAX_PASSES = 15;
@@ -78,6 +74,12 @@ export type MatchupWithMeta = {
   teamAId: string;
   teamBId: string;
   categoryId: string | null;
+};
+
+/** Global category targets used to keep per-event category distribution proportional. */
+export type CategoryBalanceContext = {
+  categoryIds: string[];
+  eventCategoryTargetByEventId: Map<string, Map<string, number>>;
 };
 
 // =============================================================================
@@ -177,10 +179,10 @@ export function getPlacementViolationReason(
 // =============================================================================
 
 /**
- * Consecutive event preference: Prefer teams that play on consecutive event dates.
- * Reduces travel for teams by having them play on back-to-back nights when possible.
+ * Rest preference: avoid teams playing in adjacent events.
+ * Returns a positive value when either team already has a matchup in the previous/next event.
  */
-export function getConsecutiveEventPreferenceScore(
+export function getAdjacentEventRestPenaltyScore(
   placement: ScheduledMatchupPlacement,
   existingPlacements: ScheduledMatchupPlacement[],
   orderedEventIds: string[],
@@ -220,8 +222,8 @@ export function getConsecutiveEventPreferenceScore(
 
 /**
  * Femenil court clustering: cat-femenil matches need a lower net.
- * Prefer placing femenil matches back-to-back on the same court to minimize net adjustments.
- * Score: 0 if previous slot on same court is femenil; penalty otherwise.
+ * Prefer contiguous blocks on one court in each event to minimize net changes.
+ * Returns 0 when the candidate extends a local femenil block on the same court.
  */
 export function getFemenilCourtClusteringScore(
   placement: ScheduledMatchupPlacement,
@@ -232,20 +234,43 @@ export function getFemenilCourtClusteringScore(
     return 0;
   }
 
-  const prevSlotOnSameCourt = existingPlacementsWithCategory.find(
+  const sameEventPlacements = existingPlacementsWithCategory.filter(
+    (p) => p.eventId === placement.eventId,
+  );
+  const sameCourtPlacements = sameEventPlacements.filter((p) => p.courtId === placement.courtId);
+  const sameCourtHasFemenil = sameCourtPlacements.some((p) => p.categoryId === CAT_FEMENIL);
+  const otherCourtHasFemenil = sameEventPlacements.some(
+    (p) => p.courtId !== placement.courtId && p.categoryId === CAT_FEMENIL,
+  );
+  const prevSlotOnSameCourt = sameCourtPlacements.find(
     (p) =>
-      p.eventId === placement.eventId &&
-      p.courtId === placement.courtId &&
       p.slotIndex === placement.slotIndex - 1,
   );
+  const nextSlotOnSameCourt = sameCourtPlacements.find(
+    (p) =>
+      p.slotIndex === placement.slotIndex + 1,
+  );
 
-  if (!prevSlotOnSameCourt) {
-    return 0; // First slot on court - no clustering possible
+  // Extending or bridging a block on this court is ideal.
+  if (
+    prevSlotOnSameCourt?.categoryId === CAT_FEMENIL ||
+    nextSlotOnSameCourt?.categoryId === CAT_FEMENIL
+  ) {
+    return 0;
   }
 
-  return prevSlotOnSameCourt.categoryId === CAT_FEMENIL
-    ? 0
-    : FEMENIL_COURT_CLUSTERING_PENALTY;
+  // First femenil game in the event has no clustering penalty.
+  if (!sameCourtHasFemenil && !otherCourtHasFemenil) {
+    return 0;
+  }
+
+  // Prefer continuing femenil on the court where a femenil block already exists.
+  if (!sameCourtHasFemenil && otherCourtHasFemenil) {
+    return 2;
+  }
+
+  // If femenil exists on this court but candidate does not connect to it, lightly penalize.
+  return 1;
 }
 
 /**
@@ -283,7 +308,7 @@ export function getCategoryDistributionScore(
 
   // If we're adding same category to a run of 2+, we'd have 3+ consecutive
   if (categoryId === lastCategory && runLength >= 2) {
-    return CATEGORY_DISTRIBUTION_PENALTY;
+    return 1;
   }
 
   return 0;
@@ -307,61 +332,36 @@ export function getVaronilLibreLatePreferenceScore(
 }
 
 /**
- * Femenil early preference: cat-femenil prefers to play earlier in the night.
- * Score: lower slotIndex = lower score (better). Penalty = slotIndex * FEMENIL_EARLY_PENALTY_PER_SLOT.
+ * Femenil early preference: two-sided slot pressure.
+ * - Femenil games get a quadratic penalty for late slots (strongly pushed early).
+ * - Non-femenil games get a linear penalty for early slots (gently pushed later
+ *   to make room for femenil).
  */
 export function getFemenilEarlyPreferenceScore(
   placement: ScheduledMatchupPlacement,
   categoryId: string | null,
+  maxSlotIndex: number,
 ): number {
-  if (categoryId !== CAT_FEMENIL) {
-    return 0;
+  if (categoryId === CAT_FEMENIL) {
+    return placement.slotIndex ** 2;
   }
 
-  return placement.slotIndex * FEMENIL_EARLY_PENALTY_PER_SLOT;
-}
-
-/**
- * Femenil cross-event distribution: Avoid concentrating all femenil games in one event.
- * Penalize when placing femenil in an event that already has more than its fair share.
- */
-export function getFemenilEventDistributionScore(
-  placement: ScheduledMatchupPlacement,
-  categoryId: string | null,
-  existingPlacementsWithCategory: PlacementWithCategory[],
-  orderedEventIds: string[],
-): number {
-  if (categoryId !== CAT_FEMENIL) return 0;
-
-  const totalFemenil =
-    existingPlacementsWithCategory.filter((p) => p.categoryId === CAT_FEMENIL)
-      .length + 1;
-  const numEvents = orderedEventIds.length;
-  if (numEvents === 0) return 0;
-
-  const fairShare = totalFemenil / numEvents;
-  const eventFemenilCount =
-    existingPlacementsWithCategory.filter(
-      (p) => p.eventId === placement.eventId && p.categoryId === CAT_FEMENIL,
-    ).length + 1;
-
-  if (eventFemenilCount > Math.ceil(fairShare) + 1) {
-    return FEMENIL_EVENT_DISTRIBUTION_PENALTY;
-  }
-
-  return 0;
+  return Math.max(0, maxSlotIndex - placement.slotIndex);
 }
 
 /**
  * Per-event category balance: Avoid placing a matchup in an event where that category
- * is already over-represented. Penalize when categoryCount > ceil(idealShare) + 1.
+ * is already over-represented. Uses smooth deviation from ideal per-category count.
  */
 export function getEventCategoryBalanceScore(
   placement: ScheduledMatchupPlacement,
   categoryId: string | null,
   existingPlacementsWithCategory: PlacementWithCategory[],
+  categoryBalanceContext: CategoryBalanceContext | null,
 ): number {
-  if (!categoryId) return 0;
+  if (!categoryId || !categoryBalanceContext || categoryBalanceContext.categoryIds.length === 0) {
+    return 0;
+  }
 
   const eventPlacements = existingPlacementsWithCategory.filter(
     (p) => p.eventId === placement.eventId,
@@ -372,19 +372,38 @@ export function getEventCategoryBalanceScore(
       categoryCounts.set(p.categoryId, (categoryCounts.get(p.categoryId) ?? 0) + 1);
     }
   }
-  const currentCount = categoryCounts.get(categoryId) ?? 0;
-  const newCountForCategory = currentCount + 1;
-  const totalGames = eventPlacements.length + 1;
-  const numCategories = categoryCounts.has(categoryId)
-    ? categoryCounts.size
-    : Math.max(categoryCounts.size, 1) + 1;
-  const idealPerCategory = totalGames / numCategories;
-
-  if (newCountForCategory > Math.ceil(idealPerCategory) + 1) {
-    return EVENT_CATEGORY_BALANCE_PENALTY;
+  categoryCounts.set(categoryId, (categoryCounts.get(categoryId) ?? 0) + 1);
+  const eventTargets = categoryBalanceContext.eventCategoryTargetByEventId.get(placement.eventId);
+  if (!eventTargets) {
+    return 0;
   }
 
-  return 0;
+  let deviation = 0;
+  for (const catId of categoryBalanceContext.categoryIds) {
+    const count = categoryCounts.get(catId) ?? 0;
+    const target = eventTargets.get(catId) ?? 0;
+    deviation += Math.abs(count - target);
+  }
+
+  return deviation;
+}
+
+/**
+ * Event load balance: penalize placing a matchup in an event that already has
+ * more than its fair share of total games (totalMatchups / numEvents).
+ */
+export function getEventLoadBalanceScore(
+  placement: ScheduledMatchupPlacement,
+  existingPlacements: ScheduledMatchupPlacement[],
+  totalMatchups: number,
+  numEvents: number,
+): number {
+  if (numEvents === 0) return 0;
+  const idealPerEvent = totalMatchups / numEvents;
+  const currentEventCount = existingPlacements.filter(
+    (p) => p.eventId === placement.eventId,
+  ).length;
+  return Math.max(0, currentEventCount + 1 - idealPerEvent);
 }
 
 // =============================================================================
@@ -399,14 +418,35 @@ export type PlacementPreferenceParams = {
   existingPlacementsWithCategory: PlacementWithCategory[];
   orderedEventIds: string[];
   maxSlotIndex: number;
+  totalMatchups: number;
+  categoryBalanceContext: CategoryBalanceContext | null;
 };
 
-/**
- * Combined preference score for a placement. Lower = better.
- * Sums all preference scores (consecutive events, femenil clustering, category distribution,
- * varonil late, femenil early, event category balance, femenil event distribution).
- */
-export function getPlacementPreferenceScore(params: PlacementPreferenceParams): number {
+export type PlacementPreferenceBreakdown = {
+  raw: {
+    restPenalty: number;
+    femenilClustering: number;
+    categoryDistribution: number;
+    varonilLate: number;
+    femenilEarly: number;
+    eventCategoryBalance: number;
+    eventLoadBalance: number;
+  };
+  weighted: {
+    restPenalty: number;
+    femenilClustering: number;
+    categoryDistribution: number;
+    varonilLate: number;
+    femenilEarly: number;
+    eventCategoryBalance: number;
+    eventLoadBalance: number;
+  };
+  total: number;
+};
+
+export function getPlacementPreferenceBreakdown(
+  params: PlacementPreferenceParams,
+): PlacementPreferenceBreakdown {
   const {
     placement,
     categoryId,
@@ -414,50 +454,88 @@ export function getPlacementPreferenceScore(params: PlacementPreferenceParams): 
     existingPlacementsWithCategory,
     orderedEventIds,
     maxSlotIndex,
+    totalMatchups,
+    categoryBalanceContext,
   } = params;
 
-  const consecutiveScore = getConsecutiveEventPreferenceScore(
+  const restPenalty = getAdjacentEventRestPenaltyScore(
     placement,
     existingPlacements,
     orderedEventIds,
   );
-  const femenilClusteringScore = getFemenilCourtClusteringScore(
+  const femenilClustering = getFemenilCourtClusteringScore(
     placement,
     categoryId,
     existingPlacementsWithCategory,
   );
-  const categoryDistScore = getCategoryDistributionScore(
+  const categoryDistribution = getCategoryDistributionScore(
     placement,
     categoryId,
     existingPlacementsWithCategory,
   );
-  const varonilScore = getVaronilLibreLatePreferenceScore(
+  const varonilLate = getVaronilLibreLatePreferenceScore(
     placement,
     categoryId,
     maxSlotIndex,
   );
-  const femenilEarlyScore = getFemenilEarlyPreferenceScore(placement, categoryId);
-  const eventBalanceScore = getEventCategoryBalanceScore(
+  const femenilEarly = getFemenilEarlyPreferenceScore(placement, categoryId, maxSlotIndex);
+  const eventCategoryBalance = getEventCategoryBalanceScore(
     placement,
     categoryId,
     existingPlacementsWithCategory,
+    categoryBalanceContext,
   );
-  const femenilEventDistScore = getFemenilEventDistributionScore(
+  const eventLoadBalance = getEventLoadBalanceScore(
     placement,
-    categoryId,
-    existingPlacementsWithCategory,
-    orderedEventIds,
+    existingPlacements,
+    totalMatchups,
+    orderedEventIds.length,
   );
 
-  return (
-    consecutiveScore +
-    femenilClusteringScore +
-    categoryDistScore +
-    varonilScore +
-    femenilEarlyScore +
-    eventBalanceScore +
-    femenilEventDistScore
-  );
+  const weighted = {
+    restPenalty: restPenalty * SCHEDULING_WEIGHTS.teamRestAdjacentEvent,
+    femenilClustering: femenilClustering * SCHEDULING_WEIGHTS.femenilCourtClustering,
+    categoryDistribution:
+      categoryDistribution * SCHEDULING_WEIGHTS.categoryDistributionRun,
+    varonilLate: varonilLate * SCHEDULING_WEIGHTS.varonilLatePerSlot,
+    femenilEarly: femenilEarly * SCHEDULING_WEIGHTS.femenilEarlyPerSlot,
+    eventCategoryBalance:
+      eventCategoryBalance * SCHEDULING_WEIGHTS.eventCategoryBalance,
+    eventLoadBalance:
+      eventLoadBalance * SCHEDULING_WEIGHTS.eventLoadBalance,
+  };
+
+  const total =
+    weighted.restPenalty +
+    weighted.femenilClustering +
+    weighted.categoryDistribution +
+    weighted.varonilLate +
+    weighted.femenilEarly +
+    weighted.eventCategoryBalance +
+    weighted.eventLoadBalance;
+
+  return {
+    raw: {
+      restPenalty,
+      femenilClustering,
+      categoryDistribution,
+      varonilLate,
+      femenilEarly,
+      eventCategoryBalance,
+      eventLoadBalance,
+    },
+    weighted,
+    total,
+  };
+}
+
+/**
+ * Combined preference score for a placement. Lower = better.
+ * Sums all preference scores (rest, femenil clustering, category distribution,
+ * varonil late, femenil early, and event category balance).
+ */
+export function getPlacementPreferenceScore(params: PlacementPreferenceParams): number {
+  return getPlacementPreferenceBreakdown(params).total;
 }
 
 // =============================================================================
@@ -469,6 +547,8 @@ export type ScheduleQualityParams = {
   placementsWithCategory: PlacementWithCategory[];
   orderedEventIds: string[];
   maxSlotIndex: number;
+  totalMatchups: number;
+  categoryBalanceContext: CategoryBalanceContext | null;
 };
 
 /**
@@ -476,7 +556,7 @@ export type ScheduleQualityParams = {
  * Sums placement preference scores for each placement, using all other placements as context.
  */
 export function getScheduleQualityScore(params: ScheduleQualityParams): number {
-  const { placementsWithCategory, orderedEventIds, maxSlotIndex } = params;
+  const { placementsWithCategory, orderedEventIds, maxSlotIndex, totalMatchups, categoryBalanceContext } = params;
 
   let total = 0;
   for (const placement of placementsWithCategory) {
@@ -500,6 +580,8 @@ export function getScheduleQualityScore(params: ScheduleQualityParams): number {
       existingPlacementsWithCategory,
       orderedEventIds,
       maxSlotIndex,
+      totalMatchups,
+      categoryBalanceContext,
     });
   }
   return total;
@@ -521,7 +603,12 @@ export function evaluatePlacementSwap(
   placementB: PlacementWithCategory,
   allPlacementsWithCategory: PlacementWithCategory[],
   context: ConstraintValidationContext,
-  params: { orderedEventIds: string[]; maxSlotIndex: number },
+  params: {
+    orderedEventIds: string[];
+    maxSlotIndex: number;
+    totalMatchups: number;
+    categoryBalanceContext: CategoryBalanceContext | null;
+  },
 ): SwapEvaluationResult {
   const swappedA: PlacementWithCategory = {
     ...placementA,
@@ -574,11 +661,15 @@ export function evaluatePlacementSwap(
     placementsWithCategory: allPlacementsWithCategory,
     orderedEventIds: params.orderedEventIds,
     maxSlotIndex: params.maxSlotIndex,
+    totalMatchups: params.totalMatchups,
+    categoryBalanceContext: params.categoryBalanceContext,
   });
   const scoreAfter = getScheduleQualityScore({
     placementsWithCategory: placementsAfter,
     orderedEventIds: params.orderedEventIds,
     maxSlotIndex: params.maxSlotIndex,
+    totalMatchups: params.totalMatchups,
+    categoryBalanceContext: params.categoryBalanceContext,
   });
 
   return {
@@ -586,4 +677,37 @@ export function evaluatePlacementSwap(
     scoreImprovement: scoreBefore - scoreAfter,
     swappedPlacements: [swappedA, swappedB],
   };
+}
+
+/**
+ * Count net switches by event/court timeline.
+ * A switch is counted whenever consecutive matches on the same court change
+ * between femenil and non-femenil categories.
+ */
+export function getEstimatedFemenilNetSwitchCount(
+  placementsWithCategory: PlacementWithCategory[],
+): number {
+  const byEventCourt = new Map<string, PlacementWithCategory[]>();
+  for (const placement of placementsWithCategory) {
+    const key = `${placement.eventId}:${placement.courtId}`;
+    const list = byEventCourt.get(key) ?? [];
+    list.push(placement);
+    byEventCourt.set(key, list);
+  }
+
+  let switches = 0;
+  for (const placements of byEventCourt.values()) {
+    const ordered = placements
+      .slice()
+      .sort((a, b) => a.slotIndex - b.slotIndex || a.id.localeCompare(b.id));
+    for (let i = 1; i < ordered.length; i++) {
+      const prevIsFemenil = ordered[i - 1]?.categoryId === CAT_FEMENIL;
+      const currentIsFemenil = ordered[i]?.categoryId === CAT_FEMENIL;
+      if (prevIsFemenil !== currentIsFemenil) {
+        switches += 1;
+      }
+    }
+  }
+
+  return switches;
 }
