@@ -1149,6 +1149,64 @@ export type EventWithMatchups = {
 };
 
 /**
+ * Get all season events with their matchups for multi-page season schedule exports.
+ */
+export async function getEventsWithMatchupsBySeasonId(db: Database, seasonId: string) {
+  const events = await db
+    .select({
+      id: schema.scheduleEvent.id,
+      name: schema.scheduleEvent.name,
+      date: schema.scheduleEvent.startTime,
+      seasonId: schema.scheduleEvent.seasonId,
+      seasonName: schema.season.name,
+    })
+    .from(schema.scheduleEvent)
+    .innerJoin(schema.season, eq(schema.scheduleEvent.seasonId, schema.season.id))
+    .where(eq(schema.scheduleEvent.seasonId, seasonId))
+    .orderBy(asc(schema.scheduleEvent.startTime));
+
+  if (events.length === 0) {
+    return [];
+  }
+
+  const seasonMatchups = await getMatchupsBySeasonId(db, seasonId);
+  const matchupsByEventId = new Map<string, typeof seasonMatchups>();
+
+  for (const matchup of seasonMatchups) {
+    if (!matchup.eventId) continue;
+    const existing = matchupsByEventId.get(matchup.eventId) ?? [];
+    existing.push(matchup);
+    matchupsByEventId.set(matchup.eventId, existing);
+  }
+
+  return events.map((event) => {
+    const eventMatchups = [...(matchupsByEventId.get(event.id) ?? [])].sort((a, b) => {
+      const slotCompare = (a.slotIndex ?? 999) - (b.slotIndex ?? 999);
+      if (slotCompare !== 0) return slotCompare;
+      return (a.courtId ?? "Z").localeCompare(b.courtId ?? "Z");
+    });
+
+    return {
+      id: event.id,
+      name: event.name,
+      date: event.date,
+      season: {
+        id: event.seasonId,
+        name: event.seasonName,
+      },
+      matchups: eventMatchups.map((matchup) => ({
+        id: matchup.id,
+        teamA: { name: matchup.teamA.name, logoUrl: matchup.teamA.logoUrl },
+        teamB: { name: matchup.teamB.name, logoUrl: matchup.teamB.logoUrl },
+        category: matchup.category,
+        courtId: matchup.courtId,
+        slotIndex: matchup.slotIndex,
+      })),
+    } satisfies EventWithMatchups;
+  });
+}
+
+/**
  * Get public schedule for a season - upcoming events with their matchups
  */
 export async function getPublicSchedule(

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calendar, CalendarDays, Settings2, Swords, Users } from "lucide-react";
+import { Calendar, CalendarDays, FileText, Settings2, Swords, Users } from "lucide-react";
 import { Suspense } from "react";
 import z from "zod";
 import { Badge } from "~/components/ui/badge";
@@ -194,6 +194,24 @@ function SeasonOverviewPage() {
                 <Swords className="mr-2 size-4" />
                 Generate Matchups
               </Link>
+            </Button>
+          )}
+
+          {eventCount > 0 ? (
+            <Button asChild variant="outline">
+              <a
+                href={`/api/event-pdf?seasonId=${encodeURIComponent(seasonId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="mr-2 size-4" />
+                Generate Season PDF
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              <FileText className="mr-2 size-4" />
+              Generate Season PDF
             </Button>
           )}
         </CardContent>
