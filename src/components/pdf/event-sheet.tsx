@@ -261,7 +261,7 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                   return (
                     <View
                       key={slotIndex}
-                      style={[styles.row, rowIndex % 2 === 1 ? styles.rowAlt : null]}
+                      style={rowIndex % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row}
                     >
                       <CourtColumns matchup={slot.courtA} />
                       <View style={[styles.cellBase, styles.timeCell]}>
