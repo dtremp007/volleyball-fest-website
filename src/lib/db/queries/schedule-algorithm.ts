@@ -25,13 +25,14 @@ export const CAT_SEGUNDA_FUERZA = "cat-segunda-fuerza";
 /** Default max games per team per event (non-far-away teams) */
 export const DEFAULT_MAX_GAMES_PER_EVENT = 2;
 
-/** Max games per event for far-away teams (they travel farther, so we try to schedule them 3x) */
-export const FAR_AWAY_MAX_GAMES_PER_EVENT = 3;
+/** Max games per event for far-away teams (same hard cap as default; they get scheduling priority via scoring bonus) */
+export const FAR_AWAY_MAX_GAMES_PER_EVENT = 2;
 
 /** Centralized weights for all soft scheduling preferences. Higher means "more important". */
 export const SCHEDULING_WEIGHTS = {
   eventCategoryBalance: 20,
   eventLoadBalance: 15,
+  farAwaySchedulingPriority: 12,
   teamRestAdjacentEvent: 10,
   femenilEarlyPerSlot: 10,
   femenilCourtClustering: 8,
@@ -66,6 +67,7 @@ export type ConstraintValidationContext = {
   eventDateById: Map<string, string>;
   teamUnavailableDatesById: Map<string, string>;
   maxGamesPerTeamId: Map<string, number>;
+  farAwayTeamIds: Set<string>;
 };
 
 /** Matchup with metadata needed for scheduling (category, etc.) */
@@ -179,14 +181,20 @@ export function getPlacementViolationReason(
 // =============================================================================
 
 /**
- * Rest preference: avoid teams playing in adjacent events.
- * Returns a positive value when either team already has a matchup in the previous/next event.
+ * Rest preference: avoid far-away teams playing in adjacent events.
+ * Only applies when at least one team in the matchup is far away.
+ * Returns a positive value when either far-away team already has a matchup in the previous/next event.
  */
 export function getAdjacentEventRestPenaltyScore(
   placement: ScheduledMatchupPlacement,
   existingPlacements: ScheduledMatchupPlacement[],
   orderedEventIds: string[],
+  farAwayTeamIds: Set<string>,
 ): number {
+  if (!farAwayTeamIds.has(placement.teamAId) && !farAwayTeamIds.has(placement.teamBId)) {
+    return 0;
+  }
+
   const eventIndex = orderedEventIds.indexOf(placement.eventId);
   if (eventIndex === -1) {
     return 0;
@@ -389,6 +397,43 @@ export function getEventCategoryBalanceScore(
 }
 
 /**
+ * Far-away scheduling priority: strongly encourage giving far-away teams 2 games per event.
+ * Context-aware: returns a large negative value (bonus) when placing a far-away team's
+ * 2nd game in an event, overcoming load-balance pressure to spread games across events.
+ */
+export function getFarAwaySchedulingPriorityScore(
+  placement: ScheduledMatchupPlacement,
+  existingPlacements: ScheduledMatchupPlacement[],
+  farAwayTeamIds: Set<string>,
+): number {
+  const teamAIsFarAway = farAwayTeamIds.has(placement.teamAId);
+  const teamBIsFarAway = farAwayTeamIds.has(placement.teamBId);
+
+  if (!teamAIsFarAway && !teamBIsFarAway) {
+    return 1;
+  }
+
+  const farAwayTeamsInMatchup = [
+    ...(teamAIsFarAway ? [placement.teamAId] : []),
+    ...(teamBIsFarAway ? [placement.teamBId] : []),
+  ];
+
+  for (const farAwayTeamId of farAwayTeamsInMatchup) {
+    const gamesInEvent = existingPlacements.filter(
+      (p) =>
+        p.eventId === placement.eventId &&
+        (p.teamAId === farAwayTeamId || p.teamBId === farAwayTeamId),
+    ).length;
+
+    if (gamesInEvent === 1) {
+      return -3;
+    }
+  }
+
+  return 0;
+}
+
+/**
  * Event load balance: penalize placing a matchup in an event that already has
  * more than its fair share of total games (totalMatchups / numEvents).
  */
@@ -420,6 +465,7 @@ export type PlacementPreferenceParams = {
   maxSlotIndex: number;
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
+  farAwayTeamIds: Set<string>;
 };
 
 export type PlacementPreferenceBreakdown = {
@@ -431,6 +477,7 @@ export type PlacementPreferenceBreakdown = {
     femenilEarly: number;
     eventCategoryBalance: number;
     eventLoadBalance: number;
+    farAwayPriority: number;
   };
   weighted: {
     restPenalty: number;
@@ -440,6 +487,7 @@ export type PlacementPreferenceBreakdown = {
     femenilEarly: number;
     eventCategoryBalance: number;
     eventLoadBalance: number;
+    farAwayPriority: number;
   };
   total: number;
 };
@@ -456,12 +504,14 @@ export function getPlacementPreferenceBreakdown(
     maxSlotIndex,
     totalMatchups,
     categoryBalanceContext,
+    farAwayTeamIds,
   } = params;
 
   const restPenalty = getAdjacentEventRestPenaltyScore(
     placement,
     existingPlacements,
     orderedEventIds,
+    farAwayTeamIds,
   );
   const femenilClustering = getFemenilCourtClusteringScore(
     placement,
@@ -491,6 +541,7 @@ export function getPlacementPreferenceBreakdown(
     totalMatchups,
     orderedEventIds.length,
   );
+  const farAwayPriority = getFarAwaySchedulingPriorityScore(placement, existingPlacements, farAwayTeamIds);
 
   const weighted = {
     restPenalty: restPenalty * SCHEDULING_WEIGHTS.teamRestAdjacentEvent,
@@ -503,6 +554,7 @@ export function getPlacementPreferenceBreakdown(
       eventCategoryBalance * SCHEDULING_WEIGHTS.eventCategoryBalance,
     eventLoadBalance:
       eventLoadBalance * SCHEDULING_WEIGHTS.eventLoadBalance,
+    farAwayPriority: farAwayPriority * SCHEDULING_WEIGHTS.farAwaySchedulingPriority,
   };
 
   const total =
@@ -512,7 +564,8 @@ export function getPlacementPreferenceBreakdown(
     weighted.varonilLate +
     weighted.femenilEarly +
     weighted.eventCategoryBalance +
-    weighted.eventLoadBalance;
+    weighted.eventLoadBalance +
+    weighted.farAwayPriority;
 
   return {
     raw: {
@@ -523,6 +576,7 @@ export function getPlacementPreferenceBreakdown(
       femenilEarly,
       eventCategoryBalance,
       eventLoadBalance,
+      farAwayPriority,
     },
     weighted,
     total,
@@ -549,6 +603,7 @@ export type ScheduleQualityParams = {
   maxSlotIndex: number;
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
+  farAwayTeamIds: Set<string>;
 };
 
 /**
@@ -556,7 +611,7 @@ export type ScheduleQualityParams = {
  * Sums placement preference scores for each placement, using all other placements as context.
  */
 export function getScheduleQualityScore(params: ScheduleQualityParams): number {
-  const { placementsWithCategory, orderedEventIds, maxSlotIndex, totalMatchups, categoryBalanceContext } = params;
+  const { placementsWithCategory, orderedEventIds, maxSlotIndex, totalMatchups, categoryBalanceContext, farAwayTeamIds } = params;
 
   let total = 0;
   for (const placement of placementsWithCategory) {
@@ -582,6 +637,7 @@ export function getScheduleQualityScore(params: ScheduleQualityParams): number {
       maxSlotIndex,
       totalMatchups,
       categoryBalanceContext,
+      farAwayTeamIds,
     });
   }
   return total;
@@ -608,6 +664,7 @@ export function evaluatePlacementSwap(
     maxSlotIndex: number;
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
+    farAwayTeamIds: Set<string>;
   },
 ): SwapEvaluationResult {
   const swappedA: PlacementWithCategory = {
@@ -663,6 +720,7 @@ export function evaluatePlacementSwap(
     maxSlotIndex: params.maxSlotIndex,
     totalMatchups: params.totalMatchups,
     categoryBalanceContext: params.categoryBalanceContext,
+    farAwayTeamIds: params.farAwayTeamIds,
   });
   const scoreAfter = getScheduleQualityScore({
     placementsWithCategory: placementsAfter,
@@ -670,6 +728,7 @@ export function evaluatePlacementSwap(
     maxSlotIndex: params.maxSlotIndex,
     totalMatchups: params.totalMatchups,
     categoryBalanceContext: params.categoryBalanceContext,
+    farAwayTeamIds: params.farAwayTeamIds,
   });
 
   return {

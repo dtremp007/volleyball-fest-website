@@ -1,12 +1,74 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
 import type { RouterOutputs } from "~/trpc/router";
+import { useTRPC } from "~/trpc/react";
 import { ActionsMenu } from "./actions-menu";
 
 export type Team = RouterOutputs["team"]["list"][number];
+
+function FarAwayCell({ team }: { team: Team }) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  const updateIsFarAwayMutation = useMutation(
+    trpc.team.updateIsFarAway.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Team updated");
+        await queryClient.invalidateQueries({
+          queryKey: trpc.team.getById.queryKey({ id: team.id }),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: trpc.team.list.queryKey(),
+        });
+      },
+      onError: () => {
+        toast.error("Failed to update team");
+      },
+    }),
+  );
+
+  const handleCheckedChange = (checked: boolean | "indeterminate") => {
+    updateIsFarAwayMutation.mutate({
+      id: team.id,
+      isFarAway: checked === true,
+    });
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="flex items-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={Boolean(team.isFarAway)}
+            onCheckedChange={handleCheckedChange}
+            disabled={updateIsFarAwayMutation.isPending}
+            aria-label="Far away"
+          />
+          {updateIsFarAwayMutation.isPending && (
+            <Loader2 className="ml-1 size-3 animate-spin text-muted-foreground" />
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Far away</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export const columns: ColumnDef<Team>[] = [
   {
@@ -109,6 +171,28 @@ export const columns: ColumnDef<Team>[] = [
         </a>
       </Button>
     ),
+  },
+  {
+    id: "isFarAway",
+    header: "Far Away",
+    accessorKey: "isFarAway",
+    meta: {
+      className: "w-[80px] min-w-[80px]",
+    },
+    cell: ({ row }) => <FarAwayCell team={row.original} />,
+    enableSorting: false,
+  },
+  {
+    id: "comingFrom",
+    header: "Coming From",
+    accessorKey: "comingFrom",
+    meta: {
+      className: "w-[180px] min-w-[180px]",
+    },
+    cell: ({ row }) => (
+      <span className="truncate">{row.original.comingFrom || "-"}</span>
+    ),
+    enableSorting: false,
   },
   {
     id: "actions",

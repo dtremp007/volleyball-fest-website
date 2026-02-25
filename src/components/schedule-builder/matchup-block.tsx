@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, GripVertical } from "lucide-react";
+import { AlertTriangle, Car, GripVertical } from "lucide-react";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -145,12 +145,18 @@ export const MatchupBlock = memo(function MatchupBlock({
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div className={cn("truncate text-sm font-medium", colors.text)}>
+        <div className={cn("flex items-center gap-1.5 truncate text-sm font-medium", colors.text)}>
           {matchup.teamA.name}
+          {matchup.teamA.isFarAway && (
+            <span title="Far away team"><Car className="size-3.5 shrink-0" /></span>
+          )}
         </div>
         <div className="text-muted-foreground my-0.5 text-xs">vs</div>
-        <div className={cn("truncate text-sm font-medium", colors.text)}>
+        <div className={cn("flex items-center gap-1.5 truncate text-sm font-medium", colors.text)}>
           {matchup.teamB.name}
+          {matchup.teamB.isFarAway && (
+            <span title="Far away team"><Car className="size-3.5 shrink-0" /></span>
+          )}
         </div>
       </div>
       {hasConflict && (
@@ -206,12 +212,18 @@ export const UnscheduledMatchupBlock = memo(function UnscheduledMatchupBlock({
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div className={cn("truncate text-sm font-medium", colors.text)}>
+        <div className={cn("flex items-center gap-1.5 truncate text-sm font-medium", colors.text)}>
           {matchup.teamA.name}
+          {matchup.teamA.isFarAway && (
+            <span title="Far away team"><Car className="size-3.5 shrink-0" /></span>
+          )}
         </div>
         <div className="text-muted-foreground my-0.5 text-xs">vs</div>
-        <div className={cn("truncate text-sm font-medium", colors.text)}>
+        <div className={cn("flex items-center gap-1.5 truncate text-sm font-medium", colors.text)}>
           {matchup.teamB.name}
+          {matchup.teamB.isFarAway && (
+            <span title="Far away team"><Car className="size-3.5 shrink-0" /></span>
+          )}
         </div>
       </div>
     </div>
@@ -236,12 +248,18 @@ export const MatchupBlockOverlay = memo(function MatchupBlockOverlay({
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div className={cn("truncate text-sm font-medium", colors.text)}>
+        <div className={cn("flex items-center gap-1.5 truncate text-sm font-medium", colors.text)}>
           {matchup.teamA.name}
+          {matchup.teamA.isFarAway && (
+            <span title="Far away team"><Car className="size-3.5 shrink-0" /></span>
+          )}
         </div>
         <div className="text-muted-foreground my-0.5 text-xs">vs</div>
-        <div className={cn("truncate text-sm font-medium", colors.text)}>
+        <div className={cn("flex items-center gap-1.5 truncate text-sm font-medium", colors.text)}>
           {matchup.teamB.name}
+          {matchup.teamB.isFarAway && (
+            <span title="Far away team"><Car className="size-3.5 shrink-0" /></span>
+          )}
         </div>
       </div>
     </div>

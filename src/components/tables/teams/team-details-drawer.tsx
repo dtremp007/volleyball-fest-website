@@ -1,7 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
-import { Loader2, X } from "lucide-react";
-import { toast } from "sonner";
+import { X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -27,7 +26,6 @@ export function TeamDetailsDrawer() {
   const { teamId } = routeApi.useSearch();
   const navigate = Route.useNavigate();
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
 
   const { data: team, isLoading } = useQuery({
     ...trpc.team.getById.queryOptions({ id: teamId! }),
@@ -48,31 +46,6 @@ export function TeamDetailsDrawer() {
       search: { teamId: teamId },
       replace: true,
       resetScroll: false,
-    });
-  };
-
-  const updateIsFarAwayMutation = useMutation(
-    trpc.team.updateIsFarAway.mutationOptions({
-      onSuccess: async () => {
-        toast.success("Team updated");
-        await queryClient.invalidateQueries({
-          queryKey: trpc.team.getById.queryKey({ id: teamId! }),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: trpc.team.list.queryKey(),
-        });
-      },
-      onError: () => {
-        toast.error("Failed to update team");
-      },
-    }),
-  );
-
-  const handleToggleFarAway = () => {
-    if (!teamId || team === undefined) return;
-    updateIsFarAwayMutation.mutate({
-      id: teamId,
-      isFarAway: !team?.isFarAway,
     });
   };
 
@@ -234,25 +207,6 @@ export function TeamDetailsDrawer() {
         </ScrollArea>
 
         <DrawerFooter className="flex flex-col gap-2 border-t">
-          {team && (
-            <Button
-              variant="outline"
-              onClick={handleToggleFarAway}
-              disabled={updateIsFarAwayMutation.isPending}
-              className="w-full"
-            >
-              {updateIsFarAwayMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="size-4 animate-spin" />
-                  Updating...
-                </span>
-              ) : Boolean(team.isFarAway) ? (
-                "Unmark far away"
-              ) : (
-                "Mark as far away"
-              )}
-            </Button>
-          )}
           <Button onClick={handleEditClick} className="w-full">
             Edit Team
           </Button>

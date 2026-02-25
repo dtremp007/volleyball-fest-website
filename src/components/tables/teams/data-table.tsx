@@ -134,7 +134,7 @@ export function TeamsDataTable() {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={5}>Total teams</TableCell>
+              <TableCell colSpan={7}>Total teams</TableCell>
               <TableCell className="text-right">
                 {table.getFilteredRowModel().rows.length}
               </TableCell>

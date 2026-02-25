@@ -19,7 +19,7 @@ import { normalizeDateOnly } from "~/lib/unavailable-dates";
 
 const CATEGORY_BALANCE_MAX_PASSES = 6;
 const FEMENIL_CLUSTERING_MAX_PASSES = 6;
-const GENERAL_SWAP_MAX_PASSES = 8;
+const GENERAL_SWAP_MAX_PASSES = 15;
 const MAX_SWAP_EVALUATIONS_PER_PASS = 1200;
 
 // ============== Schedule Config ==============
@@ -407,6 +407,7 @@ async function buildConstraintValidationContext(
       eventDateById: new Map(params.eventDates.map((event) => [event.id, event.date])),
       teamUnavailableDatesById: new Map(),
       maxGamesPerTeamId: new Map(),
+      farAwayTeamIds: new Set(),
     };
   }
 
@@ -428,11 +429,15 @@ async function buildConstraintValidationContext(
       row.isFarAway ? FAR_AWAY_MAX_GAMES_PER_EVENT : DEFAULT_MAX_GAMES_PER_EVENT,
     ]),
   );
+  const farAwayTeamIds = new Set(
+    teamRows.filter((row) => row.isFarAway).map((row) => row.id),
+  );
 
   return {
     eventDateById: new Map(params.eventDates.map((event) => [event.id, event.date])),
     teamUnavailableDatesById,
     maxGamesPerTeamId,
+    farAwayTeamIds,
   };
 }
 
@@ -518,6 +523,7 @@ function improveEventCategoryBalance(
     maxSlotIndex: number;
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
+    farAwayTeamIds: Set<string>;
   },
 ): PlacementWithCategory[] {
   if (placements.length < 2 || !params.categoryBalanceContext) {
@@ -555,6 +561,7 @@ function improveEventCategoryBalance(
             maxSlotIndex: params.maxSlotIndex,
             totalMatchups: params.totalMatchups,
             categoryBalanceContext: params.categoryBalanceContext,
+            farAwayTeamIds: params.farAwayTeamIds,
           },
         );
         if (!result.valid) continue;
@@ -593,6 +600,7 @@ function improveFemenilNetChangeClustering(
     maxSlotIndex: number;
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
+    farAwayTeamIds: Set<string>;
   },
 ): PlacementWithCategory[] {
   if (placements.length < 2) {
@@ -627,6 +635,7 @@ function improveFemenilNetChangeClustering(
             maxSlotIndex: params.maxSlotIndex,
             totalMatchups: params.totalMatchups,
             categoryBalanceContext: params.categoryBalanceContext,
+            farAwayTeamIds: params.farAwayTeamIds,
           },
         );
         if (!result.valid) continue;
@@ -668,6 +677,7 @@ function improveByGeneralSwaps(
     maxSlotIndex: number;
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
+    farAwayTeamIds: Set<string>;
   },
 ): PlacementWithCategory[] {
   if (placements.length < 2) {
@@ -697,6 +707,7 @@ function improveByGeneralSwaps(
             maxSlotIndex: params.maxSlotIndex,
             totalMatchups: params.totalMatchups,
             categoryBalanceContext: params.categoryBalanceContext,
+            farAwayTeamIds: params.farAwayTeamIds,
           },
         );
 
@@ -723,6 +734,7 @@ function buildSchedulingMetrics(
     maxSlotIndex: number;
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
+    farAwayTeamIds: Set<string>;
   },
 ) {
   const categoryCountsByEventId: Record<string, Record<string, number>> = {};
@@ -751,6 +763,7 @@ function buildSchedulingMetrics(
       maxSlotIndex: params.maxSlotIndex,
       totalMatchups: params.totalMatchups,
       categoryBalanceContext: params.categoryBalanceContext,
+      farAwayTeamIds: params.farAwayTeamIds,
     }),
   };
 }
@@ -874,6 +887,7 @@ export async function autoScheduleMatchups(
                 maxSlotIndex,
                 totalMatchups: matchupOrder.length,
                 categoryBalanceContext,
+                farAwayTeamIds,
               });
               if (preferenceScore < selectedPlacementScore) {
                 selectedPlacementScore = preferenceScore;
@@ -900,13 +914,24 @@ export async function autoScheduleMatchups(
     }
     return acceptedPlacementsWithCategory;
   };
+  const { farAwayTeamIds } = validationContext;
   const improvementParams = {
     orderedEventIds,
     maxSlotIndex,
     totalMatchups: candidateMatchups.length,
     categoryBalanceContext,
+    farAwayTeamIds,
   };
-  let finalPlacements = runInitialPlacementPass(candidateMatchups);
+
+  const sortedMatchups = [...candidateMatchups].sort((a, b) => {
+    const aHasFarAway =
+      farAwayTeamIds.has(a.teamAId) || farAwayTeamIds.has(a.teamBId) ? 0 : 1;
+    const bHasFarAway =
+      farAwayTeamIds.has(b.teamAId) || farAwayTeamIds.has(b.teamBId) ? 0 : 1;
+    return aHasFarAway - bHasFarAway;
+  });
+
+  let finalPlacements = runInitialPlacementPass(sortedMatchups);
   finalPlacements = improveEventCategoryBalance(
     finalPlacements,
     validationContext,

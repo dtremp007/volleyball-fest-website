@@ -108,6 +108,20 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
           </TableHead>
         )}
 
+        {/* Far Away column */}
+        {isVisible("isFarAway") && (
+          <TableHead className="w-[80px]">
+            <span>Far Away</span>
+          </TableHead>
+        )}
+
+        {/* Coming From column */}
+        {isVisible("comingFrom") && (
+          <TableHead className="w-[180px]">
+            <span>Coming From</span>
+          </TableHead>
+        )}
+
         {/* Actions column */}
         {isVisible("actions") && (
           <TableHead className={"bg-background w-[50px] border-l"}>Actions</TableHead>
