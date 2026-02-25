@@ -4,8 +4,10 @@ import type { Database } from "~/lib/db";
 import {
   DEFAULT_MAX_GAMES_PER_EVENT,
   FAR_AWAY_MAX_GAMES_PER_EVENT,
+  evaluatePlacementSwap,
   getPlacementPreferenceScore,
   getPlacementViolationReason,
+  OPTIMIZATION_MAX_PASSES,
   type ConstraintValidationContext,
   type PlacementWithCategory,
   type ScheduledMatchupPlacement,
@@ -475,7 +477,7 @@ export async function autoScheduleMatchups(
     new Set(allSeasonMatchups.flatMap((matchup) => [matchup.teamAId, matchup.teamBId])),
   );
   const validationContext = await buildConstraintValidationContext(db, {
-    eventDates,
+    eventDates: events,
     teamIds,
   });
 
@@ -594,6 +596,68 @@ export async function autoScheduleMatchups(
       if (scheduledCount >= unscheduledMatchups.length) break;
     }
     if (scheduledCount >= unscheduledMatchups.length) break;
+  }
+
+  // Multi-pass swap optimization: try swapping placements to improve schedule quality
+  if (acceptedPlacementsWithCategory.length >= 2) {
+    for (let pass = 0; pass < OPTIMIZATION_MAX_PASSES; pass++) {
+      let improvementFound = false;
+      const placements = [...acceptedPlacementsWithCategory];
+
+      for (let i = 0; i < placements.length; i++) {
+        for (let j = i + 1; j < placements.length; j++) {
+          const result = evaluatePlacementSwap(
+            placements[i],
+            placements[j],
+            placements,
+            validationContext,
+            { orderedEventIds, maxSlotIndex },
+          );
+
+          if (result.valid && result.scoreImprovement > 0) {
+            const [swappedA, swappedB] = result.swappedPlacements;
+
+            // Update in-memory state
+            const idxA = acceptedPlacementsWithCategory.findIndex(
+              (p) => p.id === swappedA.id,
+            );
+            const idxB = acceptedPlacementsWithCategory.findIndex(
+              (p) => p.id === swappedB.id,
+            );
+            if (idxA >= 0 && idxB >= 0) {
+              acceptedPlacementsWithCategory[idxA] = swappedA;
+              acceptedPlacementsWithCategory[idxB] = swappedB;
+              acceptedPlacements[idxA] = swappedA;
+              acceptedPlacements[idxB] = swappedB;
+            }
+
+            // Persist to DB
+            await db
+              .update(schema.matchup)
+              .set({
+                eventId: swappedA.eventId,
+                courtId: swappedA.courtId,
+                slotIndex: swappedA.slotIndex,
+              })
+              .where(eq(schema.matchup.id, swappedA.id));
+            await db
+              .update(schema.matchup)
+              .set({
+                eventId: swappedB.eventId,
+                courtId: swappedB.courtId,
+                slotIndex: swappedB.slotIndex,
+              })
+              .where(eq(schema.matchup.id, swappedB.id));
+
+            improvementFound = true;
+            break;
+          }
+        }
+        if (improvementFound) break;
+      }
+
+      if (!improvementFound) break;
+    }
   }
 
   return {
