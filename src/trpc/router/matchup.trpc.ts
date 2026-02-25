@@ -10,6 +10,7 @@ import {
   deleteEvent,
   deleteMatchupsForSeason,
   generateMatchupsForSeason,
+  getEventWithMatchupsById,
   getEventsBySeasonId,
   getMatchupsBySeasonId,
   getPublicSchedule,
@@ -37,6 +38,15 @@ export const matchupRouter = {
         upcomingOnly: input.upcomingOnly,
         limit: input.limit,
       });
+    }),
+
+  /**
+   * Get a single event with matchups (for PDF/image generation)
+   */
+  getEventById: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ input }) => {
+      return await getEventWithMatchupsById(db, input.eventId);
     }),
 
   /**

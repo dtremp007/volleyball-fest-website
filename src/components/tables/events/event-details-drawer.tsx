@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
-import { FileText, X } from "lucide-react";
+import { ImageIcon, Loader2, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Drawer,
@@ -21,6 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import {
+  downloadScheduleImage,
+  generateEventScheduleImage,
+} from "~/lib/canvas/event-schedule-image";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId";
 import { useTRPC } from "~/trpc/react";
 
@@ -104,6 +109,8 @@ export function EventDetailsDrawer({ seasonId }: Props) {
 
   const sortedSlotIndices = Array.from(slotRows.keys()).sort((a, b) => a - b);
 
+  const [imageLoading, setImageLoading] = useState(false);
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       navigate({
@@ -114,6 +121,26 @@ export function EventDetailsDrawer({ seasonId }: Props) {
         replace: true,
         resetScroll: false,
       });
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!event) return;
+    setImageLoading(true);
+    try {
+      const eventForImage = {
+        id: event.id,
+        name: event.name,
+        date: event.date,
+        matchups,
+      };
+      const blob = await generateEventScheduleImage(
+        eventForImage,
+        window.location.origin,
+      );
+      downloadScheduleImage(blob, event.name);
+    } finally {
+      setImageLoading(false);
     }
   };
 
@@ -216,15 +243,18 @@ export function EventDetailsDrawer({ seasonId }: Props) {
 
         <DrawerFooter className="border-t">
           {event && (
-            <Button asChild className="w-full">
-              <a
-                href={`/api/event-pdf?id=${event.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FileText className="mr-2 size-4" />
-                View PDF
-              </a>
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={handleDownloadImage}
+              disabled={imageLoading}
+            >
+              {imageLoading ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <ImageIcon className="mr-2 size-4" />
+              )}
+              Download image
             </Button>
           )}
         </DrawerFooter>
