@@ -1,10 +1,7 @@
+import { arrayMove } from "@dnd-kit/sortable";
 import { create } from "zustand";
 import type { DragData, Matchup, ScheduleEvent } from "./types";
-import {
-  createNewEvent,
-  getPlacementValidationError,
-  getTimeForSlotIndex,
-} from "./utils";
+import { createNewEvent } from "./utils";
 
 type ScheduleState = {
   events: ScheduleEvent[];
@@ -21,28 +18,32 @@ type ScheduleActions = {
     matchup: Matchup,
     sourceEventId: string,
     sourceCourtId: string,
-    sourceSlotId: string,
-    sourceSlotIndex: number,
+    sourceIndex: number,
   ) => void;
-  moveMatchupToSlot: (
+  moveMatchupToCourt: (
     matchup: Matchup,
     source: DragData["source"],
     targetEventId: string,
     targetCourtId: string,
-    targetSlotId: string,
-  ) => { success: boolean; error?: string };
+    targetIndex?: number,
+  ) => void;
+  reorderMatchup: (
+    eventId: string,
+    courtId: "A" | "B",
+    activeMatchupId: string,
+    overMatchupId: string,
+  ) => void;
   addEvent: (name: string, date: string) => void;
   deleteEvent: (eventId: string) => void;
   updateEvent: (
     eventId: string,
     updates: Partial<Pick<ScheduleEvent, "name" | "date">>,
   ) => void;
-  addSlot: (eventId: string) => void;
   setSaved: () => void;
   markDirty: () => void;
 };
 
-export const useScheduleStore = create<ScheduleState & ScheduleActions>((set, get) => ({
+export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) => ({
   events: [],
   unscheduledMatchups: [],
   activeMatchup: null,
@@ -57,13 +58,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set, ge
     set({ activeMatchup: matchup });
   },
 
-  moveScheduledToUnscheduled: (
-    matchup,
-    sourceEventId,
-    sourceCourtId,
-    sourceSlotId,
-    sourceSlotIndex,
-  ) => {
+  moveScheduledToUnscheduled: (matchup, sourceEventId, sourceCourtId, sourceIndex) => {
     set((state) => {
       const eventIndex = state.events.findIndex((evt) => evt.id === sourceEventId);
       const currentEvent = eventIndex >= 0 ? state.events[eventIndex] : null;
@@ -75,136 +70,96 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set, ge
       const currentCourt = courtIndex >= 0 ? currentEvent.courts[courtIndex] : null;
       if (!currentCourt) return state;
 
-      let targetSlotIndex = sourceSlotIndex;
       if (
-        targetSlotIndex < 0 ||
-        targetSlotIndex >= currentCourt.slots.length ||
-        currentCourt.slots[targetSlotIndex]?.id !== sourceSlotId
+        sourceIndex < 0 ||
+        sourceIndex >= currentCourt.matchups.length ||
+        currentCourt.matchups[sourceIndex]?.id !== matchup.id
       ) {
-        targetSlotIndex = currentCourt.slots.findIndex(
-          (slot) => slot.id === sourceSlotId,
-        );
+        return state;
       }
 
-      if (targetSlotIndex < 0) return state;
-      const currentSlot = currentCourt.slots[targetSlotIndex];
+      const nextMatchups = [...currentCourt.matchups];
+      nextMatchups.splice(sourceIndex, 1);
 
-      if (currentSlot?.matchup) {
-        const nextSlots = [...currentCourt.slots];
-        nextSlots[targetSlotIndex] = { ...currentSlot, matchup: null };
+      const nextCourts = [...currentEvent.courts] as [
+        ScheduleEvent["courts"][0],
+        ScheduleEvent["courts"][1],
+      ];
+      nextCourts[courtIndex] = { ...currentCourt, matchups: nextMatchups };
 
-        const nextCourts = [...currentEvent.courts] as [
-          ScheduleEvent["courts"][0],
-          ScheduleEvent["courts"][1],
-        ];
-        nextCourts[courtIndex] = { ...currentCourt, slots: nextSlots };
+      const nextEvents = [...state.events];
+      nextEvents[eventIndex] = { ...currentEvent, courts: nextCourts };
 
-        const nextEvents = [...state.events];
-        nextEvents[eventIndex] = { ...currentEvent, courts: nextCourts };
+      const alreadyUnscheduled = state.unscheduledMatchups.some(
+        (m) => m.id === matchup.id,
+      );
 
-        const alreadyUnscheduled = state.unscheduledMatchups.some(
-          (m) => m.id === matchup.id,
-        );
-
-        return {
-          events: nextEvents,
-          unscheduledMatchups: alreadyUnscheduled
-            ? state.unscheduledMatchups
-            : [...state.unscheduledMatchups, matchup],
-          isDirty: true,
-        };
-      }
-
-      return state;
+      return {
+        events: nextEvents,
+        unscheduledMatchups: alreadyUnscheduled
+          ? state.unscheduledMatchups
+          : [...state.unscheduledMatchups, matchup],
+        isDirty: true,
+      };
     });
   },
 
-  moveMatchupToSlot: (matchup, source, targetEventId, targetCourtId, targetSlotId) => {
-    let placementError: string | null = null;
-    let didPlace = false;
-
+  moveMatchupToCourt: (matchup, source, targetEventId, targetCourtId, targetIndex) => {
     set((state) => {
-      const targetEvent = state.events.find((e) => e.id === targetEventId);
-      const targetCourt = targetEvent?.courts.find((c) => c.id === targetCourtId);
-      const targetSlotIndex =
-        targetCourt?.slots.findIndex((s) => s.id === targetSlotId) ?? -1;
-      const targetSlot =
-        targetSlotIndex >= 0 ? targetCourt?.slots[targetSlotIndex] : null;
+      const targetEventIdx = state.events.findIndex((e) => e.id === targetEventId);
+      if (targetEventIdx < 0) return state;
 
-      if (!targetEvent || targetSlotIndex < 0) return state;
-      if (targetSlot?.matchup) return state;
+      let nextEvents = [...state.events];
 
-      placementError = getPlacementValidationError(
-        matchup,
-        targetEvent,
-        targetSlotIndex,
-        new Set([matchup.id]),
-      );
-      if (placementError) return state;
-
-      didPlace = true;
-
-      const nextEvents = state.events.map((evt) => {
-        const shouldTouchTarget = evt.id === targetEventId;
-        const shouldTouchSource =
-          source.type === "scheduled" && evt.id === source.eventId;
-
-        if (!shouldTouchTarget && !shouldTouchSource) {
-          return evt;
-        }
-
-        let eventChanged = false;
-        const nextCourts = evt.courts.map((court) => {
-          const shouldTouchTargetCourt = shouldTouchTarget && court.id === targetCourtId;
-          const shouldTouchSourceCourt =
-            shouldTouchSource &&
-            source.type === "scheduled" &&
-            court.id === source.courtId;
-
-          if (!shouldTouchTargetCourt && !shouldTouchSourceCourt) {
-            return court;
+      // Remove from source if scheduled
+      if (source.type === "scheduled") {
+        const sourceEventIdx = nextEvents.findIndex((e) => e.id === source.eventId);
+        if (sourceEventIdx >= 0) {
+          const sourceEvent = nextEvents[sourceEventIdx];
+          const sourceCourtIdx = sourceEvent.courts.findIndex(
+            (c) => c.id === source.courtId,
+          );
+          if (sourceCourtIdx >= 0) {
+            const sourceCourt = sourceEvent.courts[sourceCourtIdx];
+            const nextSourceMatchups = sourceCourt.matchups.filter(
+              (m) => m.id !== matchup.id,
+            );
+            const nextSourceCourts = [...sourceEvent.courts] as [
+              ScheduleEvent["courts"][0],
+              ScheduleEvent["courts"][1],
+            ];
+            nextSourceCourts[sourceCourtIdx] = {
+              ...sourceCourt,
+              matchups: nextSourceMatchups,
+            };
+            nextEvents[sourceEventIdx] = { ...sourceEvent, courts: nextSourceCourts };
           }
-
-          let courtChanged = false;
-          const nextSlots = court.slots.map((slot) => {
-            let nextMatchup = slot.matchup;
-
-            if (
-              shouldTouchSourceCourt &&
-              source.type === "scheduled" &&
-              slot.id === source.slotId
-            ) {
-              nextMatchup = null;
-            }
-            if (shouldTouchTargetCourt && slot.id === targetSlotId) {
-              nextMatchup = matchup;
-            }
-
-            if (nextMatchup === slot.matchup) {
-              return slot;
-            }
-
-            courtChanged = true;
-            return { ...slot, matchup: nextMatchup };
-          });
-
-          if (!courtChanged) {
-            return court;
-          }
-
-          eventChanged = true;
-          return { ...court, slots: nextSlots };
-        });
-
-        if (!eventChanged) {
-          return evt;
         }
+      }
 
-        return {
-          ...evt,
-          courts: nextCourts as [(typeof evt.courts)[0], (typeof evt.courts)[1]],
-        };
-      });
+      // Insert into target court
+      const targetEvent = nextEvents[targetEventIdx];
+      const targetCourtIdx = targetEvent.courts.findIndex((c) => c.id === targetCourtId);
+      if (targetCourtIdx < 0) return state;
+
+      const targetCourt = targetEvent.courts[targetCourtIdx];
+      const nextTargetMatchups = [...targetCourt.matchups];
+
+      if (targetIndex !== undefined && targetIndex >= 0) {
+        nextTargetMatchups.splice(targetIndex, 0, matchup);
+      } else {
+        nextTargetMatchups.push(matchup);
+      }
+
+      const nextTargetCourts = [...targetEvent.courts] as [
+        ScheduleEvent["courts"][0],
+        ScheduleEvent["courts"][1],
+      ];
+      nextTargetCourts[targetCourtIdx] = {
+        ...targetCourt,
+        matchups: nextTargetMatchups,
+      };
+      nextEvents[targetEventIdx] = { ...targetEvent, courts: nextTargetCourts };
 
       let nextUnscheduled = state.unscheduledMatchups;
       if (source.type === "unscheduled") {
@@ -217,12 +172,34 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set, ge
         isDirty: true,
       };
     });
+  },
 
-    if (placementError) {
-      return { success: false, error: placementError };
-    }
+  reorderMatchup: (eventId, courtId, activeMatchupId, overMatchupId) => {
+    set((state) => {
+      const eventIdx = state.events.findIndex((e) => e.id === eventId);
+      if (eventIdx < 0) return state;
 
-    return { success: didPlace };
+      const event = state.events[eventIdx];
+      const courtIdx = event.courts.findIndex((c) => c.id === courtId);
+      if (courtIdx < 0) return state;
+
+      const court = event.courts[courtIdx];
+      const oldIndex = court.matchups.findIndex((m) => m.id === activeMatchupId);
+      const newIndex = court.matchups.findIndex((m) => m.id === overMatchupId);
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return state;
+
+      const nextMatchups = arrayMove(court.matchups, oldIndex, newIndex);
+      const nextCourts = [...event.courts] as [
+        ScheduleEvent["courts"][0],
+        ScheduleEvent["courts"][1],
+      ];
+      nextCourts[courtIdx] = { ...court, matchups: nextMatchups };
+
+      const nextEvents = [...state.events];
+      nextEvents[eventIdx] = { ...event, courts: nextCourts };
+
+      return { events: nextEvents, isDirty: true };
+    });
   },
 
   addEvent: (name, date) => {
@@ -237,13 +214,10 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set, ge
       const event = state.events.find((e) => e.id === eventId);
       if (!event) return state;
 
-      // Move all matchups back to unscheduled
       const matchupsToReturn: Matchup[] = [];
       event.courts.forEach((court) => {
-        court.slots.forEach((slot) => {
-          if (slot.matchup) {
-            matchupsToReturn.push(slot.matchup);
-          }
+        court.matchups.forEach((matchup) => {
+          matchupsToReturn.push(matchup);
         });
       });
 
@@ -263,35 +237,6 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set, ge
       events: state.events.map((event) =>
         event.id === eventId ? { ...event, ...updates } : event,
       ),
-      isDirty: true,
-    }));
-  },
-
-  addSlot: (eventId) => {
-    set((state) => ({
-      events: state.events.map((event) => {
-        if (event.id !== eventId) return event;
-
-        const maxSlots = Math.max(
-          event.courts[0].slots.length,
-          event.courts[1].slots.length,
-        );
-
-        return {
-          ...event,
-          courts: event.courts.map((court) => ({
-            ...court,
-            slots: [
-              ...court.slots,
-              {
-                id: `slot-${maxSlots}`,
-                time: getTimeForSlotIndex(maxSlots),
-                matchup: null,
-              },
-            ],
-          })) as [ScheduleEvent["courts"][0], ScheduleEvent["courts"][1]],
-        };
-      }),
       isDirty: true,
     }));
   },

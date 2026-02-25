@@ -17,9 +17,7 @@ import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import {
   AUTOSAVE_INTERVAL,
-  DEFAULT_SLOTS_PER_COURT,
   EventCard,
-  getTimeForSlotIndex,
   MatchupBlockOverlay,
   UnscheduledPanel,
   useScheduleStore,
@@ -46,12 +44,10 @@ function BuildPage() {
   const { seasonId } = Route.useParams();
   const trpc = useTRPC();
 
-  // Fetch data
   const { data, refetch, isRefetching } = useSuspenseQuery(
     trpc.matchup.getBySeasonId.queryOptions({ seasonId }, { staleTime: 0 }),
   );
 
-  // Mutations
   const saveMutation = useMutation(trpc.matchup.saveSchedule.mutationOptions());
   const regenerateMutation = useMutation(
     trpc.matchup.regenerateSchedule.mutationOptions(),
@@ -60,14 +56,14 @@ function BuildPage() {
   const { mutateAsync: regenerateScheduleAsync, isPending: isRegenerating } =
     regenerateMutation;
 
-  // Store actions and state we need in the parent
   const init = useScheduleStore((state) => state.init);
   const addEvent = useScheduleStore((state) => state.addEvent);
   const setActiveMatchup = useScheduleStore((state) => state.setActiveMatchup);
   const moveScheduledToUnscheduled = useScheduleStore(
     (state) => state.moveScheduledToUnscheduled,
   );
-  const moveMatchupToSlot = useScheduleStore((state) => state.moveMatchupToSlot);
+  const moveMatchupToCourt = useScheduleStore((state) => state.moveMatchupToCourt);
+  const reorderMatchup = useScheduleStore((state) => state.reorderMatchup);
 
   const eventIds = useScheduleStore(useShallow((state) => state.events.map((e) => e.id)));
   const activeMatchup = useScheduleStore((state) => state.activeMatchup);
@@ -75,7 +71,6 @@ function BuildPage() {
   const lastSaved = useScheduleStore((state) => state.lastSaved);
   const setSaved = useScheduleStore((state) => state.setSaved);
 
-  // Build initial state from DB data
   const initialState = useMemo(() => {
     const toMatchup = (matchupData: {
       id: string;
@@ -95,6 +90,7 @@ function BuildPage() {
       category: matchupData.category,
     });
 
+    // Group scheduled matchups by event and court, ordered by slotIndex
     const scheduledByEvent = data.scheduled.reduce(
       (acc, matchup) => {
         if (
@@ -106,73 +102,53 @@ function BuildPage() {
         }
 
         if (!acc[matchup.eventId]) {
-          acc[matchup.eventId] = {
-            A: new Map(),
-            B: new Map(),
-            maxSlotIndex: -1,
-          };
+          acc[matchup.eventId] = { A: [], B: [] };
         }
 
-        acc[matchup.eventId][matchup.courtId].set(matchup.slotIndex, matchup);
-        acc[matchup.eventId].maxSlotIndex = Math.max(
-          acc[matchup.eventId].maxSlotIndex,
-          matchup.slotIndex,
-        );
+        acc[matchup.eventId][matchup.courtId].push({
+          matchup,
+          slotIndex: matchup.slotIndex,
+        });
 
         return acc;
       },
       {} as Record<
         string,
         {
-          A: Map<number, (typeof data.scheduled)[number]>;
-          B: Map<number, (typeof data.scheduled)[number]>;
-          maxSlotIndex: number;
+          A: { matchup: (typeof data.scheduled)[number]; slotIndex: number }[];
+          B: { matchup: (typeof data.scheduled)[number]; slotIndex: number }[];
         }
       >,
     );
 
+    // Sort each court's matchups by slotIndex
+    for (const eventId in scheduledByEvent) {
+      scheduledByEvent[eventId].A.sort((a, b) => a.slotIndex - b.slotIndex);
+      scheduledByEvent[eventId].B.sort((a, b) => a.slotIndex - b.slotIndex);
+    }
+
     const events: ScheduleEvent[] = data.events.map((dbEvent) => {
       const eventSchedule = scheduledByEvent[dbEvent.id];
-      const maxSlotIndex = eventSchedule?.maxSlotIndex ?? -1;
-      const slotCount = Math.max(DEFAULT_SLOTS_PER_COURT, maxSlotIndex + 1);
-
-      // Build courts with matchups placed
-      const courts: [ScheduleEvent["courts"][0], ScheduleEvent["courts"][1]] = [
-        {
-          id: "A",
-          slots: Array.from({ length: slotCount }, (_, i) => {
-            const matchupData = eventSchedule?.A.get(i);
-            return {
-              id: `slot-${i}`,
-              time: getTimeForSlotIndex(i),
-              matchup: matchupData ? toMatchup(matchupData) : null,
-            };
-          }),
-        },
-        {
-          id: "B",
-          slots: Array.from({ length: slotCount }, (_, i) => {
-            const matchupData = eventSchedule?.B.get(i);
-            return {
-              id: `slot-${i}`,
-              time: getTimeForSlotIndex(i),
-              matchup: matchupData ? toMatchup(matchupData) : null,
-            };
-          }),
-        },
-      ];
 
       return {
         id: dbEvent.id,
         name: dbEvent.name,
         date: dbEvent.date,
-        courts,
+        courts: [
+          {
+            id: "A" as const,
+            matchups: eventSchedule?.A.map((s) => toMatchup(s.matchup)) ?? [],
+          },
+          {
+            id: "B" as const,
+            matchups: eventSchedule?.B.map((s) => toMatchup(s.matchup)) ?? [],
+          },
+        ],
       };
     });
 
     const unscheduled: Matchup[] = data.unscheduled.map((m) => toMatchup(m));
 
-    // Build matchupsByCategory for the panel
     const matchupsByCategory = data.matchups.reduce(
       (acc, m) => {
         if (!acc[m.category]) acc[m.category] = [];
@@ -216,7 +192,6 @@ function BuildPage() {
       useScheduleStore.getState().events.length === 0 &&
       initialState.events.length > 0
     ) {
-      // First load if state is empty
       init(initialState.events, initialState.unscheduled);
     }
     return () => {
@@ -224,7 +199,6 @@ function BuildPage() {
     };
   }, [dataKey, initialState, init]);
 
-  // Initial mount load
   useEffect(() => {
     init(initialState.events, initialState.unscheduled);
   }, [init, initialState]);
@@ -235,7 +209,6 @@ function BuildPage() {
 
     const { events, unscheduledMatchups } = useScheduleStore.getState();
 
-    // Build matchup placements from current state
     const matchupPlacements: {
       id: string;
       eventId: string | null;
@@ -243,23 +216,19 @@ function BuildPage() {
       slotIndex: number | null;
     }[] = [];
 
-    // Add scheduled matchups
     events.forEach((event) => {
       event.courts.forEach((court) => {
-        court.slots.forEach((slot, slotIndex) => {
-          if (slot.matchup) {
-            matchupPlacements.push({
-              id: slot.matchup.id,
-              eventId: event.id,
-              courtId: court.id,
-              slotIndex,
-            });
-          }
+        court.matchups.forEach((matchup, index) => {
+          matchupPlacements.push({
+            id: matchup.id,
+            eventId: event.id,
+            courtId: court.id,
+            slotIndex: index,
+          });
         });
       });
     });
 
-    // Add unscheduled matchups
     unscheduledMatchups.forEach((matchup) => {
       matchupPlacements.push({
         id: matchup.id,
@@ -281,7 +250,6 @@ function BuildPage() {
     }
   }, [seasonId, saveScheduleAsync, setSaved]);
 
-  // Autosave interval
   useEffect(() => {
     const interval = setInterval(() => {
       saveSchedule();
@@ -290,7 +258,6 @@ function BuildPage() {
     return () => clearInterval(interval);
   }, [saveSchedule]);
 
-  // Save on unmount
   useEffect(() => {
     return () => {
       if (useScheduleStore.getState().isDirty) {
@@ -334,13 +301,11 @@ function BuildPage() {
   });
   const sensors = useSensors(mouseSensor, touchSensor);
 
-  // Event handlers
   const handleAddEvent = useCallback(() => {
     const today = new Date().toISOString().split("T")[0];
     addEvent(format(new Date(), "MMM d, yyyy"), today);
   }, [addEvent]);
 
-  // Drag and drop handlers
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       const dragData = event.active.data.current as DragData;
@@ -359,41 +324,79 @@ function BuildPage() {
       if (!over) return;
 
       const dragData = active.data.current as DragData;
-      const dropData = over.data.current as DropData | { type: "unscheduled" };
-
       if (!dragData || dragData.type !== "matchup") return;
 
       const matchup = dragData.matchup;
       const source = dragData.source;
+      const overData = over.data.current as DropData | { type: "unscheduled" } | DragData | undefined;
 
-      // Handle dropping on unscheduled panel
-      if (dropData?.type === "unscheduled") {
+      // Drop on unscheduled panel
+      if (overData?.type === "unscheduled") {
         if (source.type === "scheduled") {
           moveScheduledToUnscheduled(
             matchup,
             source.eventId,
             source.courtId,
-            source.slotId,
-            source.slotIndex,
+            source.index,
           );
         }
         return;
       }
 
-      // Handle dropping on a slot
-      if (dropData?.type === "slot") {
-        const { eventId, courtId, slotId } = dropData;
-        const result = moveMatchupToSlot(matchup, source, eventId, courtId, slotId);
+      // Drop on a court drop zone (append)
+      if (overData?.type === "court") {
+        const { eventId, courtId } = overData as DropData;
+        moveMatchupToCourt(matchup, source, eventId, courtId);
+        return;
+      }
 
-        if (!result.success && result.error) {
-          toast.error(result.error);
+      // Sortable reorder: active and over are both sortable matchup items
+      if (overData?.type === "matchup") {
+        const overDragData = overData as DragData;
+        const overSource = overDragData.source;
+
+        if (source.type === "scheduled" && overSource.type === "scheduled") {
+          // Same court reorder
+          if (
+            source.eventId === overSource.eventId &&
+            source.courtId === overSource.courtId
+          ) {
+            reorderMatchup(
+              source.eventId,
+              source.courtId,
+              matchup.id,
+              overDragData.matchup.id,
+            );
+            return;
+          }
+
+          // Cross-court move: insert at the over item's position
+          moveMatchupToCourt(
+            matchup,
+            source,
+            overSource.eventId,
+            overSource.courtId,
+            overSource.index,
+          );
+          return;
+        }
+
+        // From unscheduled to a specific position on a court
+        if (source.type === "unscheduled" && overSource.type === "scheduled") {
+          moveMatchupToCourt(
+            matchup,
+            source,
+            overSource.eventId,
+            overSource.courtId,
+            overSource.index,
+          );
+          return;
         }
       }
     },
-    [setActiveMatchup, moveScheduledToUnscheduled, moveMatchupToSlot],
+    [setActiveMatchup, moveScheduledToUnscheduled, moveMatchupToCourt, reorderMatchup],
   );
 
-  // No matchups state - redirect should happen at index level, but keep as fallback
   if (!data.hasMatchups) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -422,7 +425,6 @@ function BuildPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Save status indicator */}
               <div className="text-muted-foreground flex items-center gap-2 text-sm">
                 {saveMutation.isPending ? (
                   <>
@@ -493,7 +495,6 @@ function BuildPage() {
         </div>
       </div>
 
-      {/* Drag overlay */}
       <DragOverlay dropAnimation={null}>
         {activeMatchup ? <MatchupBlockOverlay matchup={activeMatchup} /> : null}
       </DragOverlay>

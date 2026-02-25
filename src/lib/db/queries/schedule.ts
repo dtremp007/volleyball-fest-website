@@ -965,57 +965,6 @@ type ScheduleData = {
 export async function saveSchedule(db: Database, data: ScheduleData) {
   const { seasonId, events, matchups } = data;
 
-  const matchupRows = await db
-    .select({
-      id: schema.matchup.id,
-      teamAId: schema.matchup.teamAId,
-      teamBId: schema.matchup.teamBId,
-    })
-    .from(schema.matchup)
-    .where(eq(schema.matchup.seasonId, seasonId));
-  const matchupById = new Map(matchupRows.map((matchup) => [matchup.id, matchup]));
-  const scheduledPlacements = matchups.flatMap((matchup) => {
-    const matchupTeams = matchupById.get(matchup.id);
-    if (
-      !matchupTeams ||
-      matchup.eventId === null ||
-      matchup.courtId === null ||
-      matchup.slotIndex === null
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        id: matchup.id,
-        teamAId: matchupTeams.teamAId,
-        teamBId: matchupTeams.teamBId,
-        eventId: matchup.eventId,
-        courtId: matchup.courtId as "A" | "B",
-        slotIndex: matchup.slotIndex,
-      } satisfies ScheduledMatchupPlacement,
-    ];
-  });
-  const teamIds = Array.from(
-    new Set(matchupRows.flatMap((matchup) => [matchup.teamAId, matchup.teamBId])),
-  );
-  const validationContext = await buildConstraintValidationContext(db, {
-    eventDates: events.map((event) => ({ id: event.id, date: event.date })),
-    teamIds,
-  });
-  const acceptedPlacements: ScheduledMatchupPlacement[] = [];
-  for (const placement of scheduledPlacements) {
-    const violationReason = getPlacementViolationReason(
-      placement,
-      acceptedPlacements,
-      validationContext,
-    );
-    if (violationReason) {
-      throw new Error(violationReason);
-    }
-    acceptedPlacements.push(placement);
-  }
-
   // Get existing events for this season
   const existingEvents = await getEventsBySeasonId(db, seasonId);
   const existingEventIds = new Set(existingEvents.map((e) => e.id));

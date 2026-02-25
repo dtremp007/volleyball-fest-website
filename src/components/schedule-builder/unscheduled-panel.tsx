@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { Inbox } from "lucide-react";
 import { memo, useMemo } from "react";
 import { cn } from "~/lib/utils";
-import { MatchupBlock } from "./matchup-block";
+import { UnscheduledMatchupBlock } from "./matchup-block";
 import { useScheduleStore } from "./store";
 import type { Matchup } from "./types";
 
@@ -70,10 +70,9 @@ export const UnscheduledPanel = memo(function UnscheduledPanel({
                     </h3>
                     <div className="space-y-2">
                       {categoryMatchups.map((matchup) => (
-                        <MatchupBlock
+                        <UnscheduledMatchupBlock
                           key={matchup.id}
                           matchup={matchup}
-                          source={{ type: "unscheduled" }}
                         />
                       ))}
                     </div>

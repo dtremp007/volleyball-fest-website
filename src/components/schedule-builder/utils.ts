@@ -1,10 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Matchup, ScheduleEvent, TimeSlot as TimeSlotData } from "./types";
+import type { Matchup, ScheduleEvent } from "./types";
 
 export const START_HOUR = 16; // 4 PM
 export const START_MINUTE = 15;
 export const SLOT_DURATION_MINUTES = 45;
-export const DEFAULT_SLOTS_PER_COURT = 7;
 export const AUTOSAVE_INTERVAL = 5000; // 5 seconds
 
 export function teamsOverlap(
@@ -34,54 +33,37 @@ export function getTimeForSlotIndex(slotIndex: number): string {
   return formatTime(hour, minute);
 }
 
-export function generateTimeSlots(count: number, startIndex: number = 0): TimeSlotData[] {
-  return Array.from({ length: count }, (_, i) => {
-    const slotIndex = startIndex + i;
-    return {
-      id: `slot-${slotIndex}`,
-      time: getTimeForSlotIndex(slotIndex),
-      matchup: null,
-    };
-  });
-}
-
-export function getScheduledInEvent(
+/**
+ * For a matchup at `index` on `courtId`, check if the other court
+ * has a matchup at the same index that shares a team.
+ * Returns the names of conflicting teams, or an empty array.
+ */
+export function getConflictingTeams(
   event: ScheduleEvent,
-  ignoredMatchupIds: Set<string> = new Set(),
-) {
-  return event.courts.flatMap((court) =>
-    court.slots.flatMap((slot, slotIndex) => {
-      if (!slot.matchup || ignoredMatchupIds.has(slot.matchup.id)) {
-        return [];
-      }
-      return [{ matchup: slot.matchup, slotIndex }];
-    }),
-  );
-}
+  courtId: "A" | "B",
+  index: number,
+): string[] {
+  const otherCourt = event.courts.find((c) => c.id !== courtId);
+  if (!otherCourt) return [];
 
-export function getPlacementValidationError(
-  matchup: Matchup,
-  targetEvent: ScheduleEvent,
-  targetSlotIndex: number,
-  ignoredMatchupIds: Set<string> = new Set(),
-): string | null {
-  const scheduledInEvent = getScheduledInEvent(targetEvent, ignoredMatchupIds);
+  const thisCourt = event.courts.find((c) => c.id === courtId);
+  if (!thisCourt) return [];
 
-  const slotConflict = scheduledInEvent.find(
-    (scheduled) =>
-      scheduled.slotIndex === targetSlotIndex &&
-      teamsOverlap(
-        matchup.teamA.id,
-        matchup.teamB.id,
-        scheduled.matchup.teamA.id,
-        scheduled.matchup.teamB.id,
-      ),
-  );
-  if (slotConflict) {
-    return "A team cannot play two matches at the same time.";
+  const thisMatchup = thisCourt.matchups[index];
+  const otherMatchup = otherCourt.matchups[index];
+  if (!thisMatchup || !otherMatchup) return [];
+
+  const conflicting: string[] = [];
+  const thisTeamIds = [thisMatchup.teamA.id, thisMatchup.teamB.id];
+  const otherTeams = [otherMatchup.teamA, otherMatchup.teamB];
+
+  for (const team of otherTeams) {
+    if (thisTeamIds.includes(team.id)) {
+      conflicting.push(team.name);
+    }
   }
 
-  return null;
+  return conflicting;
 }
 
 export function createNewEvent(name: string, date: string): ScheduleEvent {
@@ -90,8 +72,8 @@ export function createNewEvent(name: string, date: string): ScheduleEvent {
     name,
     date,
     courts: [
-      { id: "A", slots: generateTimeSlots(DEFAULT_SLOTS_PER_COURT) },
-      { id: "B", slots: generateTimeSlots(DEFAULT_SLOTS_PER_COURT) },
+      { id: "A", matchups: [] },
+      { id: "B", matchups: [] },
     ],
   };
 }

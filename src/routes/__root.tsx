@@ -20,6 +20,7 @@ import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
 import { ThemeProvider } from "~/components/theme-provider";
 import { Toaster } from "~/components/ui/sonner";
+import { TooltipProvider } from "~/components/ui/tooltip";
 import { auth } from "~/lib/auth/auth";
 import { seo } from "~/lib/utils";
 import appCss from "~/styles.css?url";
@@ -137,16 +138,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="font-display flex flex-col antialiased">
         <ThemeProvider>
-          <Header
-            links={[
-              { label: "Inicio", to: "/" },
-              { label: "Equipos", to: "/equipos" },
-              { label: "Inscribir equipo", to: "/signup-form" },
-            ]}
-          />
-          <main className="min-h-screen flex-1 pt-16">{children}</main>
-          <Footer />
-          <Toaster richColors />
+          <TooltipProvider>
+            <Header
+              links={[
+                { label: "Inicio", to: "/" },
+                { label: "Equipos", to: "/equipos" },
+                { label: "Inscribir equipo", to: "/signup-form" },
+              ]}
+            />
+            <main className="min-h-screen flex-1 pt-16">{children}</main>
+            <Footer />
+            <Toaster richColors />
+          </TooltipProvider>
         </ThemeProvider>
         <TanStackDevtools
           plugins={[

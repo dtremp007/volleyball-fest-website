@@ -1,14 +1,18 @@
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { AlertTriangle, GripVertical } from "lucide-react";
 import { memo, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
+import { useScheduleStore } from "./store";
 import type { DragData, Matchup } from "./types";
-
-type MatchupBlockProps = {
-  matchup: Matchup;
-  source: DragData["source"];
-  isOverlay?: boolean;
-};
+import { getConflictingTeams } from "./utils";
 
 const categoryColorCache = new Map<
   string,
@@ -20,7 +24,6 @@ function getCategoryColor(category: string) {
   if (cached) {
     return cached;
   }
-  // Generate consistent colors based on category name hash
   const colors = [
     {
       bg: "bg-amber-50 dark:bg-amber-950/30",
@@ -54,7 +57,6 @@ function getCategoryColor(category: string) {
     },
   ];
 
-  // Simple hash function to get consistent color
   let hash = 0;
   for (let i = 0; i < category.length; i++) {
     hash = category.charCodeAt(i) + ((hash << 5) - hash);
@@ -64,31 +66,130 @@ function getCategoryColor(category: string) {
   return selected;
 }
 
+type MatchupBlockProps = {
+  matchupId: string;
+  eventId: string;
+  courtId: "A" | "B";
+  index: number;
+};
+
 export const MatchupBlock = memo(function MatchupBlock({
-  matchup,
-  source,
-  isOverlay,
+  matchupId,
+  eventId,
+  courtId,
+  index,
 }: MatchupBlockProps) {
+  const matchup = useScheduleStore((state) => {
+    const event = state.events.find((e) => e.id === eventId);
+    const court = event?.courts.find((c) => c.id === courtId);
+    return court?.matchups[index];
+  });
+
+  const conflictingTeams = useScheduleStore(
+    useShallow((state) => {
+      const event = state.events.find((e) => e.id === eventId);
+      if (!event) return [];
+      return getConflictingTeams(event, courtId, index);
+    }),
+  );
+
   const dragData: DragData = useMemo(
     () => ({
-      type: "matchup",
-      matchup,
-      source,
+      type: "matchup" as const,
+      matchup: matchup!,
+      source: { type: "scheduled" as const, eventId, courtId, index },
     }),
-    [matchup, source],
+    [matchup, eventId, courtId, index],
+  );
+
+  const sortableId = `matchup-${matchupId}-${eventId}-${courtId}`;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: sortableId,
+    data: dragData,
+  });
+
+  const style = useMemo(
+    () => ({
+      transform: CSS.Transform.toString(transform),
+      transition,
+    }),
+    [transform, transition],
+  );
+
+  if (!matchup) return null;
+
+  const colors = getCategoryColor(matchup.category);
+  const hasConflict = conflictingTeams.length > 0;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group flex items-center gap-2 rounded-lg border-2 px-3 py-2 transition-shadow select-none",
+        colors.bg,
+        colors.border,
+        isDragging && "z-10 opacity-40",
+        !isDragging && "cursor-grab hover:shadow-md active:cursor-grabbing",
+      )}
+      {...listeners}
+      {...attributes}
+    >
+      <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className={cn("truncate text-sm font-medium", colors.text)}>
+          {matchup.teamA.name}
+        </div>
+        <div className="text-muted-foreground my-0.5 text-xs">vs</div>
+        <div className={cn("truncate text-sm font-medium", colors.text)}>
+          {matchup.teamB.name}
+        </div>
+      </div>
+      {hasConflict && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {conflictingTeams.join(", ")} also playing on Court{" "}
+            {courtId === "A" ? "B" : "A"} at this time
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  );
+});
+
+type UnscheduledMatchupBlockProps = {
+  matchup: Matchup;
+};
+
+export const UnscheduledMatchupBlock = memo(function UnscheduledMatchupBlock({
+  matchup,
+}: UnscheduledMatchupBlockProps) {
+  const dragData: DragData = useMemo(
+    () => ({
+      type: "matchup" as const,
+      matchup,
+      source: { type: "unscheduled" as const },
+    }),
+    [matchup],
   );
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `matchup-${matchup.id}-${source.type === "unscheduled" ? "unscheduled" : `${source.eventId}-${source.courtId}-${source.slotId}`}`,
+    id: `matchup-${matchup.id}-unscheduled`,
     data: dragData,
   });
 
   const colors = useMemo(() => getCategoryColor(matchup.category), [matchup.category]);
-  const draggableAttributes = useMemo(() => {
-    const nextAttributes = { ...attributes };
-    delete (nextAttributes as { tabIndex?: number }).tabIndex;
-    return nextAttributes;
-  }, [attributes]);
 
   return (
     <div
@@ -97,12 +198,11 @@ export const MatchupBlock = memo(function MatchupBlock({
         "group flex items-center gap-2 rounded-lg border-2 px-3 py-2 transition-all select-none",
         colors.bg,
         colors.border,
-        isDragging && !isOverlay && "opacity-40",
-        isOverlay && "ring-primary/50 scale-105 rotate-2 shadow-xl ring-2",
-        !isOverlay && "cursor-grab hover:shadow-md active:cursor-grabbing",
+        isDragging && "opacity-40",
+        "cursor-grab hover:shadow-md active:cursor-grabbing",
       )}
       {...listeners}
-      {...draggableAttributes}
+      {...attributes}
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">

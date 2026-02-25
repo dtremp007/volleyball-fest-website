@@ -1,4 +1,4 @@
-import { Calendar, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { Calendar, MoreVertical, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
@@ -31,7 +31,6 @@ export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
 
   const updateEvent = useScheduleStore((state) => state.updateEvent);
   const deleteEvent = useScheduleStore((state) => state.deleteEvent);
-  const addSlot = useScheduleStore((state) => state.addSlot);
 
   if (!eventName && !eventDate) return null;
 
@@ -65,10 +64,6 @@ export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => addSlot(eventId)}>
-              <Plus className="mr-2 size-4" />
-              Add time slot
-            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => deleteEvent(eventId)}
               className="text-destructive focus:text-destructive"
@@ -85,19 +80,6 @@ export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
         {courtIds.map((courtId) => (
           <CourtColumn key={courtId} courtId={courtId} eventId={eventId} />
         ))}
-      </div>
-
-      {/* Add slot button */}
-      <div className="px-4 pb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => addSlot(eventId)}
-        >
-          <Plus className="mr-2 size-4" />
-          Add time slot
-        </Button>
       </div>
     </div>
   );

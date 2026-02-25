@@ -14,15 +14,9 @@ export type Matchup = {
   category: string;
 };
 
-export type TimeSlot = {
-  id: string;
-  time: string;
-  matchup: Matchup | null;
-};
-
 export type Court = {
   id: "A" | "B";
-  slots: TimeSlot[];
+  matchups: Matchup[];
 };
 
 export type ScheduleEvent = {
@@ -32,7 +26,6 @@ export type ScheduleEvent = {
   courts: [Court, Court];
 };
 
-// Drag and drop types
 export type DragData = {
   type: "matchup";
   matchup: Matchup;
@@ -42,14 +35,12 @@ export type DragData = {
         type: "scheduled";
         eventId: string;
         courtId: "A" | "B";
-        slotId: string;
-        slotIndex: number;
+        index: number;
       };
 };
 
 export type DropData = {
-  type: "slot";
+  type: "court";
   eventId: string;
   courtId: "A" | "B";
-  slotId: string;
 };
