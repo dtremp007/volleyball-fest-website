@@ -9,6 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import { isDateUnavailable, normalizeDateOnly } from "~/lib/unavailable-dates";
 import { cn } from "~/lib/utils";
 import { useScheduleStore } from "./store";
 import type { DragData, Matchup } from "./types";
@@ -84,6 +85,9 @@ export const MatchupBlock = memo(function MatchupBlock({
     const court = event?.courts.find((c) => c.id === courtId);
     return court?.matchups[index];
   });
+  const eventDate = useScheduleStore(
+    (state) => state.events.find((e) => e.id === eventId)?.date ?? "",
+  );
 
   const conflictingTeams = useScheduleStore(
     useShallow((state) => {
@@ -128,6 +132,12 @@ export const MatchupBlock = memo(function MatchupBlock({
 
   const colors = getCategoryColor(matchup.category);
   const hasConflict = conflictingTeams.length > 0;
+  const unavailableTeams = [matchup.teamA, matchup.teamB]
+    .filter((team) => isDateUnavailable(team.unavailableDates ?? "", eventDate))
+    .map((team) => team.name);
+  const hasUnavailableDateConflict = unavailableTeams.length > 0;
+  const hasWarning = hasConflict || hasUnavailableDateConflict;
+  const eventDateLabel = normalizeDateOnly(eventDate);
 
   return (
     <div
@@ -159,14 +169,26 @@ export const MatchupBlock = memo(function MatchupBlock({
           )}
         </div>
       </div>
-      {hasConflict && (
+      {hasWarning && (
         <Tooltip>
           <TooltipTrigger asChild>
             <AlertTriangle className="size-4 shrink-0 text-amber-500" />
           </TooltipTrigger>
-          <TooltipContent side="right">
-            {conflictingTeams.join(", ")} also playing on Court{" "}
-            {courtId === "A" ? "B" : "A"} at this time
+          <TooltipContent side="right" className="max-w-xs">
+            <div className="space-y-1">
+              {hasConflict && (
+                <p>
+                  {conflictingTeams.join(", ")} also playing on Court{" "}
+                  {courtId === "A" ? "B" : "A"} at this time
+                </p>
+              )}
+              {hasUnavailableDateConflict && (
+                <p>
+                  {unavailableTeams.join(", ")} unavailable on{" "}
+                  {eventDateLabel || "this event date"}
+                </p>
+              )}
+            </div>
           </TooltipContent>
         </Tooltip>
       )}
