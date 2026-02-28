@@ -25,7 +25,7 @@ export const category = sqliteTable("category", {
   description: text("description").notNull(),
 });
 
-export const group = sqliteTable("group", {
+export const group = sqliteTable("team_group", {
   id: text("id").primaryKey(),
   name: text("name").notNull(), // e.g., "A", "B", "C"
   seasonId: text("season_id")
@@ -89,7 +89,7 @@ export const points = sqliteTable(
     set: integer("set").notNull().default(1),
     points: integer("points").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.matchupId, t.teamId] })],
+  (t) => [primaryKey({ columns: [t.matchupId, t.teamId, t.set] })],
 );
 
 // Relations

@@ -18,6 +18,7 @@ import {
   hasMatchupsForSeason,
   saveMatchupScorecard,
   saveSchedule,
+  saveSetScore,
 } from "~/lib/db/queries/schedule";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
 
@@ -265,6 +266,21 @@ export const matchupRouter = {
         scheduledCount: scheduleResult.scheduledCount,
         unscheduledCount: scheduleResult.unscheduledCount,
       };
+    }),
+
+  saveSetScore: protectedProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        matchupId: z.string(),
+        teamId: z.string(),
+        set: z.number().int().positive(),
+        points: z.number().int().min(0),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      await saveSetScore(db, input);
+      return { success: true };
     }),
 
   saveScorecard: protectedProcedure

@@ -18,14 +18,12 @@ import {
   MatchupsDataTable,
   MatchupsSkeleton,
 } from "../../../../components/tables/matchups";
-import { MatchupDetailsDrawer } from "../../../../components/tables/matchups/matchup-details-drawer";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   component: SeasonOverviewPage,
   validateSearch: z.object({
     view: z.enum(["events", "matchups"]).optional(),
     eventId: z.string().optional(),
-    matchupId: z.string().optional(),
   }),
   loader: async ({ params, context }) => {
     const [matchupData, teams, season] = await Promise.all([
@@ -97,7 +95,6 @@ function SeasonOverviewPage() {
         ...prev,
         view: nextView,
         eventId: nextView === "events" ? prev.eventId : undefined,
-        matchupId: nextView === "matchups" ? prev.matchupId : undefined,
       }),
     });
   };
@@ -243,7 +240,6 @@ function SeasonOverviewPage() {
       </Card>
 
       <EventDetailsDrawer seasonId={seasonId} />
-      <MatchupDetailsDrawer seasonId={seasonId} />
     </div>
   );
 }

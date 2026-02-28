@@ -25,7 +25,6 @@ export function EventRowItem({ row }: Props) {
         ...prev,
         view: "events",
         eventId: row.original.id,
-        matchupId: undefined,
       }),
       replace: true,
       resetScroll: false,

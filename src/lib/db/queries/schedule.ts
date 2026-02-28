@@ -304,6 +304,54 @@ export async function saveMatchupScorecard(
   await db.insert(schema.points).values(rows);
 }
 
+export async function saveSetScore(
+  db: Database,
+  params: {
+    seasonId: string;
+    matchupId: string;
+    teamId: string;
+    set: number;
+    points: number;
+  },
+) {
+  const [matchupRow] = await db
+    .select({
+      id: schema.matchup.id,
+      seasonId: schema.matchup.seasonId,
+      teamAId: schema.matchup.teamAId,
+      teamBId: schema.matchup.teamBId,
+    })
+    .from(schema.matchup)
+    .where(eq(schema.matchup.id, params.matchupId))
+    .limit(1);
+
+  if (!matchupRow || matchupRow.seasonId !== params.seasonId) {
+    throw new Error("Matchup not found");
+  }
+
+  if (params.teamId !== matchupRow.teamAId && params.teamId !== matchupRow.teamBId) {
+    throw new Error("Invalid team");
+  }
+
+  await db
+    .insert(schema.points)
+    .values({
+      matchupId: params.matchupId,
+      seasonId: params.seasonId,
+      teamId: params.teamId,
+      set: params.set,
+      points: params.points,
+    })
+    .onConflictDoUpdate({
+      target: [
+        schema.points.matchupId,
+        schema.points.teamId,
+        schema.points.set,
+      ],
+      set: { points: params.points },
+    });
+}
+
 export async function generateMatchupsForSeason(db: Database, seasonId: string) {
   // Get all teams for this season with their group assignments
   const teams = await db
