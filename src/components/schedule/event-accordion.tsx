@@ -24,8 +24,6 @@ const TIME_SLOTS = [
 ];
 
 export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
-  const isPast = new Date(event.date) < new Date();
-
   // Group matchups by time slot for table display
   const matchupsBySlot = new Map<
     number,
@@ -50,7 +48,7 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
 
   return (
     <AccordionItem value={event.id} className="border-none">
-      <Card className={cn("overflow-hidden py-4 transition-all", isPast && "opacity-60")}>
+      <Card className="overflow-hidden py-4 transition-all">
         <AccordionTrigger className="p-4 py-0 hover:no-underline">
           <div className="flex items-center gap-4">
             <div className="flex size-12 flex-col items-center justify-center rounded-lg bg-amber-500/10">

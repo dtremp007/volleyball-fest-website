@@ -30,7 +30,7 @@ const heroDefaults = {
   title: "Volleyball Fest",
   subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
   ctaText: "Inscribe tu equipo",
-  ctaVisible: true,
+  ctaVisible: false,
   imageUrl: "/hero.jpeg",
 };
 
