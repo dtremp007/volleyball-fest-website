@@ -22,6 +22,7 @@ export function Layout() {
         <Menu
           links={[
             { label: "Teams", to: "/teams" },
+            { label: "Scorecard", to: "/scorecard" },
             { label: "Seasons", to: "/seasons" },
             { label: "Settings", to: "/settings" },
           ]}

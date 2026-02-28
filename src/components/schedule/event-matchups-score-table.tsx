@@ -214,7 +214,7 @@ export function EventMatchupsScoreTable({ eventId }: Props) {
     if (!session?.user || isLoading) return null;
 
     return (
-        <div className="mb-8">
+        <div className="my-8 max-w-6xl mx-auto">
             <h3 className="mb-4 text-lg font-semibold">{event.name}</h3>
             <Table>
                 <TableHeader>

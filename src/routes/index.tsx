@@ -1,16 +1,7 @@
-import {
-    addDays,
-    isWithinInterval,
-    parseISO,
-    startOfDay,
-    subDays,
-} from "date-fns";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { EventList } from "~/components/schedule/event-list";
-import { EventMatchupsScoreTable } from "~/components/schedule/event-matchups-score-table";
 import { Button } from "~/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -31,17 +22,9 @@ export const Route = createFileRoute("/")({
             }),
         );
 
-        const today = startOfDay(new Date());
-        const range = { start: subDays(today, 2), end: addDays(today, 2) };
-        const eventWithin2Days = schedule.find((e) => {
-            const eventDate = startOfDay(parseISO(e.date));
-            return isWithinInterval(eventDate, range);
-        });
-
         return {
             heroContent,
             schedule,
-            eventWithin2Days: eventWithin2Days?.id ?? null,
         };
     },
 });
@@ -56,7 +39,7 @@ const heroDefaults = {
 };
 
 function LandingPage() {
-    const { heroContent, schedule, eventWithin2Days } = Route.useLoaderData();
+    const { heroContent, schedule } = Route.useLoaderData();
 
     const hero = heroContent ?? heroDefaults;
 
@@ -119,19 +102,6 @@ function LandingPage() {
                     </div>
                 </div>
             </section>
-
-            {/* Score Table (auth + event within 2 days) */}
-            {eventWithin2Days
-                ? (
-                    <section className="py-20">
-                        <div className="mx-auto max-w-6xl px-6">
-                            <EventMatchupsScoreTable
-                                eventId={eventWithin2Days}
-                            />
-                        </div>
-                    </section>
-                )
-                : null}
 
             {/* Schedule Section */}
             {schedule && schedule.length > 0

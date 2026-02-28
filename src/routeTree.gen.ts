@@ -19,6 +19,7 @@ import { Route as ApiUploadImageRouteImport } from './routes/api/upload-image'
 import { Route as ApiTeamPdfRouteImport } from './routes/api/team-pdf'
 import { Route as ApiEventPdfRouteImport } from './routes/api/event-pdf'
 import { Route as authenticatedSettingsRouteImport } from './routes/(authenticated)/settings'
+import { Route as authenticatedScorecardRouteImport } from './routes/(authenticated)/scorecard'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
 import { Route as authPagesLoginRouteImport } from './routes/(auth-pages)/login'
 import { Route as authenticatedDashboardRouteRouteImport } from './routes/(authenticated)/dashboard/route'
@@ -78,6 +79,11 @@ const ApiEventPdfRoute = ApiEventPdfRouteImport.update({
 const authenticatedSettingsRoute = authenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => authenticatedRouteRoute,
+} as any)
+const authenticatedScorecardRoute = authenticatedScorecardRouteImport.update({
+  id: '/scorecard',
+  path: '/scorecard',
   getParentRoute: () => authenticatedRouteRoute,
 } as any)
 const authPagesSignupRoute = authPagesSignupRouteImport.update({
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
+  '/scorecard': typeof authenticatedScorecardRoute
   '/settings': typeof authenticatedSettingsRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/signup-success': typeof SignupSuccessRoute
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
+  '/scorecard': typeof authenticatedScorecardRoute
   '/settings': typeof authenticatedSettingsRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/(authenticated)/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
+  '/(authenticated)/scorecard': typeof authenticatedScorecardRoute
   '/(authenticated)/settings': typeof authenticatedSettingsRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/signup'
+    | '/scorecard'
     | '/settings'
     | '/api/event-pdf'
     | '/api/team-pdf'
@@ -247,6 +257,7 @@ export interface FileRouteTypes {
     | '/signup-success'
     | '/login'
     | '/signup'
+    | '/scorecard'
     | '/settings'
     | '/api/event-pdf'
     | '/api/team-pdf'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/(authenticated)/dashboard'
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
+    | '/(authenticated)/scorecard'
     | '/(authenticated)/settings'
     | '/api/event-pdf'
     | '/api/team-pdf'
@@ -370,6 +382,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof authenticatedSettingsRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
+    '/(authenticated)/scorecard': {
+      id: '/(authenticated)/scorecard'
+      path: '/scorecard'
+      fullPath: '/scorecard'
+      preLoaderRoute: typeof authenticatedScorecardRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }
     '/(auth-pages)/signup': {
@@ -489,6 +508,7 @@ const authenticatedDashboardRouteRouteWithChildren =
 
 interface authenticatedRouteRouteChildren {
   authenticatedDashboardRouteRoute: typeof authenticatedDashboardRouteRouteWithChildren
+  authenticatedScorecardRoute: typeof authenticatedScorecardRoute
   authenticatedSettingsRoute: typeof authenticatedSettingsRoute
   authenticatedSeasonsIndexRoute: typeof authenticatedSeasonsIndexRoute
   authenticatedTeamsIndexRoute: typeof authenticatedTeamsIndexRoute
@@ -501,6 +521,7 @@ interface authenticatedRouteRouteChildren {
 const authenticatedRouteRouteChildren: authenticatedRouteRouteChildren = {
   authenticatedDashboardRouteRoute:
     authenticatedDashboardRouteRouteWithChildren,
+  authenticatedScorecardRoute: authenticatedScorecardRoute,
   authenticatedSettingsRoute: authenticatedSettingsRoute,
   authenticatedSeasonsIndexRoute: authenticatedSeasonsIndexRoute,
   authenticatedTeamsIndexRoute: authenticatedTeamsIndexRoute,
