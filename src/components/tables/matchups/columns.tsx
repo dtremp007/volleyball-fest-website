@@ -34,6 +34,7 @@ export type MatchupTableRow = {
   eventDate: string | null;
   courtId: string | null;
   slotLabel: string | null;
+  slotIndex: number | null;
   isScheduled: boolean;
   bestOf: number;
   teamASetsWon: number;

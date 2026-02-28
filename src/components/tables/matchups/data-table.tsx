@@ -238,6 +238,7 @@ export function MatchupsDataTable({ seasonId }: Props) {
                 eventDate: event?.date ?? null,
                 courtId: matchup.courtId,
                 slotLabel,
+                slotIndex: matchup.slotIndex,
                 isScheduled: matchup.eventId !== null,
                 bestOf: matchup.bestOf,
                 teamASetsWon: matchup.teamASetsWon,
@@ -250,6 +251,12 @@ export function MatchupsDataTable({ seasonId }: Props) {
             if (a.eventDate && b.eventDate && a.eventDate !== b.eventDate) {
                 return a.eventDate.localeCompare(b.eventDate);
             }
+            const slotA = a.slotIndex ?? 999;
+            const slotB = b.slotIndex ?? 999;
+            if (slotA !== slotB) return slotA - slotB;
+            const courtA = a.courtId ?? "Z";
+            const courtB = b.courtId ?? "Z";
+            if (courtA !== courtB) return courtA.localeCompare(courtB);
             return a.teamAName.localeCompare(b.teamAName);
         });
     }, [data]);

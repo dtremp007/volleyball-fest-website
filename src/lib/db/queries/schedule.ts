@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import {
@@ -142,7 +142,14 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
     })
     .from(schema.matchup)
     .innerJoin(schema.team, eq(schema.matchup.teamAId, schema.team.id))
-    .where(eq(schema.matchup.seasonId, seasonId));
+    .leftJoin(schema.scheduleEvent, eq(schema.matchup.eventId, schema.scheduleEvent.id))
+    .where(eq(schema.matchup.seasonId, seasonId))
+    .orderBy(
+      sql`(${schema.scheduleEvent.startTime} IS NULL) ASC`,
+      asc(schema.scheduleEvent.startTime),
+      sql`(${schema.matchup.slotIndex} IS NULL) ASC`,
+      asc(schema.matchup.slotIndex),
+    );
 
   // Get team B info in a second query (drizzle limitation with multiple joins to same table)
   const teamBInfo = await db
