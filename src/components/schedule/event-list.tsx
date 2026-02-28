@@ -1,12 +1,17 @@
-import { Calendar } from "lucide-react";
+import { useState } from "react";
+import { Calendar, ChevronDown, ChevronUp } from "lucide-react";
 
 import { Accordion } from "~/components/ui/accordion";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 
 import { EventAccordionItem } from "./event-accordion";
 import type { ScheduleEvent } from "./types";
 
 export function EventList({ schedule }: { schedule: ScheduleEvent[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const displayedEvents = expanded ? schedule : schedule.slice(0, 4);
+  const hasMore = schedule.length > 4;
   const defaultValue = schedule[0]?.id;
 
   return (
@@ -31,10 +36,32 @@ export function EventList({ schedule }: { schedule: ScheduleEvent[] }) {
           defaultValue={defaultValue}
           className="space-y-4"
         >
-          {schedule.map((event) => (
+          {displayedEvents.map((event) => (
             <EventAccordionItem key={event.id} event={event} />
           ))}
         </Accordion>
+
+        {hasMore && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setExpanded(!expanded)}
+              className="gap-2"
+            >
+              {expanded ? (
+                <>
+                  Ver menos
+                  <ChevronUp className="size-4" />
+                </>
+              ) : (
+                <>
+                  Ver más
+                  <ChevronDown className="size-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

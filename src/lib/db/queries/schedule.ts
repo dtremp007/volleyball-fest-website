@@ -1262,6 +1262,40 @@ export async function getEventsWithMatchupsBySeasonId(db: Database, seasonId: st
 }
 
 /**
+ * Get event with matchups and full set scores for scoring UI.
+ * Used by EventMatchupsScoreTable when event is within 2 days of today.
+ */
+export async function getEventMatchupsWithScores(db: Database, eventId: string) {
+  const [event] = await db
+    .select({
+      id: schema.scheduleEvent.id,
+      name: schema.scheduleEvent.name,
+      date: schema.scheduleEvent.startTime,
+      seasonId: schema.scheduleEvent.seasonId,
+    })
+    .from(schema.scheduleEvent)
+    .where(eq(schema.scheduleEvent.id, eventId))
+    .limit(1);
+
+  if (!event) return null;
+
+  const matchups = await getMatchupsBySeasonId(db, event.seasonId);
+  const eventMatchups = matchups
+    .filter((m) => m.eventId === eventId)
+    .sort((a, b) => (a.slotIndex ?? 999) - (b.slotIndex ?? 999));
+
+  return {
+    event: {
+      id: event.id,
+      name: event.name,
+      date: event.date,
+      seasonId: event.seasonId,
+    },
+    matchups: eventMatchups,
+  };
+}
+
+/**
  * Get public schedule for a season - upcoming events with their matchups
  */
 export async function getPublicSchedule(

@@ -1,7 +1,10 @@
+import { addDays, isWithinInterval, parseISO, startOfDay, subDays } from "date-fns";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { EventList } from "~/components/schedule/event-list";
+import { EventMatchupsScoreTable } from "~/components/schedule/event-matchups-score-table";
 import { Button } from "~/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -18,10 +21,22 @@ export const Route = createFileRoute("/")({
     const schedule = await context.queryClient.fetchQuery(
       context.trpc.matchup.getPublicSchedule.queryOptions({
         seasonId: "season-2026-spring",
-        upcomingOnly: true,
+        upcomingOnly: false,
       }),
     );
-    return { heroContent, schedule };
+
+    const today = startOfDay(new Date());
+    const range = { start: subDays(today, 2), end: addDays(today, 2) };
+    const eventWithin2Days = schedule.find((e) => {
+      const eventDate = startOfDay(parseISO(e.date));
+      return isWithinInterval(eventDate, range);
+    });
+
+    return {
+      heroContent,
+      schedule,
+      eventWithin2Days: eventWithin2Days?.id ?? null,
+    };
   },
 });
 
@@ -35,7 +50,8 @@ const heroDefaults = {
 };
 
 function LandingPage() {
-  const { heroContent, schedule } = Route.useLoaderData();
+  const { heroContent, schedule, eventWithin2Days } = Route.useLoaderData();
+  const { session } = Route.useRouteContext();
 
   const hero = heroContent ?? heroDefaults;
 
@@ -45,7 +61,7 @@ function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
-      <section className="relative flex min-h-[95vh] items-center justify-center overflow-hidden">
+      <section className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -92,8 +108,25 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* Score Table (auth + event within 2 days) */}
+      {session && eventWithin2Days ? (
+        <section className="py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <Suspense
+              fallback={
+                <div className="mb-8 h-32 animate-pulse rounded-lg bg-muted" />
+              }
+            >
+              <EventMatchupsScoreTable eventId={eventWithin2Days} />
+            </Suspense>
+          </div>
+        </section>
+      ) : null}
+
       {/* Schedule Section */}
-      {schedule && schedule.length > 0 ? <EventList schedule={schedule} /> : null}
+      {schedule && schedule.length > 0 ? (
+        <EventList schedule={schedule} />
+      ) : null}
 
       {/* Final CTA Section */}
       {showCta ? (

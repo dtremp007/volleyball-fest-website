@@ -10,6 +10,7 @@ import {
   deleteEvent,
   deleteMatchupsForSeason,
   generateMatchupsForSeason,
+  getEventMatchupsWithScores,
   getEventWithMatchupsById,
   getEventsBySeasonId,
   getMatchupsBySeasonId,
@@ -39,6 +40,17 @@ export const matchupRouter = {
         upcomingOnly: input.upcomingOnly,
         limit: input.limit,
       });
+    }),
+
+  /**
+   * Get event matchups with scores for scoring table (auth required)
+   */
+  getEventMatchupsForScoring: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ input }) => {
+      const result = await getEventMatchupsWithScores(db, input.eventId);
+      if (!result) return null;
+      return result;
     }),
 
   /**
