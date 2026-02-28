@@ -1,4 +1,10 @@
-import { addDays, isWithinInterval, parseISO, startOfDay, subDays } from "date-fns";
+import {
+    addDays,
+    isWithinInterval,
+    parseISO,
+    startOfDay,
+    subDays,
+} from "date-fns";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
@@ -8,149 +14,155 @@ import { EventMatchupsScoreTable } from "~/components/schedule/event-matchups-sc
 import { Button } from "~/components/ui/button";
 
 export const Route = createFileRoute("/")({
-  component: LandingPage,
-  loader: async ({ context }) => {
-    const heroContent = {
-      title: "Volleyball Fest",
-      subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
-      ctaText: "Inscribe tu equipo",
-      ctaVisible: false,
-      imageUrl: "/hero.jpeg",
-    };
+    component: LandingPage,
+    loader: async ({ context }) => {
+        const heroContent = {
+            title: "Volleyball Fest",
+            subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
+            ctaText: "Inscribe tu equipo",
+            ctaVisible: false,
+            imageUrl: "/hero.jpeg",
+        };
 
-    const schedule = await context.queryClient.fetchQuery(
-      context.trpc.matchup.getPublicSchedule.queryOptions({
-        seasonId: "season-2026-spring",
-        upcomingOnly: false,
-      }),
-    );
+        const schedule = await context.queryClient.fetchQuery(
+            context.trpc.matchup.getPublicSchedule.queryOptions({
+                seasonId: "season-2026-spring",
+                upcomingOnly: false,
+            }),
+        );
 
-    const today = startOfDay(new Date());
-    const range = { start: subDays(today, 2), end: addDays(today, 2) };
-    const eventWithin2Days = schedule.find((e) => {
-      const eventDate = startOfDay(parseISO(e.date));
-      return isWithinInterval(eventDate, range);
-    });
+        const today = startOfDay(new Date());
+        const range = { start: subDays(today, 2), end: addDays(today, 2) };
+        const eventWithin2Days = schedule.find((e) => {
+            const eventDate = startOfDay(parseISO(e.date));
+            return isWithinInterval(eventDate, range);
+        });
 
-    return {
-      heroContent,
-      schedule,
-      eventWithin2Days: eventWithin2Days?.id ?? null,
-    };
-  },
+        return {
+            heroContent,
+            schedule,
+            eventWithin2Days: eventWithin2Days?.id ?? null,
+        };
+    },
 });
 
 // Default hero content for CMS
 const heroDefaults = {
-  title: "Volleyball Fest",
-  subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
-  ctaText: "Inscribe tu equipo",
-  ctaVisible: false,
-  imageUrl: "/hero.jpeg",
+    title: "Volleyball Fest",
+    subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
+    ctaText: "Inscribe tu equipo",
+    ctaVisible: false,
+    imageUrl: "/hero.jpeg",
 };
 
 function LandingPage() {
-  const { heroContent, schedule, eventWithin2Days } = Route.useLoaderData();
-  const { session } = Route.useRouteContext();
+    const { heroContent, schedule, eventWithin2Days } = Route.useLoaderData();
 
-  const hero = heroContent ?? heroDefaults;
+    const hero = heroContent ?? heroDefaults;
 
-  // Show CTA only if signup is open or signup closed (late signup allowed)
-  const showCta = hero.ctaVisible;
+    // Show CTA only if signup is open or signup closed (late signup allowed)
+    const showCta = hero.ctaVisible;
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      {/* Hero Section */}
-      <section className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('${hero.imageUrl}')` }}
-        />
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black/80" />
+    return (
+        <div className="flex min-h-screen flex-col">
+            {/* Hero Section */}
+            <section className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden">
+                {/* Background Image */}
+                <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url('${hero.imageUrl}')` }}
+                />
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black/80" />
 
-        {/* Content */}
-        <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
-          <img
-            src="/icon-no-bg-512.png"
-            alt="Volleyball Fest"
-            className="mx-auto size-32"
-          />
+                {/* Content */}
+                <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
+                    <img
+                        src="/icon-no-bg-512.png"
+                        alt="Volleyball Fest"
+                        className="mx-auto size-32"
+                    />
 
-          <h1 className="mb-6 text-6xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
-            {String(hero.title).includes(" ") ? (
-              <>
-                {String(hero.title).split(" ")[0]}
-                <span className="block text-[#C20A12]">
-                  {String(hero.title).split(" ").slice(1).join(" ")}
-                </span>
-              </>
-            ) : (
-              <span className="text-white">{String(hero.title)}</span>
-            )}
-          </h1>
+                    <h1 className="mb-6 text-6xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
+                        {String(hero.title).includes(" ")
+                            ? (
+                                <>
+                                    {String(hero.title).split(" ")[0]}
+                                    <span className="block text-[#C20A12]">
+                                        {String(hero.title).split(" ").slice(1)
+                                            .join(" ")}
+                                    </span>
+                                </>
+                            )
+                            : (
+                                <span className="text-white">
+                                    {String(hero.title)}
+                                </span>
+                            )}
+                    </h1>
 
-          <p className="mx-auto mb-4 max-w-2xl text-lg text-zinc-300 md:text-xl">
-            {hero.subtitle}
-          </p>
+                    <p className="mx-auto mb-4 max-w-2xl text-lg text-zinc-300 md:text-xl">
+                        {hero.subtitle}
+                    </p>
 
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            {showCta ? (
-              <Button asChild size="lg">
-                <Link to="/signup-form">
-                  {String(hero.ctaText)}
-                  <ChevronRight className="size-5" />
-                </Link>
-              </Button>
-            ) : null}
-          </div>
+                    <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                        {showCta
+                            ? (
+                                <Button asChild size="lg">
+                                    <Link to="/signup-form">
+                                        {String(hero.ctaText)}
+                                        <ChevronRight className="size-5" />
+                                    </Link>
+                                </Button>
+                            )
+                            : null}
+                    </div>
+                </div>
+            </section>
+
+            {/* Score Table (auth + event within 2 days) */}
+            {eventWithin2Days
+                ? (
+                    <section className="py-20">
+                        <div className="mx-auto max-w-6xl px-6">
+                            <EventMatchupsScoreTable
+                                eventId={eventWithin2Days}
+                            />
+                        </div>
+                    </section>
+                )
+                : null}
+
+            {/* Schedule Section */}
+            {schedule && schedule.length > 0
+                ? <EventList schedule={schedule} />
+                : null}
+
+            {/* Final CTA Section */}
+            {showCta
+                ? (
+                    <section className="relative overflow-hidden bg-zinc-900 py-20 dark:bg-zinc-950">
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-amber-900/20 via-transparent to-transparent" />
+                        <div className="relative mx-auto max-w-4xl px-6 text-center">
+                            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-4xl">
+                                ¿Listo para jugar?
+                            </h2>
+                            <p className="mx-auto mb-4 max-w-xl text-zinc-400">
+                                Inscribe a tu equipo hoy.
+                            </p>
+                            <p className="mx-auto mb-8 text-2xl font-semibold text-white">
+                                Costo: $3,500
+                            </p>
+                            <Button asChild size="lg">
+                                <Link to="/signup-form">
+                                    Inscribe tu equipo ahora
+                                    <ChevronRight className="size-5" />
+                                </Link>
+                            </Button>
+                        </div>
+                    </section>
+                )
+                : null}
         </div>
-      </section>
-
-      {/* Score Table (auth + event within 2 days) */}
-      {session && eventWithin2Days ? (
-        <section className="py-20">
-          <div className="mx-auto max-w-6xl px-6">
-            <Suspense
-              fallback={
-                <div className="mb-8 h-32 animate-pulse rounded-lg bg-muted" />
-              }
-            >
-              <EventMatchupsScoreTable eventId={eventWithin2Days} />
-            </Suspense>
-          </div>
-        </section>
-      ) : null}
-
-      {/* Schedule Section */}
-      {schedule && schedule.length > 0 ? (
-        <EventList schedule={schedule} />
-      ) : null}
-
-      {/* Final CTA Section */}
-      {showCta ? (
-        <section className="relative overflow-hidden bg-zinc-900 py-20 dark:bg-zinc-950">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-amber-900/20 via-transparent to-transparent" />
-          <div className="relative mx-auto max-w-4xl px-6 text-center">
-            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white md:text-4xl">
-              ¿Listo para jugar?
-            </h2>
-            <p className="mx-auto mb-4 max-w-xl text-zinc-400">
-              Inscribe a tu equipo hoy.
-            </p>
-            <p className="mx-auto mb-8 text-2xl font-semibold text-white">
-              Costo: $3,500
-            </p>
-            <Button asChild size="lg">
-              <Link to="/signup-form">
-                Inscribe tu equipo ahora
-                <ChevronRight className="size-5" />
-              </Link>
-            </Button>
-          </div>
-        </section>
-      ) : null}
-    </div>
-  );
+    );
 }

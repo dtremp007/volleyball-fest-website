@@ -1,5 +1,6 @@
 import {
     useMutation,
+    useQuery,
     useQueryClient,
     useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -165,7 +166,7 @@ function EditableScoreCell({
 export function EventMatchupsScoreTable({ eventId }: Props) {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
-    const { data } = useSuspenseQuery(
+    const { data, isLoading } = useQuery(
         trpc.matchup.getEventMatchupsForScoring.queryOptions({ eventId }),
     );
     const { data: session } = authClient.useSession();
@@ -210,7 +211,7 @@ export function EventMatchupsScoreTable({ eventId }: Props) {
 
     const { event, matchups } = data;
 
-    if (!session?.user) return null;
+    if (!session?.user || isLoading) return null;
 
     return (
         <div className="mb-8">
