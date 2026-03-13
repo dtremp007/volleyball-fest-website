@@ -15,12 +15,12 @@ import {
     NativeSelectOption,
 } from "~/components/ui/native-select";
 
-function formatEventLabel(event: { date: string; name: string }) {
-    return `${event.name} - ${parseISO(event.date).toLocaleString("es-MX", {
+function formatEventDate(event: { date: string }) {
+    return parseISO(event.date).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
-    })}`;
+    });
 }
 
 export const Route = createFileRoute("/(authenticated)/scorecard")({
@@ -81,19 +81,13 @@ function ScorecardPage() {
         );
     }
 
-    const helperText = manualEventId
-        ? "Mostrando el evento que seleccionaste manualmente."
-        : defaultEvent
-          ? `Se selecciona automaticamente ${formatEventLabel(defaultEvent)} por ser el evento mas cercano.`
-          : "No hay un evento cercano seleccionado automaticamente. Elige otro evento para capturar resultados.";
-
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mx-auto mb-6 max-w-xl space-y-2">
-                <Label htmlFor="scorecard-event">Evento</Label>
+                <Label htmlFor="scorecard-event">Event</Label>
                 <NativeSelect
                     id="scorecard-event"
-                    value={manualEventId ?? ""}
+                    value={manualEventId ?? defaultEventId ?? ""}
                     onChange={(e) => {
                         navigate({
                             search: (prev) => ({
@@ -105,18 +99,17 @@ function ScorecardPage() {
                         });
                     }}
                 >
-                    <NativeSelectOption value="">
-                        {defaultEvent
-                            ? `Automatico: ${formatEventLabel(defaultEvent)}`
-                            : "Selecciona un evento..."}
-                    </NativeSelectOption>
+                    {!defaultEvent && (
+                        <NativeSelectOption value="">
+                            Select an event...
+                        </NativeSelectOption>
+                    )}
                     {schedule.map((event) => (
                         <NativeSelectOption key={event.id} value={event.id}>
-                            {formatEventLabel(event)}
+                            {formatEventDate(event)}
                         </NativeSelectOption>
                     ))}
                 </NativeSelect>
-                <p className="text-muted-foreground text-sm">{helperText}</p>
             </div>
 
             {selectedEventId
