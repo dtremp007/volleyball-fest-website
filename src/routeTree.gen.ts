@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupSuccessRouteImport } from './routes/signup-success'
 import { Route as SignupFormRouteImport } from './routes/signup-form'
+import { Route as PosicionesRouteImport } from './routes/posiciones'
 import { Route as EquiposRouteImport } from './routes/equipos'
 import { Route as authenticatedRouteRouteImport } from './routes/(authenticated)/route'
 import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
@@ -41,6 +42,11 @@ const SignupSuccessRoute = SignupSuccessRouteImport.update({
 const SignupFormRoute = SignupFormRouteImport.update({
   id: '/signup-form',
   path: '/signup-form',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosicionesRoute = PosicionesRouteImport.update({
+  id: '/posiciones',
+  path: '/posiciones',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquiposRoute = EquiposRouteImport.update({
@@ -157,6 +163,7 @@ const authenticatedSeasonsSeasonIdBuildRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/equipos': typeof EquiposRoute
+  '/posiciones': typeof PosicionesRoute
   '/signup-form': typeof SignupFormRoute
   '/signup-success': typeof SignupSuccessRoute
   '/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
@@ -180,6 +187,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/equipos': typeof EquiposRoute
+  '/posiciones': typeof PosicionesRoute
   '/signup-form': typeof SignupFormRoute
   '/signup-success': typeof SignupSuccessRoute
   '/login': typeof authPagesLoginRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/(auth-pages)': typeof authPagesRouteRouteWithChildren
   '/(authenticated)': typeof authenticatedRouteRouteWithChildren
   '/equipos': typeof EquiposRoute
+  '/posiciones': typeof PosicionesRoute
   '/signup-form': typeof SignupFormRoute
   '/signup-success': typeof SignupSuccessRoute
   '/(authenticated)/dashboard': typeof authenticatedDashboardRouteRouteWithChildren
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/equipos'
+    | '/posiciones'
     | '/signup-form'
     | '/signup-success'
     | '/dashboard'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/equipos'
+    | '/posiciones'
     | '/signup-form'
     | '/signup-success'
     | '/login'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/(auth-pages)'
     | '/(authenticated)'
     | '/equipos'
+    | '/posiciones'
     | '/signup-form'
     | '/signup-success'
     | '/(authenticated)/dashboard'
@@ -303,6 +315,7 @@ export interface RootRouteChildren {
   authPagesRouteRoute: typeof authPagesRouteRouteWithChildren
   authenticatedRouteRoute: typeof authenticatedRouteRouteWithChildren
   EquiposRoute: typeof EquiposRoute
+  PosicionesRoute: typeof PosicionesRoute
   SignupFormRoute: typeof SignupFormRoute
   SignupSuccessRoute: typeof SignupSuccessRoute
   ApiEventPdfRoute: typeof ApiEventPdfRoute
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/equipos'
       fullPath: '/equipos'
       preLoaderRoute: typeof EquiposRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/posiciones': {
+      id: '/posiciones'
+      path: '/posiciones'
+      fullPath: '/posiciones'
+      preLoaderRoute: typeof PosicionesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(authenticated)': {
@@ -543,6 +563,7 @@ const rootRouteChildren: RootRouteChildren = {
   authPagesRouteRoute: authPagesRouteRouteWithChildren,
   authenticatedRouteRoute: authenticatedRouteRouteWithChildren,
   EquiposRoute: EquiposRoute,
+  PosicionesRoute: PosicionesRoute,
   SignupFormRoute: SignupFormRoute,
   SignupSuccessRoute: SignupSuccessRoute,
   ApiEventPdfRoute: ApiEventPdfRoute,
