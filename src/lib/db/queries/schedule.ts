@@ -1174,6 +1174,86 @@ export async function configureGroupsAndGenerateMatchups(
   return { matchupsGenerated: matchupsToInsert.length };
 }
 
+// ============== Standings ==============
+
+export type TeamStanding = {
+  teamId: string;
+  teamName: string;
+  teamLogoUrl: string;
+  category: string;
+  setsPlayed: number;
+  setsWon: number;
+  setsLost: number;
+};
+
+export async function getStandingsBySeasonId(
+  db: Database,
+  seasonId: string,
+): Promise<TeamStanding[]> {
+  const matchups = await getMatchupsBySeasonId(db, seasonId);
+
+  const standingsMap = new Map<
+    string,
+    {
+      teamName: string;
+      teamLogoUrl: string;
+      category: string;
+      setsPlayed: number;
+      setsWon: number;
+      setsLost: number;
+    }
+  >();
+
+  const ensureTeam = (
+    id: string,
+    name: string,
+    logoUrl: string,
+    category: string,
+  ) => {
+    if (!standingsMap.has(id)) {
+      standingsMap.set(id, {
+        teamName: name,
+        teamLogoUrl: logoUrl,
+        category,
+        setsPlayed: 0,
+        setsWon: 0,
+        setsLost: 0,
+      });
+    }
+  };
+
+  for (const matchup of matchups) {
+    if (!matchup.hasScores) continue;
+
+    ensureTeam(matchup.teamA.id, matchup.teamA.name, matchup.teamA.logoUrl, matchup.category);
+    ensureTeam(matchup.teamB.id, matchup.teamB.name, matchup.teamB.logoUrl, matchup.category);
+
+    const completeSets = matchup.sets.filter(
+      (s) => s.teamAScore !== null && s.teamBScore !== null,
+    );
+
+    const teamA = standingsMap.get(matchup.teamA.id)!;
+    const teamB = standingsMap.get(matchup.teamB.id)!;
+
+    for (const set of completeSets) {
+      teamA.setsPlayed++;
+      teamB.setsPlayed++;
+
+      if (set.teamAScore! > set.teamBScore!) {
+        teamA.setsWon++;
+        teamB.setsLost++;
+      } else if (set.teamBScore! > set.teamAScore!) {
+        teamB.setsWon++;
+        teamA.setsLost++;
+      }
+    }
+  }
+
+  return Array.from(standingsMap.entries())
+    .map(([teamId, stats]) => ({ teamId, ...stats }))
+    .sort((a, b) => b.setsWon - a.setsWon || a.setsLost - b.setsLost);
+}
+
 // ============== Public Schedule ==============
 
 export type PublicMatchup = {

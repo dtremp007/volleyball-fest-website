@@ -159,6 +159,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                                 { label: "Inicio", to: "/" },
                                 { label: "Equipos", to: "/equipos" },
                                 {
+                                    label: "Posiciones",
+                                    to: "/posiciones",
+                                },
+                                {
                                     label: "Inscribir equipo",
                                     to: "/signup-form",
                                 },
