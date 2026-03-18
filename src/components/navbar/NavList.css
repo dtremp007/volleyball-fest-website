@@ -74,6 +74,20 @@
       transform 0.42818s cubic-bezier(0.52, 0.16, 0.52, 0.84) 0.08067s;
   }
 
+  #cj-globalnav .cj-item-menu:nth-child(7) {
+    transform: translateY(-48px);
+    transition:
+      opacity 0.21078s cubic-bezier(0.52, 0.16, 0.52, 0.84) 0.08333s,
+      transform 0.4194s cubic-bezier(0.52, 0.16, 0.52, 0.84) 0.07333s;
+  }
+
+  #cj-globalnav .cj-item-menu:nth-child(8) {
+    transform: translateY(-56px);
+    transition:
+      opacity 0.1873s cubic-bezier(0.52, 0.16, 0.52, 0.84) 0.07s,
+      transform 0.41052s cubic-bezier(0.52, 0.16, 0.52, 0.84) 0.06667s;
+  }
+
   #cj-menustate:checked ~ #cj-globalnav .cj-item-menu,
   #cj-menustate:target ~ #cj-globalnav .cj-item-menu {
     opacity: 1;
@@ -160,5 +174,37 @@
       opacity 0.3422s cubic-bezier(0.32, 0.08, 0.24, 1) 0.08333s,
       transform 0.38926s cubic-bezier(0.32, 0.08, 0.24, 1) 0.07333s,
       -webkit-transform 0.38926s cubic-bezier(0.32, 0.08, 0.24, 1) 0.07333s;
+  }
+  #cj-menustate:checked ~ #cj-globalnav .cj-item-menu:nth-child(7),
+  #cj-menustate:target ~ #cj-globalnav .cj-item-menu:nth-child(7) {
+    -webkit-transition:
+      opacity 0.34973s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09666s,
+      -webkit-transform 0.40313s cubic-bezier(0.32, 0.08, 0.24, 1) 0.08666s;
+    transition:
+      opacity 0.34973s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09666s,
+      -webkit-transform 0.40313s cubic-bezier(0.32, 0.08, 0.24, 1) 0.08666s;
+    transition:
+      opacity 0.34973s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09666s,
+      transform 0.40313s cubic-bezier(0.32, 0.08, 0.24, 1) 0.08666s;
+    transition:
+      opacity 0.34973s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09666s,
+      transform 0.40313s cubic-bezier(0.32, 0.08, 0.24, 1) 0.08666s,
+      -webkit-transform 0.40313s cubic-bezier(0.32, 0.08, 0.24, 1) 0.08666s;
+  }
+  #cj-menustate:checked ~ #cj-globalnav .cj-item-menu:nth-child(8),
+  #cj-menustate:target ~ #cj-globalnav .cj-item-menu:nth-child(8) {
+    -webkit-transition:
+      opacity 0.35673s cubic-bezier(0.32, 0.08, 0.24, 1) 0.10999s,
+      -webkit-transform 0.41726s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09999s;
+    transition:
+      opacity 0.35673s cubic-bezier(0.32, 0.08, 0.24, 1) 0.10999s,
+      -webkit-transform 0.41726s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09999s;
+    transition:
+      opacity 0.35673s cubic-bezier(0.32, 0.08, 0.24, 1) 0.10999s,
+      transform 0.41726s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09999s;
+    transition:
+      opacity 0.35673s cubic-bezier(0.32, 0.08, 0.24, 1) 0.10999s,
+      transform 0.41726s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09999s,
+      -webkit-transform 0.41726s cubic-bezier(0.32, 0.08, 0.24, 1) 0.09999s;
   }
 }

@@ -25,9 +25,6 @@ export function EventList({ schedule }: { schedule: ScheduleEvent[] }) {
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
             Calendario de Partidos
           </h2>
-          <p className="text-muted-foreground mx-auto max-w-2xl">
-            Todas las jornadas programadas para esta temporada
-          </p>
         </div>
 
         <Accordion

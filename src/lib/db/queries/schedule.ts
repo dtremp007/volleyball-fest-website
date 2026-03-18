@@ -1,3 +1,4 @@
+import { startOfDay, subDays } from "date-fns";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
@@ -1181,9 +1182,15 @@ export type TeamStanding = {
   teamName: string;
   teamLogoUrl: string;
   category: string;
-  setsPlayed: number;
-  setsWon: number;
-  setsLost: number;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  pct: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointDifferential: number;
+  standingsPoints: number;
 };
 
 export async function getStandingsBySeasonId(
@@ -1198,9 +1205,12 @@ export async function getStandingsBySeasonId(
       teamName: string;
       teamLogoUrl: string;
       category: string;
-      setsPlayed: number;
-      setsWon: number;
-      setsLost: number;
+      matchesPlayed: number;
+      wins: number;
+      losses: number;
+      ties: number;
+      pointsFor: number;
+      pointsAgainst: number;
     }
   >();
 
@@ -1215,9 +1225,12 @@ export async function getStandingsBySeasonId(
         teamName: name,
         teamLogoUrl: logoUrl,
         category,
-        setsPlayed: 0,
-        setsWon: 0,
-        setsLost: 0,
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        pointsFor: 0,
+        pointsAgainst: 0,
       });
     }
   };
@@ -1232,26 +1245,54 @@ export async function getStandingsBySeasonId(
       (s) => s.teamAScore !== null && s.teamBScore !== null,
     );
 
+    if (completeSets.length === 0) continue;
+
     const teamA = standingsMap.get(matchup.teamA.id)!;
     const teamB = standingsMap.get(matchup.teamB.id)!;
 
-    for (const set of completeSets) {
-      teamA.setsPlayed++;
-      teamB.setsPlayed++;
+    const teamATotalPoints = completeSets.reduce((sum, s) => sum + s.teamAScore!, 0);
+    const teamBTotalPoints = completeSets.reduce((sum, s) => sum + s.teamBScore!, 0);
 
-      if (set.teamAScore! > set.teamBScore!) {
-        teamA.setsWon++;
-        teamB.setsLost++;
-      } else if (set.teamBScore! > set.teamAScore!) {
-        teamB.setsWon++;
-        teamA.setsLost++;
-      }
+    teamA.matchesPlayed++;
+    teamB.matchesPlayed++;
+    teamA.pointsFor += teamATotalPoints;
+    teamA.pointsAgainst += teamBTotalPoints;
+    teamB.pointsFor += teamBTotalPoints;
+    teamB.pointsAgainst += teamATotalPoints;
+
+    if (teamATotalPoints > teamBTotalPoints) {
+      teamA.wins++;
+      teamB.losses++;
+    } else if (teamBTotalPoints > teamATotalPoints) {
+      teamB.wins++;
+      teamA.losses++;
+    } else {
+      teamA.ties++;
+      teamB.ties++;
     }
   }
 
   return Array.from(standingsMap.entries())
-    .map(([teamId, stats]) => ({ teamId, ...stats }))
-    .sort((a, b) => b.setsWon - a.setsWon || a.setsLost - b.setsLost);
+    .map(([teamId, stats]) => {
+      const pct = stats.matchesPlayed > 0
+        ? (stats.wins + 0.5 * stats.ties) / stats.matchesPlayed
+        : 0;
+      const pointDifferential = stats.pointsFor - stats.pointsAgainst;
+      const standingsPoints = stats.wins * 2 + stats.ties;
+      return {
+        teamId,
+        ...stats,
+        pct,
+        pointDifferential,
+        standingsPoints,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.standingsPoints - a.standingsPoints ||
+        b.pct - a.pct ||
+        b.pointDifferential - a.pointDifferential,
+    );
 }
 
 // ============== Public Schedule ==============
@@ -1389,8 +1430,8 @@ export async function getPublicSchedule(
   const conditions = [eq(schema.scheduleEvent.seasonId, seasonId)];
 
   if (upcomingOnly) {
-    const today = new Date().toISOString().split("T")[0];
-    conditions.push(gte(schema.scheduleEvent.startTime, today));
+    const yesterday = startOfDay(subDays(new Date(), 1));
+    conditions.push(gte(schema.scheduleEvent.startTime, yesterday.toISOString()));
   }
 
   // Get events

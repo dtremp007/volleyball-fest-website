@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Trophy } from "lucide-react";
+import { useMemo } from "react";
 
+import { StandingsTable } from "~/components/standings";
 import { EventList } from "~/components/schedule/event-list";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -15,16 +18,24 @@ export const Route = createFileRoute("/")({
             imageUrl: "/hero.jpeg",
         };
 
-        const schedule = await context.queryClient.fetchQuery(
-            context.trpc.matchup.getPublicSchedule.queryOptions({
-                seasonId: "season-2026-spring",
-                upcomingOnly: false,
-            }),
-        );
+        const [schedule, standings] = await Promise.all([
+            context.queryClient.fetchQuery(
+                context.trpc.matchup.getPublicSchedule.queryOptions({
+                    seasonId: "season-2026-spring",
+                    upcomingOnly: true,
+                }),
+            ),
+            context.queryClient.fetchQuery(
+                context.trpc.matchup.getStandings.queryOptions({
+                    seasonId: "season-2026-spring",
+                }),
+            ),
+        ]);
 
         return {
             heroContent,
             schedule,
+            standings,
         };
     },
 });
@@ -39,12 +50,27 @@ const heroDefaults = {
 };
 
 function LandingPage() {
-    const { heroContent, schedule } = Route.useLoaderData();
+    const { heroContent, schedule, standings } = Route.useLoaderData();
 
     const hero = heroContent ?? heroDefaults;
 
     // Show CTA only if signup is open or signup closed (late signup allowed)
     const showCta = hero.ctaVisible;
+
+    const standingsByCategory = useMemo(() => {
+        if (!standings || standings.length === 0) return {};
+        return standings.reduce(
+            (acc, row) => {
+                if (!acc[row.category]) acc[row.category] = [];
+                acc[row.category].push(row);
+                return acc;
+            },
+            {} as Record<string, typeof standings>,
+        );
+    }, [standings]);
+
+    const categories = Object.keys(standingsByCategory);
+    const hasStandings = categories.length > 0;
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -102,6 +128,49 @@ function LandingPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Standings Preview Section */}
+            {hasStandings && (
+                <section className="py-20">
+                    <div className="mx-auto max-w-6xl px-6">
+                        <div className="mb-12 text-center">
+                            <Badge variant="secondary" className="mb-4">
+                                <Trophy className="mr-1 size-3" />
+                                Posiciones
+                            </Badge>
+                            <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                                Tabla de Posiciones
+                            </h2>
+                        </div>
+
+                        <div className="space-y-10">
+                            {categories.map((category) => (
+                                <div key={category}>
+                                    <h3 className="mb-4 text-xl font-semibold">
+                                        {category}
+                                    </h3>
+                                    <div className="overflow-hidden rounded-lg border">
+                                        <StandingsTable
+                                            standings={standingsByCategory[category] ?? []}
+                                            variant="compact"
+                                            limit={3}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-8 flex justify-center">
+                            <Button asChild variant="outline">
+                                <Link to="/posiciones">
+                                    Ver todas las posiciones
+                                    <ChevronRight className="size-4" />
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {/* Schedule Section */}
             {schedule && schedule.length > 0
