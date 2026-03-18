@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Users } from "lucide-react";
 
 import {
@@ -8,20 +9,40 @@ import {
     TableHeader,
     TableRow,
 } from "~/components/ui/table";
-import type { TeamStanding } from "~/lib/db/queries/schedule";
+import type { StandingsSection } from "~/lib/db/queries/schedule";
 
 type StandingsTableProps = {
-    standings: TeamStanding[];
+    sections: StandingsSection[];
     variant: "full" | "compact";
     limit?: number;
 };
 
 export function StandingsTable({
-    standings,
+    sections,
     variant,
     limit,
 }: StandingsTableProps) {
-    const rows = limit !== undefined ? standings.slice(0, limit) : standings;
+    const colCount = variant === "full" ? 11 : 6;
+
+    // Flatten sections for rendering, respecting the limit (applied to team rows only)
+    let teamRowsRendered = 0;
+    const renderSections: Array<{
+        groupName: string | null;
+        teams: StandingsSection["teams"];
+    }> = [];
+
+    for (const section of sections) {
+        if (limit !== undefined && teamRowsRendered >= limit) break;
+
+        const teamsToShow = limit !== undefined
+            ? section.teams.slice(0, limit - teamRowsRendered)
+            : section.teams;
+
+        if (teamsToShow.length === 0) continue;
+
+        renderSections.push({ groupName: section.groupName, teams: teamsToShow });
+        teamRowsRendered += teamsToShow.length;
+    }
 
     return (
         <div className="overflow-x-auto">
@@ -46,69 +67,83 @@ export function StandingsTable({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {rows.map((team, index) => (
-                        <TableRow key={team.teamId}>
-                            <TableCell className="text-muted-foreground text-center font-medium">
-                                {index + 1}
-                            </TableCell>
-                            <TableCell className="w-1/3">
-                                <div className="flex items-center gap-3">
-                                    <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-linear-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20">
-                                        {team.teamLogoUrl
-                                            ? (
-                                                <img
-                                                    src={team.teamLogoUrl}
-                                                    alt={team.teamName}
-                                                    className="size-full object-cover"
-                                                />
-                                            )
-                                            : (
-                                                <div className="flex size-full items-center justify-center">
-                                                    <Users className="size-4 text-amber-600/50" />
-                                                </div>
-                                            )}
-                                    </div>
-                                    <span className="font-medium">
-                                        {team.teamName}
-                                    </span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                                {team.matchesPlayed}
-                            </TableCell>
-                            <TableCell className="text-center font-semibold text-green-500">
-                                {team.wins}
-                            </TableCell>
-                            <TableCell className="text-center text-red-500">
-                                {team.losses}
-                            </TableCell>
-                            <TableCell className="text-center">
-                                {team.ties}
-                            </TableCell>
-                            {variant === "full" && (
-                                <>
-                                    <TableCell className="text-center">
-                                        {team.matchesPlayed > 0
-                                            ? team.pct.toFixed(3)
-                                            : ".000"}
+                    {renderSections.map((section) => (
+                        <Fragment key={section.groupName ?? "__ungrouped__"}>
+                            {section.groupName !== null && (
+                                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                    <TableCell
+                                        colSpan={colCount}
+                                        className="py-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Grupo {section.groupName}
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        {team.pointsFor}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        {team.pointsAgainst}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        {team.pointDifferential > 0
-                                            ? `+${team.pointDifferential}`
-                                            : team.pointDifferential}
-                                    </TableCell>
-                                    <TableCell className="text-center font-bold">
-                                        {team.standingsPoints}
-                                    </TableCell>
-                                </>
+                                </TableRow>
                             )}
-                        </TableRow>
+                            {section.teams.map((team) => (
+                                <TableRow key={team.teamId}>
+                                    <TableCell className="text-muted-foreground text-center font-medium">
+                                        {team.rank}
+                                    </TableCell>
+                                    <TableCell className="w-1/3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-linear-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20">
+                                                {team.teamLogoUrl
+                                                    ? (
+                                                        <img
+                                                            src={team.teamLogoUrl}
+                                                            alt={team.teamName}
+                                                            className="size-full object-cover"
+                                                        />
+                                                    )
+                                                    : (
+                                                        <div className="flex size-full items-center justify-center">
+                                                            <Users className="size-4 text-amber-600/50" />
+                                                        </div>
+                                                    )}
+                                            </div>
+                                            <span className="font-medium">
+                                                {team.teamName}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        {team.matchesPlayed}
+                                    </TableCell>
+                                    <TableCell className="text-center font-semibold text-green-500">
+                                        {team.wins}
+                                    </TableCell>
+                                    <TableCell className="text-center text-red-500">
+                                        {team.losses}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        {team.ties}
+                                    </TableCell>
+                                    {variant === "full" && (
+                                        <>
+                                            <TableCell className="text-center">
+                                                {team.matchesPlayed > 0
+                                                    ? team.pct.toFixed(3)
+                                                    : ".000"}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {team.pointsFor}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {team.pointsAgainst}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {team.pointDifferential > 0
+                                                    ? `+${team.pointDifferential}`
+                                                    : team.pointDifferential}
+                                            </TableCell>
+                                            <TableCell className="text-center font-bold">
+                                                {team.standingsPoints}
+                                            </TableCell>
+                                        </>
+                                    )}
+                                </TableRow>
+                            ))}
+                        </Fragment>
                     ))}
                 </TableBody>
             </Table>

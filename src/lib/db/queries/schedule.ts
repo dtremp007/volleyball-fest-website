@@ -1182,6 +1182,7 @@ export type TeamStanding = {
   teamName: string;
   teamLogoUrl: string;
   category: string;
+  rank: number;
   matchesPlayed: number;
   wins: number;
   losses: number;
@@ -1193,11 +1194,41 @@ export type TeamStanding = {
   standingsPoints: number;
 };
 
+export type StandingsSection = {
+  groupName: string | null;
+  teams: TeamStanding[];
+};
+
+export type CategoryStandings = {
+  category: string;
+  sections: StandingsSection[];
+};
+
 export async function getStandingsBySeasonId(
   db: Database,
   seasonId: string,
-): Promise<TeamStanding[]> {
-  const matchups = await getMatchupsBySeasonId(db, seasonId);
+): Promise<CategoryStandings[]> {
+  const [matchups, teamGroupRows] = await Promise.all([
+    getMatchupsBySeasonId(db, seasonId),
+    db
+      .select({
+        teamId: schema.seasonTeam.teamId,
+        groupId: schema.seasonTeam.groupId,
+        groupName: schema.group.name,
+      })
+      .from(schema.seasonTeam)
+      .leftJoin(schema.group, eq(schema.seasonTeam.groupId, schema.group.id))
+      .where(eq(schema.seasonTeam.seasonId, seasonId)),
+  ]);
+
+  const teamGroupMap = new Map<string, { groupId: string | null; groupName: string | null }>();
+  for (const row of teamGroupRows) {
+    if (!row.teamId) continue;
+    teamGroupMap.set(row.teamId, {
+      groupId: row.groupId ?? null,
+      groupName: row.groupName ?? null,
+    });
+  }
 
   const standingsMap = new Map<
     string,
@@ -1272,27 +1303,76 @@ export async function getStandingsBySeasonId(
     }
   }
 
-  return Array.from(standingsMap.entries())
-    .map(([teamId, stats]) => {
-      const pct = stats.matchesPlayed > 0
-        ? (stats.wins + 0.5 * stats.ties) / stats.matchesPlayed
-        : 0;
-      const pointDifferential = stats.pointsFor - stats.pointsAgainst;
-      const standingsPoints = stats.wins * 2 + stats.ties;
+  const comparator = (a: TeamStanding, b: TeamStanding) =>
+    b.standingsPoints - a.standingsPoints ||
+    b.pct - a.pct ||
+    b.pointDifferential - a.pointDifferential;
+
+  // Partition by category, then by groupKey within category
+  const byCategoryAndGroup = new Map<
+    string,
+    Map<string, { groupName: string | null; teams: TeamStanding[] }>
+  >();
+
+  for (const [teamId, stats] of standingsMap.entries()) {
+    const pct = stats.matchesPlayed > 0
+      ? (stats.wins + 0.5 * stats.ties) / stats.matchesPlayed
+      : 0;
+    const pointDifferential = stats.pointsFor - stats.pointsAgainst;
+    const standingsPoints = stats.wins * 2 + stats.ties;
+
+    const groupInfo = teamGroupMap.get(teamId) ?? { groupId: null, groupName: null };
+    const groupKey = groupInfo.groupId ?? "__ungrouped__";
+
+    if (!byCategoryAndGroup.has(stats.category)) {
+      byCategoryAndGroup.set(stats.category, new Map());
+    }
+    const categoryMap = byCategoryAndGroup.get(stats.category)!;
+
+    if (!categoryMap.has(groupKey)) {
+      categoryMap.set(groupKey, { groupName: groupInfo.groupName, teams: [] });
+    }
+    categoryMap.get(groupKey)!.teams.push({
+      teamId,
+      ...stats,
+      rank: 0,
+      pct,
+      pointDifferential,
+      standingsPoints,
+    });
+  }
+
+  const result: CategoryStandings[] = [];
+
+  for (const [category, groupMap] of byCategoryAndGroup.entries()) {
+    const hasMultipleGroups =
+      Array.from(groupMap.keys()).filter((k) => k !== "__ungrouped__").length >= 2;
+
+    // Sort sections: named groups alphabetically, ungrouped last
+    const sortedGroupKeys = Array.from(groupMap.keys()).sort((a, b) => {
+      if (a === "__ungrouped__") return 1;
+      if (b === "__ungrouped__") return -1;
+      return a.localeCompare(b);
+    });
+
+    const sections: StandingsSection[] = sortedGroupKeys.map((groupKey) => {
+      const { groupName, teams } = groupMap.get(groupKey)!;
+      const sorted = [...teams].sort(comparator);
+      sorted.forEach((t, i) => { t.rank = i + 1; });
+
       return {
-        teamId,
-        ...stats,
-        pct,
-        pointDifferential,
-        standingsPoints,
+        // Only expose groupName when there are multiple sections to show (i.e. headers are needed)
+        groupName: hasMultipleGroups
+          ? (groupKey === "__ungrouped__" ? "Sin grupo" : groupName)
+          : null,
+        teams: sorted,
       };
-    })
-    .sort(
-      (a, b) =>
-        b.standingsPoints - a.standingsPoints ||
-        b.pct - a.pct ||
-        b.pointDifferential - a.pointDifferential,
-    );
+    });
+
+    result.push({ category, sections });
+  }
+
+  return result.sort((a, b) => a.category.localeCompare(b.category));
 }
 
 // ============== Public Schedule ==============

@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Trophy } from "lucide-react";
-import { useMemo } from "react";
 
 import { StandingsTable } from "~/components/standings";
 import { EventList } from "~/components/schedule/event-list";
@@ -57,20 +56,7 @@ function LandingPage() {
     // Show CTA only if signup is open or signup closed (late signup allowed)
     const showCta = hero.ctaVisible;
 
-    const standingsByCategory = useMemo(() => {
-        if (!standings || standings.length === 0) return {};
-        return standings.reduce(
-            (acc, row) => {
-                if (!acc[row.category]) acc[row.category] = [];
-                acc[row.category].push(row);
-                return acc;
-            },
-            {} as Record<string, typeof standings>,
-        );
-    }, [standings]);
-
-    const categories = Object.keys(standingsByCategory);
-    const hasStandings = categories.length > 0;
+    const hasStandings = !!standings && standings.length > 0;
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -144,14 +130,14 @@ function LandingPage() {
                         </div>
 
                         <div className="space-y-10">
-                            {categories.map((category) => (
+                            {standings?.map(({ category, sections }) => (
                                 <div key={category}>
                                     <h3 className="mb-4 text-xl font-semibold">
                                         {category}
                                     </h3>
                                     <div className="overflow-hidden rounded-lg border">
                                         <StandingsTable
-                                            standings={standingsByCategory[category] ?? []}
+                                            sections={sections}
                                             variant="compact"
                                             limit={3}
                                         />

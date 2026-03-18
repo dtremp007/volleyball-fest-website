@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
 
 import {
     StandingsEmpty,
@@ -41,20 +40,8 @@ function PosicionesPage() {
         ),
     );
 
-    const standingsByCategory = useMemo(() => {
-        if (!standings) return {};
-        return standings.reduce(
-            (acc, row) => {
-                if (!acc[row.category]) acc[row.category] = [];
-                acc[row.category].push(row);
-                return acc;
-            },
-            {} as Record<string, typeof standings>,
-        );
-    }, [standings]);
-
-    const categories = Object.keys(standingsByCategory);
     const isLoading = seasonLoading || standingsLoading;
+    const hasStandings = !!standings && standings.length > 0;
 
     return (
         <div className="min-h-screen">
@@ -77,11 +64,11 @@ function PosicionesPage() {
                 <div className="mx-auto max-w-6xl px-6">
                     {isLoading
                         ? <StandingsSkeleton variant="full" />
-                        : categories.length === 0
+                        : !hasStandings
                         ? <StandingsEmpty />
                         : (
                             <div className="space-y-12">
-                                {categories.map((category) => (
+                                {standings.map(({ category, sections }) => (
                                     <div key={category}>
                                         <div className="mb-6 flex items-center gap-3">
                                             <h2 className="text-2xl font-bold">
@@ -91,9 +78,7 @@ function PosicionesPage() {
 
                                         <div className="overflow-hidden rounded-lg border">
                                             <StandingsTable
-                                                standings={standingsByCategory[
-                                                    category
-                                                ] ?? []}
+                                                sections={sections}
                                                 variant="full"
                                             />
                                         </div>
