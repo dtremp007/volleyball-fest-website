@@ -139,7 +139,6 @@ function LandingPage() {
                                         <StandingsTable
                                             sections={sections}
                                             variant="compact"
-                                            limit={3}
                                         />
                                     </div>
                                 </div>
