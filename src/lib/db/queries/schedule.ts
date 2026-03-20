@@ -16,6 +16,12 @@ import {
   type ScheduledMatchupPlacement,
 } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
+import {
+  contributionFromFirstTwoSets,
+  sortStandingsTeams,
+  standingPct,
+  type ProcessedStandingsMatch,
+} from "~/lib/standings/ranking";
 import { normalizeDateOnly } from "~/lib/unavailable-dates";
 
 const CATEGORY_BALANCE_MAX_PASSES = 6;
@@ -1266,47 +1272,45 @@ export async function getStandingsBySeasonId(
     }
   };
 
+  const processedMatches: ProcessedStandingsMatch[] = [];
+
   for (const matchup of matchups) {
-    if (!matchup.hasScores) continue;
+    const contrib = contributionFromFirstTwoSets(matchup.sets);
+    if (!contrib) continue;
 
     ensureTeam(matchup.teamA.id, matchup.teamA.name, matchup.teamA.logoUrl, matchup.category);
     ensureTeam(matchup.teamB.id, matchup.teamB.name, matchup.teamB.logoUrl, matchup.category);
 
-    const completeSets = matchup.sets.filter(
-      (s) => s.teamAScore !== null && s.teamBScore !== null,
-    );
-
-    if (completeSets.length === 0) continue;
-
     const teamA = standingsMap.get(matchup.teamA.id)!;
     const teamB = standingsMap.get(matchup.teamB.id)!;
 
-    const teamATotalPoints = completeSets.reduce((sum, s) => sum + s.teamAScore!, 0);
-    const teamBTotalPoints = completeSets.reduce((sum, s) => sum + s.teamBScore!, 0);
-
     teamA.matchesPlayed++;
     teamB.matchesPlayed++;
-    teamA.pointsFor += teamATotalPoints;
-    teamA.pointsAgainst += teamBTotalPoints;
-    teamB.pointsFor += teamBTotalPoints;
-    teamB.pointsAgainst += teamATotalPoints;
+    teamA.pointsFor += contrib.pfA;
+    teamA.pointsAgainst += contrib.pfB;
+    teamB.pointsFor += contrib.pfB;
+    teamB.pointsAgainst += contrib.pfA;
 
-    if (teamATotalPoints > teamBTotalPoints) {
+    if (contrib.ptsA === 2) {
       teamA.wins++;
       teamB.losses++;
-    } else if (teamBTotalPoints > teamATotalPoints) {
+    } else if (contrib.ptsB === 2) {
       teamB.wins++;
       teamA.losses++;
     } else {
       teamA.ties++;
       teamB.ties++;
     }
-  }
 
-  const comparator = (a: TeamStanding, b: TeamStanding) =>
-    b.standingsPoints - a.standingsPoints ||
-    b.pct - a.pct ||
-    b.pointDifferential - a.pointDifferential;
+    processedMatches.push({
+      teamAId: matchup.teamA.id,
+      teamBId: matchup.teamB.id,
+      ptsA: contrib.ptsA,
+      ptsB: contrib.ptsB,
+      pfA: contrib.pfA,
+      pfB: contrib.pfB,
+    });
+  }
 
   // Partition by category, then by groupKey within category
   const byCategoryAndGroup = new Map<
@@ -1315,11 +1319,9 @@ export async function getStandingsBySeasonId(
   >();
 
   for (const [teamId, stats] of standingsMap.entries()) {
-    const pct = stats.matchesPlayed > 0
-      ? (stats.wins + 0.5 * stats.ties) / stats.matchesPlayed
-      : 0;
-    const pointDifferential = stats.pointsFor - stats.pointsAgainst;
     const standingsPoints = stats.wins * 2 + stats.ties;
+    const pct = standingPct(stats.matchesPlayed, standingsPoints);
+    const pointDifferential = stats.pointsFor - stats.pointsAgainst;
 
     const groupInfo = teamGroupMap.get(teamId) ?? { groupId: null, groupName: null };
     const groupKey = groupInfo.groupId ?? "__ungrouped__";
@@ -1357,7 +1359,11 @@ export async function getStandingsBySeasonId(
 
     const sections: StandingsSection[] = sortedGroupKeys.map((groupKey) => {
       const { groupName, teams } = groupMap.get(groupKey)!;
-      const sorted = [...teams].sort(comparator);
+      const sectionIds = new Set(teams.map((t) => t.teamId));
+      const sectionMatches = processedMatches.filter(
+        (m) => sectionIds.has(m.teamAId) && sectionIds.has(m.teamBId),
+      );
+      const sorted = sortStandingsTeams(teams, sectionMatches);
       sorted.forEach((t, i) => { t.rank = i + 1; });
 
       return {
