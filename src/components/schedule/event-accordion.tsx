@@ -1,5 +1,6 @@
 import { Calendar } from "lucide-react";
 
+import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
 import {
   AccordionContent,
   AccordionItem,
@@ -10,18 +11,6 @@ import { Card } from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 
 import type { ScheduleEvent } from "./types";
-
-// Time slots for schedule display (matching schedule builder)
-const TIME_SLOTS = [
-  "4:15 PM",
-  "5:00 PM",
-  "5:45 PM",
-  "6:30 PM",
-  "7:15 PM",
-  "8:00 PM",
-  "8:45 PM",
-  "9:30 PM",
-];
 
 export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
   // Group matchups by time slot for table display
@@ -102,7 +91,7 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                         >
                           <td className="px-4 py-3">
                             <span className="text-muted-foreground text-sm font-medium">
-                              {TIME_SLOTS[slotIndex]}
+                              {getTimeForSlotIndex(slotIndex)}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -134,7 +123,7 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                     <div key={slotIndex} className="space-y-3">
                       <div className="text-muted-foreground flex items-center gap-2 text-sm font-semibold">
                         <Calendar className="size-4" />
-                        {TIME_SLOTS[slotIndex]}
+                        {getTimeForSlotIndex(slotIndex)}
                       </div>
 
                       {slot.court1 && (

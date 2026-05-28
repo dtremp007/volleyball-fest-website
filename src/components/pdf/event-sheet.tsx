@@ -1,8 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { format } from "date-fns";
+import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
 import type { EventWithMatchups } from "~/lib/db/queries/schedule";
-
-const TIME_SLOTS = ["4:15", "5:00", "5:45", "6:30", "7:15", "8:00", "8:45", "9:30"];
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Varonil Libre": "#000000",
@@ -127,7 +126,7 @@ type EventMatchup = EventWithMatchups["matchups"][number];
 
 function formatSlot(slotIndex: number | null) {
   if (slotIndex === null) return "Unscheduled";
-  return TIME_SLOTS[slotIndex] ?? `Slot ${slotIndex + 1}`;
+  return getTimeForSlotIndex(slotIndex);
 }
 
 function wrapTeamName(name: string, maxCharsPerLine = 14) {
@@ -232,21 +231,29 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
   return (
     <Document>
       {events.map((event) => {
-        const { sortedSlotIndices, slotRows, unscheduledCount } = buildSlotRows(event.matchups);
+        const { sortedSlotIndices, slotRows, unscheduledCount } = buildSlotRows(
+          event.matchups,
+        );
 
         return (
           <Page key={event.id} size="A4" style={styles.page}>
             <View style={styles.headerContainer}>
               <Image src={`${baseUrl}/icon-no-bg-512.png`} style={styles.logo} />
               <Text style={styles.title}>Volleyball Fest</Text>
-              <Text style={styles.subtitle}>{format(new Date(event.date), "MMM d, yyyy")}</Text>
+              <Text style={styles.subtitle}>
+                {format(new Date(event.date), "MMM d, yyyy")}
+              </Text>
             </View>
 
             <View style={styles.legendContainer}>
-              <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Varonil Libre"] }}>
+              <Text
+                style={{ ...styles.legendItem, color: CATEGORY_COLORS["Varonil Libre"] }}
+              >
                 VARONIL LIBRE
               </Text>
-              <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Segunda Fuerza"] }}>
+              <Text
+                style={{ ...styles.legendItem, color: CATEGORY_COLORS["Segunda Fuerza"] }}
+              >
                 SEGUNDA FUERZA
               </Text>
               <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Femenil"] }}>
@@ -261,7 +268,9 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                   return (
                     <View
                       key={slotIndex}
-                      style={rowIndex % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row}
+                      style={
+                        rowIndex % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row
+                      }
                     >
                       <CourtColumns matchup={slot.courtA} />
                       <View style={[styles.cellBase, styles.timeCell]}>
@@ -273,13 +282,15 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                 })}
               </View>
             ) : (
-              <Text style={styles.empty}>No games are currently scheduled for this event.</Text>
+              <Text style={styles.empty}>
+                No games are currently scheduled for this event.
+              </Text>
             )}
 
             {unscheduledCount > 0 && (
               <Text style={styles.empty}>
-                {unscheduledCount} game{unscheduledCount === 1 ? "" : "s"} without a time slot
-                are not shown.
+                {unscheduledCount} game{unscheduledCount === 1 ? "" : "s"} without a time
+                slot are not shown.
               </Text>
             )}
 

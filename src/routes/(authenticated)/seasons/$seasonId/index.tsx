@@ -24,6 +24,7 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   validateSearch: z.object({
     view: z.enum(["events", "matchups"]).optional(),
     eventId: z.string().optional(),
+    matchupId: z.string().optional(),
   }),
   loader: async ({ params, context }) => {
     const [matchupData, teams, season] = await Promise.all([

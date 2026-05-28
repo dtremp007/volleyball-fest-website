@@ -1,15 +1,5 @@
 import { format } from "date-fns";
-
-const TIME_SLOTS = [
-  "4:15",
-  "5:00",
-  "5:45",
-  "6:30",
-  "7:15",
-  "8:00",
-  "8:45",
-  "9:30",
-];
+import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Varonil Libre": "#000000",
@@ -38,7 +28,7 @@ type EventForImage = {
 
 function formatSlot(slotIndex: number | null) {
   if (slotIndex === null) return "Unscheduled";
-  return TIME_SLOTS[slotIndex] ?? `Slot ${slotIndex + 1}`;
+  return getTimeForSlotIndex(slotIndex);
 }
 
 function wrapText(
@@ -84,7 +74,7 @@ async function loadLogo(baseUrl: string): Promise<HTMLImageElement | null> {
     if (!res.ok) return null;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(url);
@@ -145,9 +135,7 @@ export async function generateEventScheduleImage(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context not available");
 
-  const { sortedSlotIndices, slotRows, unscheduledCount } = buildSlotRows(
-    event.matchups,
-  );
+  const { sortedSlotIndices, slotRows, unscheduledCount } = buildSlotRows(event.matchups);
 
   const logo = await loadLogo(baseUrl);
 
@@ -322,11 +310,7 @@ export async function generateEventScheduleImage(
     ctx.fillStyle = "#6b7280";
     ctx.font = "italic 24px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(
-      "No games are currently scheduled for this event.",
-      W / 2,
-      y + 24,
-    );
+    ctx.fillText("No games are currently scheduled for this event.", W / 2, y + 24);
     y += 60;
   }
 

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { ImageIcon, Loader2, X } from "lucide-react";
 import { useState } from "react";
+import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
 import { Button } from "~/components/ui/button";
 import {
   Drawer,
@@ -29,17 +30,6 @@ import {
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId";
 import { useTRPC } from "~/trpc/react";
 
-const TIME_SLOTS = [
-  "4:15 PM",
-  "5:00 PM",
-  "5:45 PM",
-  "6:30 PM",
-  "7:15 PM",
-  "8:00 PM",
-  "8:45 PM",
-  "9:30 PM",
-];
-
 const routeApi = getRouteApi("/(authenticated)/seasons/$seasonId/");
 
 type Props = {
@@ -57,7 +47,7 @@ function formatDate(dateStr: string) {
 
 function formatSlot(slotIndex: number | null) {
   if (slotIndex === null) return "Unscheduled";
-  return TIME_SLOTS[slotIndex] ?? `Slot ${slotIndex + 1}`;
+  return getTimeForSlotIndex(slotIndex);
 }
 
 function formatMatchup(matchup: {

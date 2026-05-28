@@ -50,8 +50,10 @@ export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
             <Calendar className="size-4" />
             <input
               type="date"
-              value={eventDate.split("T")[0]}
-              onChange={(e) => updateEvent(eventId, { date: e.target.value })}
+              value={eventDate.split(" ")[0]}
+              onChange={(e) =>
+                updateEvent(eventId, { date: e.target.value + " 12:00:00" })
+              }
               className="border-none bg-transparent outline-none focus:ring-0"
             />
           </div>

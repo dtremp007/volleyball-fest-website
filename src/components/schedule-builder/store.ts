@@ -109,7 +109,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
       const targetEventIdx = state.events.findIndex((e) => e.id === targetEventId);
       if (targetEventIdx < 0) return state;
 
-      let nextEvents = [...state.events];
+      const nextEvents = [...state.events];
 
       // Remove from source if scheduled
       if (source.type === "scheduled") {
