@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calendar, CalendarDays, FileText, Settings2, Swords, Users } from "lucide-react";
+import {
+  Calendar,
+  CalendarDays,
+  FileText,
+  GitBranch,
+  Settings2,
+  Swords,
+  Users,
+} from "lucide-react";
 import { Suspense } from "react";
 import z from "zod";
 import { Badge } from "~/components/ui/badge";
@@ -212,6 +220,13 @@ function SeasonOverviewPage() {
               Generate Season PDF
             </Button>
           )}
+
+          <Button asChild variant="outline">
+            <Link to="/seasons/$seasonId/playoffs" params={{ seasonId }}>
+              <GitBranch className="mr-2 size-4" />
+              Playoffs
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

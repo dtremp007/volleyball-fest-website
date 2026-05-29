@@ -30,6 +30,7 @@ import { Route as authenticatedDashboardIndexRouteImport } from './routes/(authe
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 import { Route as authenticatedSeasonsSeasonIdIndexRouteImport } from './routes/(authenticated)/seasons/$seasonId/index'
+import { Route as authenticatedSeasonsSeasonIdPlayoffsRouteImport } from './routes/(authenticated)/seasons/$seasonId/playoffs'
 import { Route as authenticatedSeasonsSeasonIdGenerateRouteImport } from './routes/(authenticated)/seasons/$seasonId/generate'
 import { Route as authenticatedSeasonsSeasonIdConfigureRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure'
 import { Route as authenticatedSeasonsSeasonIdBuildRouteImport } from './routes/(authenticated)/seasons/$seasonId/build'
@@ -141,6 +142,12 @@ const authenticatedSeasonsSeasonIdIndexRoute =
     path: '/seasons/$seasonId/',
     getParentRoute: () => authenticatedRouteRoute,
   } as any)
+const authenticatedSeasonsSeasonIdPlayoffsRoute =
+  authenticatedSeasonsSeasonIdPlayoffsRouteImport.update({
+    id: '/seasons/$seasonId/playoffs',
+    path: '/seasons/$seasonId/playoffs',
+    getParentRoute: () => authenticatedRouteRoute,
+  } as any)
 const authenticatedSeasonsSeasonIdGenerateRoute =
   authenticatedSeasonsSeasonIdGenerateRouteImport.update({
     id: '/seasons/$seasonId/generate',
@@ -182,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
   '/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
+  '/seasons/$seasonId/playoffs': typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   '/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -205,6 +213,7 @@ export interface FileRoutesByTo {
   '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
   '/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
+  '/seasons/$seasonId/playoffs': typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRoutesById {
@@ -232,6 +241,7 @@ export interface FileRoutesById {
   '/(authenticated)/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/(authenticated)/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
   '/(authenticated)/seasons/$seasonId/generate': typeof authenticatedSeasonsSeasonIdGenerateRoute
+  '/(authenticated)/seasons/$seasonId/playoffs': typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   '/(authenticated)/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/seasons/$seasonId/build'
     | '/seasons/$seasonId/configure'
     | '/seasons/$seasonId/generate'
+    | '/seasons/$seasonId/playoffs'
     | '/seasons/$seasonId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -281,6 +292,7 @@ export interface FileRouteTypes {
     | '/seasons/$seasonId/build'
     | '/seasons/$seasonId/configure'
     | '/seasons/$seasonId/generate'
+    | '/seasons/$seasonId/playoffs'
     | '/seasons/$seasonId'
   id:
     | '__root__'
@@ -307,6 +319,7 @@ export interface FileRouteTypes {
     | '/(authenticated)/seasons/$seasonId/build'
     | '/(authenticated)/seasons/$seasonId/configure'
     | '/(authenticated)/seasons/$seasonId/generate'
+    | '/(authenticated)/seasons/$seasonId/playoffs'
     | '/(authenticated)/seasons/$seasonId/'
   fileRoutesById: FileRoutesById
 }
@@ -474,6 +487,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authenticatedSeasonsSeasonIdIndexRouteImport
       parentRoute: typeof authenticatedRouteRoute
     }
+    '/(authenticated)/seasons/$seasonId/playoffs': {
+      id: '/(authenticated)/seasons/$seasonId/playoffs'
+      path: '/seasons/$seasonId/playoffs'
+      fullPath: '/seasons/$seasonId/playoffs'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdPlayoffsRouteImport
+      parentRoute: typeof authenticatedRouteRoute
+    }
     '/(authenticated)/seasons/$seasonId/generate': {
       id: '/(authenticated)/seasons/$seasonId/generate'
       path: '/seasons/$seasonId/generate'
@@ -535,6 +555,7 @@ interface authenticatedRouteRouteChildren {
   authenticatedSeasonsSeasonIdBuildRoute: typeof authenticatedSeasonsSeasonIdBuildRoute
   authenticatedSeasonsSeasonIdConfigureRoute: typeof authenticatedSeasonsSeasonIdConfigureRoute
   authenticatedSeasonsSeasonIdGenerateRoute: typeof authenticatedSeasonsSeasonIdGenerateRoute
+  authenticatedSeasonsSeasonIdPlayoffsRoute: typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   authenticatedSeasonsSeasonIdIndexRoute: typeof authenticatedSeasonsSeasonIdIndexRoute
 }
 
@@ -551,6 +572,8 @@ const authenticatedRouteRouteChildren: authenticatedRouteRouteChildren = {
     authenticatedSeasonsSeasonIdConfigureRoute,
   authenticatedSeasonsSeasonIdGenerateRoute:
     authenticatedSeasonsSeasonIdGenerateRoute,
+  authenticatedSeasonsSeasonIdPlayoffsRoute:
+    authenticatedSeasonsSeasonIdPlayoffsRoute,
   authenticatedSeasonsSeasonIdIndexRoute:
     authenticatedSeasonsSeasonIdIndexRoute,
 }

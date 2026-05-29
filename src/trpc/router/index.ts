@@ -4,6 +4,7 @@ import { categoryRouter } from "~/trpc/router/category.trpc";
 import { cmsRouter } from "~/trpc/router/cms.trpc";
 import { groupRouter } from "~/trpc/router/group.trpc";
 import { matchupRouter } from "~/trpc/router/matchup.trpc";
+import { playoffRouter } from "~/trpc/router/playoff.trpc";
 import { positionRouter } from "~/trpc/router/position.trpc";
 import { scheduleConfigRouter } from "~/trpc/router/scheduleConfig.trpc";
 import { seasonRouter } from "~/trpc/router/season.trpc";
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   position: positionRouter,
   season: seasonRouter,
   matchup: matchupRouter,
+  playoff: playoffRouter,
   cms: cmsRouter,
   group: groupRouter,
   scheduleConfig: scheduleConfigRouter,
