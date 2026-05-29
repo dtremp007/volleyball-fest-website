@@ -7,7 +7,7 @@ import { cn } from "~/lib/utils";
 import { MatchupBlock } from "./matchup-block";
 import { useScheduleStore } from "./store";
 import type { DropData } from "./types";
-import { getTimeForSlotIndex } from "./utils";
+import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 
 type CourtColumnProps = {
   courtId: "A" | "B";

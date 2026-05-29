@@ -1,6 +1,6 @@
 import { Calendar } from "lucide-react";
 
-import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
+import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import {
   AccordionContent,
   AccordionItem,
@@ -9,8 +9,8 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Card } from "~/components/ui/card";
 
-import type { ScheduleEvent } from "./types";
 import { TeamBadge } from "./team-badge";
+import type { ScheduleEvent } from "./types";
 
 export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
   // Group matchups by time slot for table display

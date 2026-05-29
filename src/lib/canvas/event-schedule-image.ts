@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
+import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Varonil Libre": "#000000",

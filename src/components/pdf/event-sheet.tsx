@@ -1,6 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { format } from "date-fns";
-import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
+import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import type { EventWithMatchups } from "~/lib/db/queries/schedule";
 
 const CATEGORY_COLORS: Record<string, string> = {

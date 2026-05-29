@@ -1,9 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import type { ScheduleEvent } from "./types";
 
-export const START_HOUR = 16; // 4 PM
-export const START_MINUTE = 15;
-export const SLOT_DURATION_MINUTES = 45;
 export const AUTOSAVE_INTERVAL = 5000; // 5 seconds
 
 export function teamsOverlap(
@@ -18,19 +15,6 @@ export function teamsOverlap(
     teamBId === otherTeamAId ||
     teamBId === otherTeamBId
   );
-}
-
-export function formatTime(hour: number, minute: number): string {
-  const period = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-  return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`;
-}
-
-export function getTimeForSlotIndex(slotIndex: number): string {
-  const totalMinutes = START_HOUR * 60 + START_MINUTE + slotIndex * SLOT_DURATION_MINUTES;
-  const hour = Math.floor(totalMinutes / 60);
-  const minute = totalMinutes % 60;
-  return formatTime(hour, minute);
 }
 
 /**

@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import * as React from "react";
 import { toast } from "sonner";
-import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
+import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import {
   Table,
   TableBody,

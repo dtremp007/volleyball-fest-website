@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { ImageIcon, Loader2, X } from "lucide-react";
 import { useState } from "react";
-import { getTimeForSlotIndex } from "~/components/schedule-builder/utils";
+import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import { Button } from "~/components/ui/button";
 import {
   Drawer,

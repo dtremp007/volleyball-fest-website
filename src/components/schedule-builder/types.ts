@@ -1,34 +1,15 @@
-export type Team = {
-  id: string;
-  name: string;
-  logoUrl: string;
-  category: string;
-  unavailableDates?: string;
-  isFarAway?: boolean;
-};
+import type { ScheduleBuilderMatchup } from "~/validators/schedule-builder.validators";
 
-export type Matchup = {
-  id: string;
-  teamA: Team;
-  teamB: Team;
-  category: string;
-};
-
-export type Court = {
-  id: "A" | "B";
-  matchups: Matchup[];
-};
-
-export type ScheduleEvent = {
-  id: string;
-  name: string;
-  date: string;
-  courts: [Court, Court];
-};
+export type {
+  ScheduleBuilderCourt as Court,
+  ScheduleBuilderMatchup as Matchup,
+  ScheduleBuilderEvent as ScheduleEvent,
+  ScheduleBuilderTeam as Team,
+} from "~/validators/schedule-builder.validators";
 
 export type DragData = {
   type: "matchup";
-  matchup: Matchup;
+  matchup: ScheduleBuilderMatchup;
   source:
     | { type: "unscheduled" }
     | {

@@ -22,6 +22,7 @@ import {
   saveSchedule,
   saveSetScore,
 } from "~/lib/db/queries/schedule";
+import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
 
 export const matchupRouter = {
@@ -103,6 +104,20 @@ export const matchupRouter = {
         events,
         categories: Object.keys(matchupsByCategory),
       };
+    }),
+
+  /**
+   * Nested schedule builder state (events, courts, unscheduled pool).
+   */
+  getScheduleBuilderState: protectedProcedure
+    .input(z.object({ seasonId: z.string() }))
+    .query(async ({ input }) => {
+      const [matchups, events] = await Promise.all([
+        getMatchupsBySeasonId(db, input.seasonId),
+        getEventsBySeasonId(db, input.seasonId),
+      ]);
+
+      return buildScheduleBuilderStateResponse(matchups, events);
     }),
 
   /**
