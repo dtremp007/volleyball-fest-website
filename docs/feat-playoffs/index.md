@@ -66,6 +66,7 @@ Fields:
 - `bestOf`
 - `eventId` - nullable; references `playoff_schedule_event.id`
 - `courtId` - nullable
+- `slotIndex` - nullable; 0-based ordering within a court on a playoff event
 - `duration`
 
 Open likely addition:
@@ -188,13 +189,16 @@ The graph view is still a direct representation of database state:
 - Category graph clearing is protected once scores exist.
 - The graph can show waiting slots structurally through edges.
 - The page fetches graph data efficiently with one season-wide tRPC query.
+- Playoff matchups are integrated into the shared schedule builder route at
+  `/seasons/$seasonId/playoffs/build`.
+- Playoff schedule placements save `eventId`, `courtId`, and `slotIndex` on
+  `playoff_matchup`.
 
 ## What is not ready yet
 
 - Winner state is not visually indicated on graph nodes.
 - Winner computation for playoff matchups is not implemented.
 - Downstream slots are not automatically updated when an upstream playoff matchup has a determined winner.
-- Playoff matchups are not integrated into schedule builder.
 - Playoff matchups are not included in event PDF generation.
 - Playoff matchups are not included in schedule image generation.
 - Public pages do not yet expose a playoff graph view.
