@@ -167,11 +167,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 ...(session?.user
                   ? [
                       {
-                        label: "Scorecard",
-                        to: "/scorecard",
-                      },
-                      {
-                        label: "Season Overview",
+                        label: "Dashboard",
                         to: "/seasons/season-2026-spring",
                       },
                     ]

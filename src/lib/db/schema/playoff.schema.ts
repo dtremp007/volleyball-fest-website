@@ -26,6 +26,7 @@ export const playoffMatchup = sqliteTable("playoff_matchup", {
     onDelete: "set null",
   }),
   courtId: text("court_id"),
+  slotIndex: integer("slot_index"),
   duration: integer("duration").notNull().default(45),
 });
 

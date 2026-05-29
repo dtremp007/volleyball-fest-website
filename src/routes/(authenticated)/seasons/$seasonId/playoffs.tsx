@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Background,
   BackgroundVariant,
@@ -11,7 +11,7 @@ import {
   type NodeProps,
   type Viewport,
 } from "@xyflow/react";
-import { Loader2, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { CalendarDays, Loader2, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TeamBadge } from "~/components/schedule/team-badge";
@@ -197,6 +197,18 @@ function PlayoffsPage() {
         className="bg-background"
       >
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+
+        <Button
+          asChild
+          type="button"
+          variant="outline"
+          className="absolute top-4 right-20 z-10 shadow-sm"
+        >
+          <Link to="/seasons/$seasonId/playoffs/build" params={{ seasonId }} search={{}}>
+            <CalendarDays className="size-4" />
+            Schedule
+          </Link>
+        </Button>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>

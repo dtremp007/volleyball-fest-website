@@ -1,4 +1,5 @@
-import { and, asc, eq } from "drizzle-orm";
+import { addDays, format, getDay, parseISO } from "date-fns";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import { getCategories, getCategoryById } from "~/lib/db/queries/category";
@@ -37,6 +38,210 @@ type PlayoffTemplate = {
 };
 
 export type PlayoffFormat = "top-4" | "top-5";
+
+export async function getPlayoffScheduleEventsBySeasonId(db: Database, seasonId: string) {
+  return await db
+    .select({
+      id: schema.playoffScheduleEvent.id,
+      name: schema.playoffScheduleEvent.name,
+      date: schema.playoffScheduleEvent.startTime,
+      seasonId: schema.playoffScheduleEvent.seasonId,
+    })
+    .from(schema.playoffScheduleEvent)
+    .where(eq(schema.playoffScheduleEvent.seasonId, seasonId))
+    .orderBy(asc(schema.playoffScheduleEvent.startTime));
+}
+
+export async function deletePlayoffScheduleEvent(db: Database, id: string) {
+  await db
+    .update(schema.playoffMatchup)
+    .set({ eventId: null, courtId: null, slotIndex: null })
+    .where(eq(schema.playoffMatchup.eventId, id));
+
+  await db
+    .delete(schema.playoffScheduleEvent)
+    .where(eq(schema.playoffScheduleEvent.id, id));
+}
+
+export async function updatePlayoffScheduleEvent(
+  db: Database,
+  id: string,
+  params: { name?: string; date?: string },
+) {
+  const updateData: { name?: string; startTime?: string } = {};
+  if (params.name !== undefined) {
+    updateData.name = params.name;
+  }
+  if (params.date !== undefined) {
+    updateData.startTime = params.date;
+  }
+  await db
+    .update(schema.playoffScheduleEvent)
+    .set(updateData)
+    .where(eq(schema.playoffScheduleEvent.id, id));
+}
+
+export async function createDefaultPlayoffScheduleEvents(db: Database, seasonId: string) {
+  const existingPlayoffEvents = await getPlayoffScheduleEventsBySeasonId(db, seasonId);
+  if (existingPlayoffEvents.length > 0) {
+    throw new Error("Playoff dates already exist for this season.");
+  }
+
+  const [lastRegularSeasonEvent] = await db
+    .select({ date: schema.scheduleEvent.startTime })
+    .from(schema.scheduleEvent)
+    .where(eq(schema.scheduleEvent.seasonId, seasonId))
+    .orderBy(desc(schema.scheduleEvent.startTime))
+    .limit(1);
+
+  if (!lastRegularSeasonEvent) {
+    throw new Error("Add regular season dates before creating playoff dates.");
+  }
+
+  const lastRegularSeasonDate = parseISO(lastRegularSeasonEvent.date.split(" ")[0] ?? "");
+  const daysUntilFollowingSaturday = (6 - getDay(lastRegularSeasonDate) + 7) % 7 || 7;
+  const firstSaturday = addDays(lastRegularSeasonDate, daysUntilFollowingSaturday);
+  const dates = [firstSaturday, addDays(firstSaturday, 7), addDays(firstSaturday, 8)];
+
+  const events = dates.map((date) => {
+    const dateOnly = format(date, "yyyy-MM-dd");
+    return {
+      id: uuidv4(),
+      name: format(date, "MMM d, yyyy"),
+      startTime: dateOnly,
+      seasonId,
+    };
+  });
+
+  await db.insert(schema.playoffScheduleEvent).values(events);
+
+  return events.map((event) => ({
+    id: event.id,
+    name: event.name,
+    date: event.startTime,
+    seasonId: event.seasonId,
+  }));
+}
+
+export async function getPlayoffScheduleMatchupsBySeasonId(
+  db: Database,
+  seasonId: string,
+) {
+  const matchupRows = await db
+    .select({
+      id: schema.playoffMatchup.id,
+      label: schema.playoffMatchup.label,
+      category: schema.category.name,
+      eventId: schema.playoffMatchup.eventId,
+      courtId: schema.playoffMatchup.courtId,
+      slotIndex: schema.playoffMatchup.slotIndex,
+    })
+    .from(schema.playoffMatchup)
+    .innerJoin(schema.category, eq(schema.playoffMatchup.categoryId, schema.category.id))
+    .leftJoin(
+      schema.playoffScheduleEvent,
+      eq(schema.playoffMatchup.eventId, schema.playoffScheduleEvent.id),
+    )
+    .where(eq(schema.playoffMatchup.seasonId, seasonId))
+    .orderBy(
+      sql`(${schema.playoffScheduleEvent.startTime} IS NULL) ASC`,
+      asc(schema.playoffScheduleEvent.startTime),
+      sql`(${schema.playoffMatchup.slotIndex} IS NULL) ASC`,
+      asc(schema.playoffMatchup.slotIndex),
+      asc(schema.playoffMatchup.label),
+    );
+
+  const matchupIds = matchupRows.map((matchup) => matchup.id);
+  const teamRows =
+    matchupIds.length > 0
+      ? await db
+          .select({
+            id: schema.playoffMatchupTeam.id,
+            matchupId: schema.playoffMatchupTeam.matchupId,
+            slotIndex: schema.playoffMatchupTeam.slotIndex,
+            teamId: schema.playoffMatchupTeam.teamId,
+            teamName: schema.team.name,
+            teamLogoUrl: schema.team.logoUrl,
+            label: schema.playoffMatchupTeam.label,
+          })
+          .from(schema.playoffMatchupTeam)
+          .leftJoin(schema.team, eq(schema.playoffMatchupTeam.teamId, schema.team.id))
+          .where(inArray(schema.playoffMatchupTeam.matchupId, matchupIds))
+          .orderBy(
+            asc(schema.playoffMatchupTeam.matchupId),
+            asc(schema.playoffMatchupTeam.slotIndex),
+          )
+      : [];
+
+  const teamsByMatchupId = teamRows.reduce((acc, row) => {
+    const existing = acc.get(row.matchupId) ?? [];
+    existing.push(row);
+    acc.set(row.matchupId, existing);
+    return acc;
+  }, new Map<string, typeof teamRows>());
+
+  return matchupRows.map((matchup) => ({
+    ...matchup,
+    teams: teamsByMatchupId.get(matchup.id) ?? [],
+  }));
+}
+
+type PlayoffScheduleData = {
+  seasonId: string;
+  events: { id: string; name: string; date: string }[];
+  matchups: {
+    id: string;
+    eventId: string | null;
+    courtId: string | null;
+    slotIndex: number | null;
+  }[];
+};
+
+export async function savePlayoffSchedule(db: Database, data: PlayoffScheduleData) {
+  const { seasonId, events, matchups } = data;
+
+  const existingEvents = await getPlayoffScheduleEventsBySeasonId(db, seasonId);
+  const existingEventIds = new Set(existingEvents.map((event) => event.id));
+  const nextEventIds = new Set(events.map((event) => event.id));
+
+  for (const existingEvent of existingEvents) {
+    if (!nextEventIds.has(existingEvent.id)) {
+      await deletePlayoffScheduleEvent(db, existingEvent.id);
+    }
+  }
+
+  for (const event of events) {
+    if (existingEventIds.has(event.id)) {
+      await updatePlayoffScheduleEvent(db, event.id, {
+        name: event.name,
+        date: event.date,
+      });
+    } else {
+      await db.insert(schema.playoffScheduleEvent).values({
+        id: event.id,
+        name: event.name,
+        startTime: event.date,
+        seasonId,
+      });
+    }
+  }
+
+  for (const matchup of matchups) {
+    await db
+      .update(schema.playoffMatchup)
+      .set({
+        eventId: matchup.eventId,
+        courtId: matchup.courtId,
+        slotIndex: matchup.slotIndex,
+      })
+      .where(
+        and(
+          eq(schema.playoffMatchup.id, matchup.id),
+          eq(schema.playoffMatchup.seasonId, seasonId),
+        ),
+      );
+  }
+}
 
 export async function getPlayoffGraph(
   db: Database,
@@ -429,8 +634,8 @@ function buildTopFiveTemplate(
 ): PlayoffTemplate {
   const a = buildSeeds(groupA.name, groupA.teams, 5);
   const b = buildSeeds(groupB.name, groupB.teams, 5);
-  const m1 = matchup(params, "M1", "play-in", 1);
-  const m2 = matchup(params, "M2", "play-in", 1);
+  const m1 = matchup(params, "Match 1", "play-in", 2);
+  const m2 = matchup(params, "Match 2", "play-in", 2);
   const qf1 = matchup(params, "QF 1", "quarter-final");
   const qf2 = matchup(params, "QF 2", "quarter-final");
   const qf3 = matchup(params, "QF 3", "quarter-final");

@@ -27,6 +27,13 @@ The current page can:
 5. Clear a category graph while it has no scores.
 6. Block clearing/regeneration once playoff scores exist.
 7. Store the user's canvas viewport in `localStorage` so refreshes preserve pan/zoom.
+8. Link to a dedicated playoff schedule route at `/seasons/$seasonId/playoffs/build`.
+
+The first playoff scheduling slice is now underway before score entry and bracket
+progression. The route reuses the regular-season `ScheduleBuilder` through a
+playoff adapter and can create the three default playoff dates when none exist:
+the Saturday after the last regular-season event, the next Saturday, and the
+immediate Sunday after that second Saturday.
 
 The current graph is admin-only. It is a visualization/editor surface, not yet a public playoff page.
 
@@ -197,7 +204,28 @@ The graph view is still a direct representation of database state:
 
 ## Next steps
 
-### 1. Winner state on the graph
+### 1. Playoff schedule builder
+
+Continue expanding `/seasons/$seasonId/playoffs/build` around the shared
+schedule-building workflow for playoff matchups.
+
+Immediate behavior:
+
+- load `playoff_schedule_event` rows for the season
+- load playoff matchups into the shared schedule builder
+- show a button when no playoff dates exist
+- generate default dates from the last regular-season event using the Saturday,
+  Saturday, Sunday pattern
+- save `playoff_matchup.eventId`, `courtId`, and `slotIndex`
+
+Next scheduling work:
+
+- keep regular-season scheduling and playoff scheduling on separate routes while
+  sharing UI primitives where practical
+- decide whether playoff schedule image/PDF generation should reuse regular
+  schedule exports or have separate templates
+
+### 2. Winner state on the graph
 
 Add winner calculation for playoff matchups and show a clear winner indicator in the graph.
 
@@ -210,7 +238,7 @@ Possible UI behavior:
 
 This should be based on scores in `playoff_point` and `playoff_matchup.bestOf`.
 
-### 2. Scorecard integration and automatic advancement
+### 3. Scorecard integration and automatic advancement
 
 When a score is saved for a playoff matchup and a winner can be determined:
 
