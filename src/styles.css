@@ -2,6 +2,10 @@
 
 @import "tw-animate-css";
 
+@layer base {
+  @import "@xyflow/react/dist/style.css";
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

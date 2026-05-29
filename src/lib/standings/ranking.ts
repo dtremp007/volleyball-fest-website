@@ -105,10 +105,7 @@ export function sortByHeadToHeadMiniLeague<T extends StandingsSortRow>(
     const pdA = ma.pf - ma.pa;
     const pdB = mb.pf - mb.pa;
     return (
-      mb.pts - ma.pts ||
-      pdB - pdA ||
-      mb.pf - ma.pf ||
-      a.teamId.localeCompare(b.teamId)
+      mb.pts - ma.pts || pdB - pdA || mb.pf - ma.pf || a.teamId.localeCompare(b.teamId)
     );
   });
 }

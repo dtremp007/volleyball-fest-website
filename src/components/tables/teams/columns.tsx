@@ -5,14 +5,10 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
-import type { RouterOutputs } from "~/trpc/router";
 import { useTRPC } from "~/trpc/react";
+import type { RouterOutputs } from "~/trpc/router";
 import { ActionsMenu } from "./actions-menu";
 
 export type Team = RouterOutputs["team"]["list"][number];
@@ -48,10 +44,7 @@ function FarAwayCell({ team }: { team: Team }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div
-          className="flex items-center"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={Boolean(team.isFarAway)}
             onCheckedChange={handleCheckedChange}
@@ -59,7 +52,7 @@ function FarAwayCell({ team }: { team: Team }) {
             aria-label="Far away"
           />
           {updateIsFarAwayMutation.isPending && (
-            <Loader2 className="ml-1 size-3 animate-spin text-muted-foreground" />
+            <Loader2 className="text-muted-foreground ml-1 size-3 animate-spin" />
           )}
         </div>
       </TooltipTrigger>
@@ -189,9 +182,7 @@ export const columns: ColumnDef<Team>[] = [
     meta: {
       className: "w-[180px] min-w-[180px]",
     },
-    cell: ({ row }) => (
-      <span className="truncate">{row.original.comingFrom || "-"}</span>
-    ),
+    cell: ({ row }) => <span className="truncate">{row.original.comingFrom || "-"}</span>,
     enableSorting: false,
   },
   {

@@ -1,33 +1,38 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Braces, GitBranch, Loader2, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Background,
+  BackgroundVariant,
+  Handle,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type Viewport,
+} from "@xyflow/react";
+import { Loader2, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { TeamBadge } from "~/components/schedule/team-badge";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import { Label } from "~/components/ui/label";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { useGraphViewportStorage } from "~/hooks/use-graph-viewport-storage";
+import { cn } from "~/lib/utils";
 import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/playoffs")({
   component: PlayoffsPage,
-  loader: async ({ params, context }) => {
-    const [season, categories] = await Promise.all([
-      context.queryClient.fetchQuery(
-        context.trpc.season.getById.queryOptions({ id: params.seasonId }),
-      ),
-      context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
-    ]);
-
-    return { season, categories };
-  },
 });
 
 const roundLabels: Record<string, string> = {
@@ -44,217 +49,427 @@ const roundOrder: Record<string, number> = {
   final: 3,
 };
 
+const nodeTypes = {
+  matchup: MatchupNode,
+  categoryLabel: CategoryLabelNode,
+};
+
+const ROUND_GAP_X = 460;
+const MATCHUP_GAP_Y = 275;
+const CATEGORY_HEADER_Y = 0;
+const CATEGORY_BODY_Y = 150;
+const CATEGORY_BODY_MIN_HEIGHT = 680;
+const CATEGORY_GAP_Y = 300;
+
+type GraphData = {
+  hasGraph: boolean;
+  hasScores: boolean;
+  matchups: PlayoffMatchup[];
+};
+
+type PlayoffMatchup = {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  label: string;
+  round: string;
+  bestOf: number;
+  eventName: string | null;
+  courtId: string | null;
+  teams: PlayoffSlot[];
+  points: Array<{
+    teamId: string;
+    set: number;
+    points: number;
+  }>;
+};
+
+type PlayoffSlot = {
+  id: string;
+  matchupId: string;
+  slotIndex: number;
+  teamName: string | null;
+  teamLogoUrl: string | null;
+  label: string;
+  dependsOn: string | null;
+};
+
+type MatchupNodeData = {
+  matchup: PlayoffMatchup;
+};
+
+type CategoryLabelNodeData = {
+  name: string;
+  matchups: number;
+  locked: boolean;
+};
+
+type PlayoffFormat = "top-4" | "top-5";
+
 function PlayoffsPage() {
   const { seasonId } = Route.useParams();
-  const { season, categories } = Route.useLoaderData();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
-
-  const graphQueryOptions = trpc.playoff.getGraph.queryOptions(
-    { seasonId, categoryId },
-    { enabled: Boolean(categoryId), staleTime: 0 },
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [categoryId, setCategoryId] = useState("");
+  const [playoffFormat, setPlayoffFormat] = useState<PlayoffFormat>("top-5");
+  const { initialViewport, saveViewport, hasStoredViewport } = useGraphViewportStorage(
+    `playoff-graph-viewport:${seasonId}`,
   );
-  const graphQuery = useQuery(graphQueryOptions);
+
+  const seasonGraphsQueryOptions = trpc.playoff.getSeasonGraphs.queryOptions(
+    { seasonId },
+    { staleTime: 0 },
+  );
+  const seasonGraphsQuery = useQuery(seasonGraphsQueryOptions);
 
   const generateMutation = useMutation(trpc.playoff.generate.mutationOptions());
   const clearMutation = useMutation(trpc.playoff.clear.mutationOptions());
 
-  const selectedCategory = categories.find((category) => category.id === categoryId);
-  const matchups = useMemo(() => graphQuery.data?.matchups ?? [], [graphQuery.data]);
-  const hasGraph = graphQuery.data?.hasGraph ?? false;
-  const hasScores = graphQuery.data?.hasScores ?? false;
+  const categories = seasonGraphsQuery.data?.categories ?? [];
+  const graphs = seasonGraphsQuery.data?.graphs ?? [];
+  const selectedCategoryId = categoryId || categories[0]?.id || "";
+  const generatedGraphs = graphs.filter(({ graph }) => graph?.hasGraph);
+  const selectedGraph = graphs.find(
+    ({ category }) => category.id === selectedCategoryId,
+  )?.graph;
+  const isLoading = seasonGraphsQuery.isLoading;
+  const isMutating = generateMutation.isPending || clearMutation.isPending;
 
-  const matchupsByRound = useMemo(() => {
-    const groups = new Map<string, typeof matchups>();
-    for (const matchup of matchups) {
-      const existing = groups.get(matchup.round) ?? [];
-      existing.push(matchup);
-      groups.set(matchup.round, existing);
-    }
+  const { nodes, edges } = buildCanvasElements(generatedGraphs);
 
-    return Array.from(groups.entries())
-      .sort(([a], [b]) => (roundOrder[a] ?? 99) - (roundOrder[b] ?? 99))
-      .map(([round, roundMatchups]) => ({
-        round,
-        matchups: roundMatchups.sort((a, b) => a.label.localeCompare(b.label)),
-      }));
-  }, [matchups]);
-
-  const invalidateGraph = async () => {
-    await queryClient.invalidateQueries({ queryKey: graphQueryOptions.queryKey });
+  const invalidateGraphs = async () => {
+    await queryClient.invalidateQueries({ queryKey: seasonGraphsQueryOptions.queryKey });
   };
 
   const handleGenerate = async () => {
-    if (!categoryId) return;
+    if (!selectedCategoryId) return;
 
+    const category = categories.find((item) => item.id === selectedCategoryId);
     try {
-      const result = await generateMutation.mutateAsync({ seasonId, categoryId });
+      const result = await generateMutation.mutateAsync({
+        seasonId,
+        categoryId: selectedCategoryId,
+        format: playoffFormat,
+      });
       toast.success(
-        `Generated ${result.matchupsGenerated} playoff matchups for ${selectedCategory?.name ?? "category"}`,
+        `Generated ${result.matchupsGenerated} playoff matchups for ${category?.name ?? "category"}`,
       );
-      await invalidateGraph();
+      setDialogOpen(false);
+      await invalidateGraphs();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to generate playoffs");
     }
   };
 
   const handleClear = async () => {
-    if (!categoryId) return;
+    if (!selectedCategoryId) return;
 
+    const category = categories.find((item) => item.id === selectedCategoryId);
     try {
-      await clearMutation.mutateAsync({ seasonId, categoryId });
-      toast.success("Playoff graph cleared");
-      await invalidateGraph();
+      await clearMutation.mutateAsync({ seasonId, categoryId: selectedCategoryId });
+      toast.success(`Cleared playoff graph for ${category?.name ?? "category"}`);
+      setDialogOpen(false);
+      await invalidateGraphs();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to clear playoffs");
     }
   };
 
-  const isMutating = generateMutation.isPending || clearMutation.isPending;
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="mb-2 flex items-center gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight">Playoffs</h2>
-          <Badge variant="secondary">{season.name}</Badge>
-        </div>
-        <p className="text-muted-foreground">
-          Generate and inspect the stored playoff graph by category.
-        </p>
-      </div>
+    <div className="h-[calc(100vh-4rem)] min-h-155">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        fitView={!hasStoredViewport}
+        fitViewOptions={{ padding: 0.24 }}
+        defaultViewport={initialViewport ?? undefined}
+        onMoveEnd={(_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
+          saveViewport(viewport);
+        }}
+        minZoom={0.25}
+        maxZoom={1.5}
+        nodesDraggable
+        nodesConnectable={false}
+        edgesFocusable={false}
+        proOptions={{ hideAttribution: true }}
+        className="bg-background"
+      >
+        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Generate Graph</CardTitle>
-            <CardDescription>
-              Uses current standings and the first supported two-group format.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              size="icon-lg"
+              className="absolute top-4 right-4 z-10 rounded-full shadow-lg"
+              aria-label="Generate playoff graph"
+            >
+              <Plus className="size-5" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Generate Playoff Graph</DialogTitle>
+              <DialogDescription>
+                Choose a category and add its playoff graph to the canvas.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
               <NativeSelect
-                id="category"
-                value={categoryId}
+                value={selectedCategoryId}
                 onChange={(event) => setCategoryId(event.target.value)}
               >
-                {categories.map((category) => (
-                  <NativeSelectOption key={category.id} value={category.id}>
-                    {category.name}
-                  </NativeSelectOption>
-                ))}
+                {categories.map((category) => {
+                  const graph = graphs.find(
+                    (item) => item.category.id === category.id,
+                  )?.graph;
+                  return (
+                    <NativeSelectOption key={category.id} value={category.id}>
+                      {category.name}
+                      {graph?.hasGraph ? " (generated)" : ""}
+                      {graph?.hasScores ? " (locked)" : ""}
+                    </NativeSelectOption>
+                  );
+                })}
               </NativeSelect>
+
+              <NativeSelect
+                value={playoffFormat}
+                onChange={(event) =>
+                  setPlayoffFormat(event.target.value as PlayoffFormat)
+                }
+              >
+                <NativeSelectOption value="top-5">Top 5</NativeSelectOption>
+                <NativeSelectOption value="top-4">Top 4</NativeSelectOption>
+              </NativeSelect>
+
+              <div className="text-muted-foreground rounded-md border p-3 text-sm">
+                {selectedGraph?.hasGraph
+                  ? `${selectedGraph.matchups.length} matchups already exist for this category.`
+                  : "This category has not been generated yet."}
+                {selectedGraph?.hasScores
+                  ? " Scores exist, so clearing is disabled."
+                  : null}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                onClick={handleGenerate}
-                disabled={!categoryId || hasGraph || isMutating}
-              >
-                {generateMutation.isPending ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 size-4" />
-                )}
-                Generate Playoffs
-              </Button>
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClear}
-                disabled={!categoryId || !hasGraph || hasScores || isMutating}
+                disabled={
+                  !selectedCategoryId ||
+                  !selectedGraph?.hasGraph ||
+                  selectedGraph.hasScores ||
+                  isMutating
+                }
               >
                 {clearMutation.isPending ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <RotateCcw className="mr-2 size-4" />
+                  <RotateCcw className="size-4" />
                 )}
-                Clear Graph
+                Clear
               </Button>
-            </div>
+              <Button
+                type="button"
+                onClick={handleGenerate}
+                disabled={
+                  !selectedCategoryId || Boolean(selectedGraph?.hasGraph) || isMutating
+                }
+              >
+                {generateMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Generate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-            <div className="text-muted-foreground border-t pt-4 text-sm">
-              {hasGraph
-                ? `${matchups.length} matchups stored for ${selectedCategory?.name}.`
-                : "No playoff graph has been generated for this category yet."}
-              {hasScores ? " Scores exist, so regeneration is locked." : null}
+        {isLoading ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="text-muted-foreground bg-background/90 flex items-center gap-2 rounded-md border px-4 py-3 text-sm shadow-sm backdrop-blur">
+              <Loader2 className="size-4 animate-spin" />
+              Loading playoff canvas...
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        ) : null}
+      </ReactFlow>
+    </div>
+  );
+}
 
-        <div className="space-y-6">
-          {graphQuery.isLoading ? (
-            <Card>
-              <CardContent className="text-muted-foreground flex items-center gap-2 py-8">
-                <Loader2 className="size-4 animate-spin" />
-                Loading playoff graph...
-              </CardContent>
-            </Card>
-          ) : matchupsByRound.length === 0 ? (
-            <Card>
-              <CardContent className="text-muted-foreground flex items-center gap-2 py-8">
-                <GitBranch className="size-4" />
-                Generate a category to see its stored playoff graph.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 xl:grid-cols-4">
-              {matchupsByRound.map(({ round, matchups: roundMatchups }) => (
-                <section key={round} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Braces className="text-muted-foreground size-4" />
-                    <h3 className="font-medium">{roundLabels[round] ?? round}</h3>
-                    <Badge variant="outline">{roundMatchups.length}</Badge>
-                  </div>
+function buildCanvasElements(
+  generatedGraphs: Array<{
+    category: { id: string; name: string };
+    graph: GraphData | undefined;
+  }>,
+) {
+  const nodes: Node<MatchupNodeData | CategoryLabelNodeData>[] = [];
+  const edges: Edge[] = [];
+  let categoryY = 0;
 
-                  {roundMatchups.map((matchup) => (
-                    <Card key={matchup.id}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-base">{matchup.label}</CardTitle>
-                          <Badge variant="secondary">Best of {matchup.bestOf}</Badge>
-                        </div>
-                        <CardDescription>
-                          {matchup.eventName
-                            ? `${matchup.eventName} · ${matchup.courtId ?? "No court"}`
-                            : "Unscheduled"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {matchup.teams.map((slot) => (
-                          <div
-                            key={slot.id}
-                            className="bg-muted/40 flex items-center justify-between gap-3 rounded-md px-3 py-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {slot.teamName ?? slot.label}
-                              </p>
-                              {slot.teamName ? (
-                                <p className="text-muted-foreground text-xs">
-                                  Seed {slot.label}
-                                </p>
-                              ) : (
-                                <p className="text-muted-foreground text-xs">
-                                  Waiting on {slot.label}
-                                </p>
-                              )}
-                            </div>
-                            <Badge variant="outline">#{slot.slotIndex + 1}</Badge>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </section>
-              ))}
-            </div>
-          )}
+  generatedGraphs.forEach(({ category, graph }) => {
+    const matchups = graph?.matchups ?? [];
+    const rounds = new Map<string, PlayoffMatchup[]>();
+
+    for (const matchup of matchups) {
+      const existing = rounds.get(matchup.round) ?? [];
+      existing.push(matchup);
+      rounds.set(matchup.round, existing);
+    }
+
+    const maxRoundCount = Math.max(
+      1,
+      ...Array.from(rounds.values()).map((roundMatchups) => roundMatchups.length),
+    );
+    const categoryBodyHeight = Math.max(
+      CATEGORY_BODY_MIN_HEIGHT,
+      maxRoundCount * MATCHUP_GAP_Y,
+    );
+
+    nodes.push({
+      id: `category-${category.id}`,
+      type: "categoryLabel",
+      position: { x: 0, y: categoryY + CATEGORY_HEADER_Y },
+      data: {
+        name: category.name,
+        matchups: matchups.length,
+        locked: Boolean(graph?.hasScores),
+      },
+      draggable: false,
+      selectable: false,
+    });
+
+    for (const [round, roundMatchups] of Array.from(rounds.entries()).sort(
+      ([a], [b]) => (roundOrder[a] ?? 99) - (roundOrder[b] ?? 99),
+    )) {
+      const sortedMatchups = [...roundMatchups].sort((a, b) =>
+        a.label.localeCompare(b.label),
+      );
+      const roundIndex = roundOrder[round] ?? 0;
+      const columnHeight = sortedMatchups.length * MATCHUP_GAP_Y;
+      const startY =
+        categoryY +
+        CATEGORY_BODY_Y +
+        Math.max(0, (categoryBodyHeight - columnHeight) / 2);
+
+      sortedMatchups.forEach((matchup, matchupIndex) => {
+        nodes.push({
+          id: matchup.id,
+          type: "matchup",
+          position: {
+            x: roundIndex * ROUND_GAP_X,
+            y: startY + matchupIndex * MATCHUP_GAP_Y,
+          },
+          data: { matchup },
+        });
+
+        for (const slot of matchup.teams) {
+          if (!slot.dependsOn) continue;
+
+          edges.push({
+            id: `${slot.dependsOn}-${slot.id}`,
+            source: slot.dependsOn,
+            sourceHandle: "winner",
+            target: matchup.id,
+            targetHandle: slot.id,
+            type: "smoothstep",
+            animated: false,
+            className: "stroke-muted-foreground",
+          });
+        }
+      });
+    }
+
+    categoryY += CATEGORY_BODY_Y + categoryBodyHeight + CATEGORY_GAP_Y;
+  });
+
+  return { nodes, edges };
+}
+
+function MatchupNode({ data, selected }: NodeProps<Node<MatchupNodeData>>) {
+  const { matchup } = data;
+
+  return (
+    <div
+      className={cn(
+        "bg-card w-70 rounded-md border shadow-sm transition-shadow",
+        selected ? "ring-ring ring-2" : "hover:shadow-md",
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="fallback-target"
+        className="opacity-0"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="winner"
+        className="!bg-primary !size-3"
+      />
+
+      <div className="border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="cursor-text truncate text-sm font-semibold">{matchup.label}</p>
+            <p className="text-muted-foreground truncate text-xs">
+              {roundLabels[matchup.round] ?? matchup.round}
+            </p>
+          </div>
+          <Badge variant="secondary">Best of {matchup.bestOf}</Badge>
         </div>
+      </div>
+
+      <div className="bg-accent space-y-2 px-3 py-3">
+        {matchup.teams.map((slot, index) => (
+          <div key={slot.id} className="relative">
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={slot.id}
+              style={{ top: 18 }}
+              className="!bg-muted-foreground !size-2"
+            />
+            <div className="rounded-md border-2 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <TeamBadge
+                  name={slot.teamName ?? slot.label}
+                  logoUrl={slot.teamLogoUrl}
+                  className="min-w-0"
+                />
+                <Badge variant="outline">#{index + 1}</Badge>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="text-muted-foreground border-t px-3 py-2 text-xs">
+        {matchup.eventName
+          ? `${matchup.eventName} · ${matchup.courtId ?? "No court"}`
+          : "Unscheduled"}
+      </div>
+    </div>
+  );
+}
+
+function CategoryLabelNode({ data }: NodeProps<Node<CategoryLabelNodeData>>) {
+  return (
+    <div className="bg-background/95 min-w-[300px] rounded-md border px-4 py-3 shadow-sm">
+      <div className="flex items-center gap-2">
+        <h3 className="text-lg font-semibold">{data.name}</h3>
+        <Badge variant="outline">{data.matchups} matchups</Badge>
+        {data.locked ? <Badge variant="secondary">Scores locked</Badge> : null}
       </div>
     </div>
   );

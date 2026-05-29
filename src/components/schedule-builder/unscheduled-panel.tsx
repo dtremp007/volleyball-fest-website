@@ -70,10 +70,7 @@ export const UnscheduledPanel = memo(function UnscheduledPanel({
                     </h3>
                     <div className="space-y-2">
                       {categoryMatchups.map((matchup) => (
-                        <UnscheduledMatchupBlock
-                          key={matchup.id}
-                          matchup={matchup}
-                        />
+                        <UnscheduledMatchupBlock key={matchup.id} matchup={matchup} />
                       ))}
                     </div>
                   </div>

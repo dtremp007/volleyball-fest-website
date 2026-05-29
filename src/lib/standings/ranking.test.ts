@@ -49,12 +49,7 @@ describe("standingPct", () => {
 });
 
 describe("sortStandingsTeams", () => {
-  function row(
-    teamId: string,
-    pts: number,
-    pd: number,
-    pf: number,
-  ): StandingsSortRow {
+  function row(teamId: string, pts: number, pd: number, pf: number): StandingsSortRow {
     return {
       teamId,
       standingsPoints: pts,

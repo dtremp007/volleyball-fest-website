@@ -8,8 +8,8 @@ import {
   evaluatePlacementSwap,
   getEstimatedFemenilNetSwitchCount,
   getPlacementPreferenceScore,
-  getScheduleQualityScore,
   getPlacementViolationReason,
+  getScheduleQualityScore,
   type CategoryBalanceContext,
   type ConstraintValidationContext,
   type PlacementWithCategory,
@@ -357,11 +357,7 @@ export async function saveSetScore(
       points: params.points,
     })
     .onConflictDoUpdate({
-      target: [
-        schema.points.matchupId,
-        schema.points.teamId,
-        schema.points.set,
-      ],
+      target: [schema.points.matchupId, schema.points.teamId, schema.points.set],
       set: { points: params.points },
     });
 }
@@ -559,13 +555,20 @@ function getTotalCategoryDeviationFromTargets(
   const countsByEventId = new Map<string, Map<string, number>>();
   for (const placement of placements) {
     if (!placement.categoryId) continue;
-    const eventCounts = countsByEventId.get(placement.eventId) ?? new Map<string, number>();
-    eventCounts.set(placement.categoryId, (eventCounts.get(placement.categoryId) ?? 0) + 1);
+    const eventCounts =
+      countsByEventId.get(placement.eventId) ?? new Map<string, number>();
+    eventCounts.set(
+      placement.categoryId,
+      (eventCounts.get(placement.categoryId) ?? 0) + 1,
+    );
     countsByEventId.set(placement.eventId, eventCounts);
   }
 
   let totalDeviation = 0;
-  for (const [eventId, targetsByCategory] of categoryBalanceContext.eventCategoryTargetByEventId) {
+  for (const [
+    eventId,
+    targetsByCategory,
+  ] of categoryBalanceContext.eventCategoryTargetByEventId) {
     const eventCounts = countsByEventId.get(eventId);
     for (const categoryId of categoryBalanceContext.categoryIds) {
       const count = eventCounts?.get(categoryId) ?? 0;
@@ -629,7 +632,11 @@ function improveEventCategoryBalance(
         if (!result.valid) continue;
 
         const [swappedA, swappedB] = result.swappedPlacements;
-        const placementsAfterSwap = applySwapToPlacements(improvedPlacements, swappedA, swappedB);
+        const placementsAfterSwap = applySwapToPlacements(
+          improvedPlacements,
+          swappedA,
+          swappedB,
+        );
         const deviationAfter = getTotalCategoryDeviationFromTargets(
           placementsAfterSwap,
           params.categoryBalanceContext,
@@ -703,7 +710,11 @@ function improveFemenilNetChangeClustering(
         if (!result.valid) continue;
 
         const [swappedA, swappedB] = result.swappedPlacements;
-        const placementsAfterSwap = applySwapToPlacements(improvedPlacements, swappedA, swappedB);
+        const placementsAfterSwap = applySwapToPlacements(
+          improvedPlacements,
+          swappedA,
+          swappedB,
+        );
         const netSwitchesAfter = getEstimatedFemenilNetSwitchCount(placementsAfterSwap);
         const netSwitchImprovement = currentNetSwitches - netSwitchesAfter;
         if (netSwitchImprovement <= 0) continue;
@@ -775,7 +786,11 @@ function improveByGeneralSwaps(
 
         if (result.valid && result.scoreImprovement > 0) {
           const [swappedA, swappedB] = result.swappedPlacements;
-          improvedPlacements = applySwapToPlacements(improvedPlacements, swappedA, swappedB);
+          improvedPlacements = applySwapToPlacements(
+            improvedPlacements,
+            swappedA,
+            swappedB,
+          );
           improvementFound = true;
           break;
         }
@@ -808,7 +823,8 @@ function buildSchedulingMetrics(
     if (!categoryCountsByEventId[placement.eventId]) {
       categoryCountsByEventId[placement.eventId] = {};
     }
-    const existing = categoryCountsByEventId[placement.eventId][placement.categoryId] ?? 0;
+    const existing =
+      categoryCountsByEventId[placement.eventId][placement.categoryId] ?? 0;
     categoryCountsByEventId[placement.eventId][placement.categoryId] = existing + 1;
   }
 
@@ -1004,7 +1020,11 @@ export async function autoScheduleMatchups(
     validationContext,
     improvementParams,
   );
-  finalPlacements = improveByGeneralSwaps(finalPlacements, validationContext, improvementParams);
+  finalPlacements = improveByGeneralSwaps(
+    finalPlacements,
+    validationContext,
+    improvementParams,
+  );
   const schedulingMetrics = buildSchedulingMetrics(finalPlacements, improvementParams);
   const scheduledCount = finalPlacements.length;
 
@@ -1227,7 +1247,10 @@ export async function getStandingsBySeasonId(
       .where(eq(schema.seasonTeam.seasonId, seasonId)),
   ]);
 
-  const teamGroupMap = new Map<string, { groupId: string | null; groupName: string | null }>();
+  const teamGroupMap = new Map<
+    string,
+    { groupId: string | null; groupName: string | null }
+  >();
   for (const row of teamGroupRows) {
     if (!row.teamId) continue;
     teamGroupMap.set(row.teamId, {
@@ -1251,12 +1274,7 @@ export async function getStandingsBySeasonId(
     }
   >();
 
-  const ensureTeam = (
-    id: string,
-    name: string,
-    logoUrl: string,
-    category: string,
-  ) => {
+  const ensureTeam = (id: string, name: string, logoUrl: string, category: string) => {
     if (!standingsMap.has(id)) {
       standingsMap.set(id, {
         teamName: name,
@@ -1278,8 +1296,18 @@ export async function getStandingsBySeasonId(
     const contrib = contributionFromFirstTwoSets(matchup.sets);
     if (!contrib) continue;
 
-    ensureTeam(matchup.teamA.id, matchup.teamA.name, matchup.teamA.logoUrl, matchup.category);
-    ensureTeam(matchup.teamB.id, matchup.teamB.name, matchup.teamB.logoUrl, matchup.category);
+    ensureTeam(
+      matchup.teamA.id,
+      matchup.teamA.name,
+      matchup.teamA.logoUrl,
+      matchup.category,
+    );
+    ensureTeam(
+      matchup.teamB.id,
+      matchup.teamB.name,
+      matchup.teamB.logoUrl,
+      matchup.category,
+    );
 
     const teamA = standingsMap.get(matchup.teamA.id)!;
     const teamB = standingsMap.get(matchup.teamB.id)!;
@@ -1364,12 +1392,16 @@ export async function getStandingsBySeasonId(
         (m) => sectionIds.has(m.teamAId) && sectionIds.has(m.teamBId),
       );
       const sorted = sortStandingsTeams(teams, sectionMatches);
-      sorted.forEach((t, i) => { t.rank = i + 1; });
+      sorted.forEach((t, i) => {
+        t.rank = i + 1;
+      });
 
       return {
         // Only expose groupName when there are multiple sections to show (i.e. headers are needed)
         groupName: hasMultipleGroups
-          ? (groupKey === "__ungrouped__" ? "Sin grupo" : groupName)
+          ? groupKey === "__ungrouped__"
+            ? "Sin grupo"
+            : groupName
           : null,
         teams: sorted,
       };

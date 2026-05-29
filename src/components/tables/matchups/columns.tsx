@@ -62,9 +62,7 @@ export const columns: ColumnDef<MatchupRow>[] = [
     meta: { className: "w-[140px] min-w-[140px]" },
     cell: ({ row }) =>
       row.depth === 0 ? (
-        <span className="font-medium">
-          {(row.original as MatchupTableRow).teamAName}
-        </span>
+        <span className="font-medium">{(row.original as MatchupTableRow).teamAName}</span>
       ) : null,
   },
   {
@@ -73,11 +71,7 @@ export const columns: ColumnDef<MatchupRow>[] = [
     meta: { className: "w-[80px] min-w-[80px]" },
     cell: (ctx) =>
       ctx.row.depth === 1 ? (
-        <EditableScoreCell
-          row={ctx.row}
-          table={ctx.table}
-          teamKey="teamA"
-        />
+        <EditableScoreCell row={ctx.row} table={ctx.table} teamKey="teamA" />
       ) : null,
   },
   {
@@ -86,9 +80,7 @@ export const columns: ColumnDef<MatchupRow>[] = [
     meta: { className: "w-[140px] min-w-[140px]" },
     cell: ({ row }) =>
       row.depth === 0 ? (
-        <span className="font-medium">
-          {(row.original as MatchupTableRow).teamBName}
-        </span>
+        <span className="font-medium">{(row.original as MatchupTableRow).teamBName}</span>
       ) : null,
   },
   {
@@ -97,11 +89,7 @@ export const columns: ColumnDef<MatchupRow>[] = [
     meta: { className: "w-[80px] min-w-[80px]" },
     cell: (ctx) =>
       ctx.row.depth === 1 ? (
-        <EditableScoreCell
-          row={ctx.row}
-          table={ctx.table}
-          teamKey="teamB"
-        />
+        <EditableScoreCell row={ctx.row} table={ctx.table} teamKey="teamB" />
       ) : null,
   },
   {

@@ -245,18 +245,20 @@ export function getFemenilCourtClusteringScore(
   const sameEventPlacements = existingPlacementsWithCategory.filter(
     (p) => p.eventId === placement.eventId,
   );
-  const sameCourtPlacements = sameEventPlacements.filter((p) => p.courtId === placement.courtId);
-  const sameCourtHasFemenil = sameCourtPlacements.some((p) => p.categoryId === CAT_FEMENIL);
+  const sameCourtPlacements = sameEventPlacements.filter(
+    (p) => p.courtId === placement.courtId,
+  );
+  const sameCourtHasFemenil = sameCourtPlacements.some(
+    (p) => p.categoryId === CAT_FEMENIL,
+  );
   const otherCourtHasFemenil = sameEventPlacements.some(
     (p) => p.courtId !== placement.courtId && p.categoryId === CAT_FEMENIL,
   );
   const prevSlotOnSameCourt = sameCourtPlacements.find(
-    (p) =>
-      p.slotIndex === placement.slotIndex - 1,
+    (p) => p.slotIndex === placement.slotIndex - 1,
   );
   const nextSlotOnSameCourt = sameCourtPlacements.find(
-    (p) =>
-      p.slotIndex === placement.slotIndex + 1,
+    (p) => p.slotIndex === placement.slotIndex + 1,
   );
 
   // Extending or bridging a block on this court is ideal.
@@ -367,7 +369,11 @@ export function getEventCategoryBalanceScore(
   existingPlacementsWithCategory: PlacementWithCategory[],
   categoryBalanceContext: CategoryBalanceContext | null,
 ): number {
-  if (!categoryId || !categoryBalanceContext || categoryBalanceContext.categoryIds.length === 0) {
+  if (
+    !categoryId ||
+    !categoryBalanceContext ||
+    categoryBalanceContext.categoryIds.length === 0
+  ) {
     return 0;
   }
 
@@ -381,7 +387,9 @@ export function getEventCategoryBalanceScore(
     }
   }
   categoryCounts.set(categoryId, (categoryCounts.get(categoryId) ?? 0) + 1);
-  const eventTargets = categoryBalanceContext.eventCategoryTargetByEventId.get(placement.eventId);
+  const eventTargets = categoryBalanceContext.eventCategoryTargetByEventId.get(
+    placement.eventId,
+  );
   if (!eventTargets) {
     return 0;
   }
@@ -528,7 +536,11 @@ export function getPlacementPreferenceBreakdown(
     categoryId,
     maxSlotIndex,
   );
-  const femenilEarly = getFemenilEarlyPreferenceScore(placement, categoryId, maxSlotIndex);
+  const femenilEarly = getFemenilEarlyPreferenceScore(
+    placement,
+    categoryId,
+    maxSlotIndex,
+  );
   const eventCategoryBalance = getEventCategoryBalanceScore(
     placement,
     categoryId,
@@ -541,7 +553,11 @@ export function getPlacementPreferenceBreakdown(
     totalMatchups,
     orderedEventIds.length,
   );
-  const farAwayPriority = getFarAwaySchedulingPriorityScore(placement, existingPlacements, farAwayTeamIds);
+  const farAwayPriority = getFarAwaySchedulingPriorityScore(
+    placement,
+    existingPlacements,
+    farAwayTeamIds,
+  );
 
   const weighted = {
     restPenalty: restPenalty * SCHEDULING_WEIGHTS.teamRestAdjacentEvent,
@@ -550,10 +566,8 @@ export function getPlacementPreferenceBreakdown(
       categoryDistribution * SCHEDULING_WEIGHTS.categoryDistributionRun,
     varonilLate: varonilLate * SCHEDULING_WEIGHTS.varonilLatePerSlot,
     femenilEarly: femenilEarly * SCHEDULING_WEIGHTS.femenilEarlyPerSlot,
-    eventCategoryBalance:
-      eventCategoryBalance * SCHEDULING_WEIGHTS.eventCategoryBalance,
-    eventLoadBalance:
-      eventLoadBalance * SCHEDULING_WEIGHTS.eventLoadBalance,
+    eventCategoryBalance: eventCategoryBalance * SCHEDULING_WEIGHTS.eventCategoryBalance,
+    eventLoadBalance: eventLoadBalance * SCHEDULING_WEIGHTS.eventLoadBalance,
     farAwayPriority: farAwayPriority * SCHEDULING_WEIGHTS.farAwaySchedulingPriority,
   };
 
@@ -611,7 +625,14 @@ export type ScheduleQualityParams = {
  * Sums placement preference scores for each placement, using all other placements as context.
  */
 export function getScheduleQualityScore(params: ScheduleQualityParams): number {
-  const { placementsWithCategory, orderedEventIds, maxSlotIndex, totalMatchups, categoryBalanceContext, farAwayTeamIds } = params;
+  const {
+    placementsWithCategory,
+    orderedEventIds,
+    maxSlotIndex,
+    totalMatchups,
+    categoryBalanceContext,
+    farAwayTeamIds,
+  } = params;
 
   let total = 0;
   for (const placement of placementsWithCategory) {

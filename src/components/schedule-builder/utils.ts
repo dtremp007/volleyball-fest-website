@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Matchup, ScheduleEvent } from "./types";
+import type { ScheduleEvent } from "./types";
 
 export const START_HOUR = 16; // 4 PM
 export const START_MINUTE = 15;

@@ -4,14 +4,12 @@ import "@tanstack/react-table";
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
     viewDetails?: (id: string) => void;
-    updateSetScore?: (
-      params: {
-        matchupId: string;
-        teamId: string;
-        set: number;
-        points: number;
-      },
-    ) => Promise<boolean>;
+    updateSetScore?: (params: {
+      matchupId: string;
+      teamId: string;
+      set: number;
+      points: number;
+    }) => Promise<boolean>;
     seasonId?: string;
   }
 

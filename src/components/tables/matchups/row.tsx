@@ -15,7 +15,7 @@ export function MatchupRowItem({ row }: Props) {
       className={cn(
         "group",
         isSetRow
-          ? "h-10 bg-transparent hover:bg-muted/20"
+          ? "hover:bg-muted/20 h-10 bg-transparent"
           : "h-[57px] hover:bg-[#F2F1EF] hover:dark:bg-[#0f0f0f]",
       )}
     >

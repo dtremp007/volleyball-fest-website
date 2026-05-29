@@ -32,10 +32,7 @@ export function ActionsMenu({ event }: Props) {
         toast.error("Event not found");
         return;
       }
-      const blob = await generateEventScheduleImage(
-        eventData,
-        window.location.origin,
-      );
+      const blob = await generateEventScheduleImage(eventData, window.location.origin);
       downloadScheduleImage(blob, eventData.name);
       toast.success("Image downloaded");
     } catch (err) {

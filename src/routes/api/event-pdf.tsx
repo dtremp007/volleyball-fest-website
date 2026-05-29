@@ -27,7 +27,9 @@ async function handleGetEventPDF({ request }: { request: Request }) {
 
     const baseUrl = url.origin;
 
-    const pdfBuffer = await renderToBuffer(<EventSheetDocument events={events} baseUrl={baseUrl} />);
+    const pdfBuffer = await renderToBuffer(
+      <EventSheetDocument events={events} baseUrl={baseUrl} />,
+    );
     const pdfBytes = Uint8Array.from(pdfBuffer);
     const sanitizedName = events[0]!.season.name
       .replace(/[^a-zA-Z0-9]/g, "_")

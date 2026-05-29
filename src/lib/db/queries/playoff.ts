@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
-import { getCategoryById } from "~/lib/db/queries/category";
+import { getCategories, getCategoryById } from "~/lib/db/queries/category";
 import { getStandingsBySeasonId, type TeamStanding } from "~/lib/db/queries/schedule";
 import * as schema from "~/lib/db/schema";
 
@@ -35,6 +35,8 @@ type PlayoffTemplate = {
   matchups: GeneratedMatchup[];
   teams: GeneratedMatchupTeam[];
 };
+
+export type PlayoffFormat = "top-4" | "top-5";
 
 export async function getPlayoffGraph(
   db: Database,
@@ -143,6 +145,121 @@ export async function getPlayoffGraph(
   };
 }
 
+export async function getPlayoffGraphsBySeason(db: Database, seasonId: string) {
+  const [categories, matchups, matchupTeams, points] = await Promise.all([
+    getCategories(db),
+    db
+      .select({
+        id: schema.playoffMatchup.id,
+        seasonId: schema.playoffMatchup.seasonId,
+        categoryId: schema.playoffMatchup.categoryId,
+        categoryName: schema.category.name,
+        label: schema.playoffMatchup.label,
+        round: schema.playoffMatchup.round,
+        bestOf: schema.playoffMatchup.bestOf,
+        eventId: schema.playoffMatchup.eventId,
+        eventName: schema.playoffScheduleEvent.name,
+        eventStartTime: schema.playoffScheduleEvent.startTime,
+        courtId: schema.playoffMatchup.courtId,
+        duration: schema.playoffMatchup.duration,
+      })
+      .from(schema.playoffMatchup)
+      .innerJoin(
+        schema.category,
+        eq(schema.playoffMatchup.categoryId, schema.category.id),
+      )
+      .leftJoin(
+        schema.playoffScheduleEvent,
+        eq(schema.playoffMatchup.eventId, schema.playoffScheduleEvent.id),
+      )
+      .where(eq(schema.playoffMatchup.seasonId, seasonId))
+      .orderBy(
+        asc(schema.playoffMatchup.categoryId),
+        asc(schema.playoffMatchup.round),
+        asc(schema.playoffMatchup.label),
+      ),
+    db
+      .select({
+        id: schema.playoffMatchupTeam.id,
+        matchupId: schema.playoffMatchupTeam.matchupId,
+        slotIndex: schema.playoffMatchupTeam.slotIndex,
+        teamId: schema.playoffMatchupTeam.teamId,
+        teamName: schema.team.name,
+        teamLogoUrl: schema.team.logoUrl,
+        label: schema.playoffMatchupTeam.label,
+        dependsOn: schema.playoffMatchupTeam.dependsOn,
+      })
+      .from(schema.playoffMatchupTeam)
+      .innerJoin(
+        schema.playoffMatchup,
+        eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
+      )
+      .leftJoin(schema.team, eq(schema.playoffMatchupTeam.teamId, schema.team.id))
+      .where(eq(schema.playoffMatchup.seasonId, seasonId))
+      .orderBy(
+        asc(schema.playoffMatchupTeam.matchupId),
+        asc(schema.playoffMatchupTeam.slotIndex),
+      ),
+    db
+      .select({
+        matchupId: schema.playoffPoint.matchupId,
+        teamId: schema.playoffPoint.teamId,
+        set: schema.playoffPoint.set,
+        points: schema.playoffPoint.points,
+        categoryId: schema.playoffMatchup.categoryId,
+      })
+      .from(schema.playoffPoint)
+      .innerJoin(
+        schema.playoffMatchup,
+        eq(schema.playoffPoint.matchupId, schema.playoffMatchup.id),
+      )
+      .where(eq(schema.playoffMatchup.seasonId, seasonId)),
+  ]);
+
+  const teamsByMatchupId = new Map<string, typeof matchupTeams>();
+  for (const team of matchupTeams) {
+    const existing = teamsByMatchupId.get(team.matchupId) ?? [];
+    existing.push(team);
+    teamsByMatchupId.set(team.matchupId, existing);
+  }
+
+  const pointsByMatchupId = new Map<string, typeof points>();
+  const categoryIdsWithScores = new Set<string>();
+  for (const point of points) {
+    categoryIdsWithScores.add(point.categoryId);
+    const existing = pointsByMatchupId.get(point.matchupId) ?? [];
+    existing.push(point);
+    pointsByMatchupId.set(point.matchupId, existing);
+  }
+
+  const matchupsByCategoryId = new Map<string, typeof matchups>();
+  for (const matchup of matchups) {
+    const existing = matchupsByCategoryId.get(matchup.categoryId) ?? [];
+    existing.push(matchup);
+    matchupsByCategoryId.set(matchup.categoryId, existing);
+  }
+
+  return {
+    categories,
+    graphs: categories.map((category) => {
+      const categoryMatchups = matchupsByCategoryId.get(category.id) ?? [];
+
+      return {
+        category,
+        graph: {
+          hasGraph: categoryMatchups.length > 0,
+          hasScores: categoryIdsWithScores.has(category.id),
+          matchups: categoryMatchups.map((matchup) => ({
+            ...matchup,
+            teams: teamsByMatchupId.get(matchup.id) ?? [],
+            points: pointsByMatchupId.get(matchup.id) ?? [],
+          })),
+        },
+      };
+    }),
+  };
+}
+
 export async function hasPlayoffGraph(
   db: Database,
   params: { seasonId: string; categoryId: string },
@@ -203,7 +320,7 @@ export async function clearPlayoffGraph(
 
 export async function generatePlayoffGraph(
   db: Database,
-  params: { seasonId: string; categoryId: string },
+  params: { seasonId: string; categoryId: string; format: PlayoffFormat },
 ) {
   if (await hasPlayoffGraph(db, params)) {
     throw new Error("Playoff graph already exists for this category");
@@ -222,7 +339,7 @@ export async function generatePlayoffGraph(
 
 async function buildPlayoffGraphFromStandings(
   db: Database,
-  params: { seasonId: string; categoryId: string },
+  params: { seasonId: string; categoryId: string; format: PlayoffFormat },
 ): Promise<PlayoffTemplate> {
   const category = await getCategoryById(db, params.categoryId);
   if (!category) {
@@ -246,14 +363,18 @@ async function buildPlayoffGraphFromStandings(
   }));
 
   const seedCount = Math.min(groupA.teams.length, groupB.teams.length);
-  if (seedCount >= 5) {
+  if (params.format === "top-5" && seedCount >= 5) {
     return buildTopFiveTemplate(params, groupA, groupB);
   }
-  if (seedCount >= 4) {
+  if (params.format === "top-4" && seedCount >= 4) {
     return buildTopFourTemplate(params, groupA, groupB);
   }
 
-  throw new Error("Playoff generation requires at least four teams per group");
+  throw new Error(
+    params.format === "top-5"
+      ? "Top 5 playoff generation requires at least five teams per group"
+      : "Top 4 playoff generation requires at least four teams per group",
+  );
 }
 
 function buildSeeds(groupName: string, teams: TeamStanding[], count: number): Seed[] {

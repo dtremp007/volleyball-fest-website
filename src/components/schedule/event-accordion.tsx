@@ -8,9 +8,9 @@ import {
 } from "~/components/ui/accordion";
 import { Badge } from "~/components/ui/badge";
 import { Card } from "~/components/ui/card";
-import { cn } from "~/lib/utils";
 
 import type { ScheduleEvent } from "./types";
+import { TeamBadge } from "./team-badge";
 
 export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
   // Group matchups by time slot for table display
@@ -171,31 +171,6 @@ function MatchupCell({ matchup }: { matchup: ScheduleEvent["matchups"][number] }
         </span>
         <TeamBadge name={matchup.teamB.name} logoUrl={matchup.teamB.logoUrl} />
       </div>
-    </div>
-  );
-}
-
-function TeamBadge({
-  name,
-  logoUrl,
-  className,
-}: {
-  name: string;
-  logoUrl: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-1 items-center gap-1.5", className)}>
-      <div className="bg-muted size-6 shrink-0 overflow-hidden rounded">
-        {logoUrl ? (
-          <img src={logoUrl} alt={name} className="size-full object-cover" />
-        ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center text-xs">
-            {name[0]}
-          </div>
-        )}
-      </div>
-      <span className="truncate text-sm font-medium">{name}</span>
     </div>
   );
 }

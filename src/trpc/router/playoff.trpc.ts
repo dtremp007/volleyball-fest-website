@@ -5,6 +5,7 @@ import {
   clearPlayoffGraph,
   generatePlayoffGraph,
   getPlayoffGraph,
+  getPlayoffGraphsBySeason,
   hasPlayoffScores,
 } from "~/lib/db/queries/playoff";
 import { protectedProcedure } from "~/trpc/init";
@@ -14,7 +15,17 @@ const playoffCategoryInput = z.object({
   categoryId: z.string(),
 });
 
+const generatePlayoffInput = playoffCategoryInput.extend({
+  format: z.enum(["top-4", "top-5"]),
+});
+
 export const playoffRouter = {
+  getSeasonGraphs: protectedProcedure
+    .input(z.object({ seasonId: z.string() }))
+    .query(async ({ input }) => {
+      return await getPlayoffGraphsBySeason(db, input.seasonId);
+    }),
+
   getGraph: protectedProcedure.input(playoffCategoryInput).query(async ({ input }) => {
     const [graph, hasScores] = await Promise.all([
       getPlayoffGraph(db, input),
@@ -27,7 +38,7 @@ export const playoffRouter = {
     };
   }),
 
-  generate: protectedProcedure.input(playoffCategoryInput).mutation(async ({ input }) => {
+  generate: protectedProcedure.input(generatePlayoffInput).mutation(async ({ input }) => {
     return await generatePlayoffGraph(db, input);
   }),
 
