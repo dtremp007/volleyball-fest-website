@@ -11,6 +11,9 @@ export const seasonStateEnum = [
 ] as const;
 export type SeasonState = (typeof seasonStateEnum)[number];
 
+export const playoffFormatEnum = ["top-4", "top-5"] as const;
+export type PlayoffFormat = (typeof playoffFormatEnum)[number];
+
 export const season = sqliteTable("season", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -23,6 +26,10 @@ export const category = sqliteTable("category", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  playoffFormat: text("playoff_format")
+    .notNull()
+    .$type<PlayoffFormat>()
+    .default("top-4"),
 });
 
 export const group = sqliteTable("team_group", {

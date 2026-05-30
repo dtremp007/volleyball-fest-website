@@ -2,6 +2,7 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { format } from "date-fns";
 import { z } from "zod";
 import { db } from "~/lib/db";
+import { getPublicUnifiedSchedule } from "~/lib/db/queries/public-schedule";
 import {
   autoScheduleMatchups,
   clearMatchupPlacementsForSeason,
@@ -46,6 +47,21 @@ export const matchupRouter = {
     )
     .query(async ({ input }) => {
       return await getPublicSchedule(db, input.seasonId, {
+        upcomingOnly: input.upcomingOnly,
+        limit: input.limit,
+      });
+    }),
+
+  getPublicUnifiedSchedule: publicProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        upcomingOnly: z.boolean().optional(),
+        limit: z.number().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      return await getPublicUnifiedSchedule(db, input.seasonId, {
         upcomingOnly: input.upcomingOnly,
         limit: input.limit,
       });

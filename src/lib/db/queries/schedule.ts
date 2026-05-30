@@ -24,6 +24,10 @@ import {
 } from "~/lib/standings/ranking";
 import { normalizeDateOnly } from "~/lib/unavailable-dates";
 
+function getPlayoffQualifierCount(format: schema.PlayoffFormat | null | undefined) {
+  return format === "top-5" ? 5 : 4;
+}
+
 const CATEGORY_BALANCE_MAX_PASSES = 6;
 const FEMENIL_CLUSTERING_MAX_PASSES = 6;
 const GENERAL_SWAP_MAX_PASSES = 15;
@@ -1227,6 +1231,8 @@ export type StandingsSection = {
 
 export type CategoryStandings = {
   category: string;
+  playoffFormat: schema.PlayoffFormat;
+  playoffQualifierCount: number;
   sections: StandingsSection[];
 };
 
@@ -1234,7 +1240,7 @@ export async function getStandingsBySeasonId(
   db: Database,
   seasonId: string,
 ): Promise<CategoryStandings[]> {
-  const [matchups, teamGroupRows] = await Promise.all([
+  const [matchups, teamGroupRows, playoffConfigRows] = await Promise.all([
     getMatchupsBySeasonId(db, seasonId),
     db
       .select({
@@ -1245,7 +1251,25 @@ export async function getStandingsBySeasonId(
       .from(schema.seasonTeam)
       .leftJoin(schema.group, eq(schema.seasonTeam.groupId, schema.group.id))
       .where(eq(schema.seasonTeam.seasonId, seasonId)),
+    db
+      .select({
+        categoryName: schema.category.name,
+        format: schema.category.playoffFormat,
+      })
+      .from(schema.category)
   ]);
+
+  const playoffConfigByCategory = new Map<
+    string,
+    { format: schema.PlayoffFormat; qualifierCount: number }
+  >();
+  for (const row of playoffConfigRows) {
+    const format = row.format ?? "top-4";
+    playoffConfigByCategory.set(row.categoryName, {
+      format,
+      qualifierCount: getPlayoffQualifierCount(format),
+    });
+  }
 
   const teamGroupMap = new Map<
     string,
@@ -1375,6 +1399,10 @@ export async function getStandingsBySeasonId(
   const result: CategoryStandings[] = [];
 
   for (const [category, groupMap] of byCategoryAndGroup.entries()) {
+    const playoffConfig = playoffConfigByCategory.get(category) ?? {
+      format: "top-4" as const,
+      qualifierCount: 4,
+    };
     const hasMultipleGroups =
       Array.from(groupMap.keys()).filter((k) => k !== "__ungrouped__").length >= 2;
 
@@ -1407,7 +1435,12 @@ export async function getStandingsBySeasonId(
       };
     });
 
-    result.push({ category, sections });
+    result.push({
+      category,
+      playoffFormat: playoffConfig.format,
+      playoffQualifierCount: playoffConfig.qualifierCount,
+      sections,
+    });
   }
 
   return result.sort((a, b) => a.category.localeCompare(b.category));

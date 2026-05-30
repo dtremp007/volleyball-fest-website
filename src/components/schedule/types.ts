@@ -4,8 +4,11 @@ export type ScheduleEvent = {
   date: string;
   matchups: {
     id: string;
-    teamA: { name: string; logoUrl: string };
-    teamB: { name: string; logoUrl: string };
+    type?: "regular" | "playoff";
+    label?: string | null;
+    round?: string | null;
+    teamA: { name: string; logoUrl: string | null } | null;
+    teamB: { name: string; logoUrl: string | null } | null;
     category: string;
     courtId: string | null;
     slotIndex: number | null;

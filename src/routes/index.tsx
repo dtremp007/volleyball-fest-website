@@ -19,7 +19,7 @@ export const Route = createFileRoute("/")({
 
     const [schedule, standings] = await Promise.all([
       context.queryClient.fetchQuery(
-        context.trpc.matchup.getPublicSchedule.queryOptions({
+        context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
           seasonId: "season-2026-spring",
           upcomingOnly: true,
         }),
@@ -123,11 +123,15 @@ function LandingPage() {
             </div>
 
             <div className="space-y-10">
-              {standings?.map(({ category, sections }) => (
+              {standings?.map(({ category, sections, playoffQualifierCount }) => (
                 <div key={category}>
                   <h3 className="mb-4 text-xl font-semibold">{category}</h3>
                   <div className="overflow-hidden rounded-lg border">
-                    <StandingsTable sections={sections} variant="compact" limit={3} />
+                    <StandingsTable
+                      sections={sections}
+                      variant="compact"
+                      limit={playoffQualifierCount}
+                    />
                   </div>
                 </div>
               ))}

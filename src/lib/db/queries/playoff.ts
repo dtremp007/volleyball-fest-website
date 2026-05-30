@@ -11,6 +11,7 @@ import {
 import * as schema from "~/lib/db/schema";
 import { calculatePlayoffWinner } from "~/lib/playoffs/winner";
 import { combineDateAndTime, getDatePart, getTimePart } from "~/lib/schedule/slot-times";
+import type { PlayoffFormat } from "../schema/team.schema";
 
 type Seed = {
   teamId: string;
@@ -44,7 +45,6 @@ type PlayoffTemplate = {
   teams: GeneratedMatchupTeam[];
 };
 
-export type PlayoffFormat = "top-4" | "top-5";
 type PlayoffDependencyType = "winner" | "loser";
 
 const PLAYOFF_ROUND_ORDER = [
@@ -69,6 +69,10 @@ const PLAYOFF_LAST_DAY_CATEGORY_ORDER = [
   CAT_SEGUNDA_FUERZA,
   CAT_VARONIL_LIBRE,
 ];
+
+export function getPlayoffQualifierCount(format: PlayoffFormat | null | undefined) {
+  return format === "top-5" ? 5 : 4;
+}
 
 export async function getPlayoffScheduleEventsBySeasonId(db: Database, seasonId: string) {
   return await db
@@ -967,6 +971,10 @@ export async function generatePlayoffGraph(
 
   const generated = await buildPlayoffGraphFromStandings(db, params);
 
+  await db
+    .update(schema.category)
+    .set({ playoffFormat: params.format })
+    .where(eq(schema.category.id, params.categoryId));
   await db.insert(schema.playoffMatchup).values(generated.matchups);
   await db.insert(schema.playoffMatchupTeam).values(generated.teams);
 

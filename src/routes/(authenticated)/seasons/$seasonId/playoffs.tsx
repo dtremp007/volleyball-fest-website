@@ -139,7 +139,7 @@ function PlayoffsPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryId, setCategoryId] = useState("");
-  const [playoffFormat, setPlayoffFormat] = useState<PlayoffFormat>("top-5");
+  const [playoffFormat, setPlayoffFormat] = useState<PlayoffFormat>("top-4");
   const { initialViewport, saveViewport, hasStoredViewport } = useGraphViewportStorage(
     `playoff-graph-viewport:${seasonId}`,
   );

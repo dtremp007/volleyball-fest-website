@@ -40,6 +40,9 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
   const sortedSlots = Array.from(matchupsBySlot.keys()).sort((a, b) => a - b);
   const slotTimeConfig = getSlotTimeConfigForEvent(event.date);
   const displayDate = formatEventDateForDisplay(event.date);
+  const hasPlayoffs = event.matchups.some((matchup) => matchup.type === "playoff");
+  const hasCourt1 = event.matchups.some((matchup) => matchup.courtId === "A");
+  const hasCourt2 = event.matchups.some((matchup) => matchup.courtId === "B");
 
   return (
     <AccordionItem value={event.id} className="border-none">
@@ -59,7 +62,14 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
               </span>
             </div>
             <div>
-              <h3 className="font-semibold">{formatDate(event.date)}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold">{formatDate(event.date)}</h3>
+                {hasPlayoffs ? (
+                  <Badge variant="secondary" className="text-xs">
+                    Playoffs
+                  </Badge>
+                ) : null}
+              </div>
             </div>
           </div>
         </AccordionTrigger>
@@ -75,12 +85,16 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                       <th className="text-muted-foreground w-24 px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                         Hora
                       </th>
-                      <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
-                        Cancha 1
-                      </th>
-                      <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
-                        Cancha 2
-                      </th>
+                      {hasCourt1 ? (
+                        <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                          Cancha 1
+                        </th>
+                      ) : null}
+                      {hasCourt2 ? (
+                        <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                          Cancha 2
+                        </th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -100,20 +114,24 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                               {getTimeForSlotIndex(slotIndex, slotTimeConfig)}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            {slot.court1 ? (
-                              <MatchupCell matchup={slot.court1} />
-                            ) : (
-                              <span className="text-muted-foreground/50 text-sm">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {slot.court2 ? (
-                              <MatchupCell matchup={slot.court2} />
-                            ) : (
-                              <span className="text-muted-foreground/50 text-sm">—</span>
-                            )}
-                          </td>
+                          {hasCourt1 ? (
+                            <td className="px-4 py-3">
+                              {slot.court1 ? (
+                                <MatchupCell matchup={slot.court1} />
+                              ) : (
+                                <EmptyCourtSlot />
+                              )}
+                            </td>
+                          ) : null}
+                          {hasCourt2 ? (
+                            <td className="px-4 py-3">
+                              {slot.court2 ? (
+                                <MatchupCell matchup={slot.court2} />
+                              ) : (
+                                <EmptyCourtSlot />
+                              )}
+                            </td>
+                          ) : null}
                         </tr>
                       );
                     })}
@@ -164,19 +182,42 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
 function MatchupCell({ matchup }: { matchup: ScheduleEvent["matchups"][number] }) {
   return (
     <div className="bg-background flex flex-col gap-2 rounded-lg p-2.5 shadow-sm">
-      {/* Category Badge - Above teams */}
-      <Badge variant="outline" className="w-fit text-xs">
-        {matchup.category}
-      </Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="w-fit text-xs">
+          {matchup.category}
+        </Badge>
+        {matchup.label ? (
+          <span className="text-muted-foreground text-xs font-medium">
+            {matchup.label}
+          </span>
+        ) : null}
+      </div>
 
-      {/* Teams - Full width */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <TeamBadge name={matchup.teamA.name} logoUrl={matchup.teamA.logoUrl} />
+        <TeamSlot team={matchup.teamA} />
         <span className="text-muted-foreground hidden text-xs font-medium sm:inline">
           vs
         </span>
-        <TeamBadge name={matchup.teamB.name} logoUrl={matchup.teamB.logoUrl} />
+        <TeamSlot team={matchup.teamB} />
       </div>
+    </div>
+  );
+}
+
+function TeamSlot({ team }: { team: ScheduleEvent["matchups"][number]["teamA"] }) {
+  if (!team || !team.name) {
+    return (
+      <div className="bg-muted/20 h-8 min-w-0 flex-1 rounded-md border border-dashed" />
+    );
+  }
+
+  return <TeamBadge name={team.name} logoUrl={team.logoUrl} />;
+}
+
+function EmptyCourtSlot() {
+  return (
+    <div className="bg-background/60 text-muted-foreground/60 flex min-h-24 items-center justify-center rounded-lg border border-dashed">
+      <span className="text-sm">Sin partido</span>
     </div>
   );
 }
