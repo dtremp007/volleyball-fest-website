@@ -56,6 +56,7 @@ export function getRouter() {
     context: { queryClient, trpc },
     routeTree,
     defaultPreload: "intent",
+    defaultPendingMs: 120,
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <DefaultNotFound />,
     scrollRestoration: true,

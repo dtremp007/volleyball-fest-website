@@ -12,14 +12,7 @@ import {
   type NodeProps,
   type Viewport,
 } from "@xyflow/react";
-import {
-  CalendarDays,
-  ClipboardList,
-  Loader2,
-  Plus,
-  RotateCcw,
-  Sparkles,
-} from "lucide-react";
+import { CalendarDays, Loader2, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { TeamBadge } from "~/components/schedule/team-badge";
@@ -249,17 +242,6 @@ function PlayoffsPage() {
             >
               <CalendarDays className="size-4" />
               Schedule
-            </Link>
-          </Button>
-
-          <Button asChild type="button" variant="outline" className="shadow-sm">
-            <Link
-              to="/seasons/$seasonId/playoffs/scorecard"
-              params={{ seasonId }}
-              search={{}}
-            >
-              <ClipboardList className="size-4" />
-              Scorecard
             </Link>
           </Button>
         </div>

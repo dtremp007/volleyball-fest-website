@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MapPin } from "lucide-react";
+import { MapPin, Shield } from "lucide-react";
 
 import { Separator } from "~/components/ui/separator";
 
@@ -57,6 +57,14 @@ export function Footer() {
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 Inscribir equipo
+              </Link>
+              <Link
+                to="/seasons/$seasonId"
+                params={{ seasonId: "season-2026-spring" }}
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
+              >
+                Admin
+                <Shield className="size-3.5 shrink-0 opacity-70" aria-hidden />
               </Link>
             </nav>
           </div>

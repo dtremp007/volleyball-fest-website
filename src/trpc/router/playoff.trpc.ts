@@ -7,6 +7,7 @@ import {
   createDefaultPlayoffScheduleEvents,
   generatePlayoffGraph,
   getPlayoffEventMatchupsWithScores,
+  getPlayoffEventWithMatchupsById,
   getPlayoffGraph,
   getPlayoffGraphsBySeason,
   getPlayoffScheduleEventsBySeasonId,
@@ -38,6 +39,12 @@ export const playoffRouter = {
     .input(z.object({ eventId: z.string() }))
     .query(async ({ input }) => {
       return await getPlayoffEventMatchupsWithScores(db, input.eventId);
+    }),
+
+  getEventById: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ input }) => {
+      return await getPlayoffEventWithMatchupsById(db, input.eventId);
     }),
 
   getScheduleBuilderState: protectedProcedure

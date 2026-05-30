@@ -1,16 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  Calendar,
-  CalendarDays,
-  GitBranch,
-  Settings2,
-  Swords,
-  Users,
-} from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Calendar, CalendarDays, Swords, Users } from "lucide-react";
 import { Suspense } from "react";
 import z from "zod";
 import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
 import {
   Card,
   CardContent,
@@ -22,15 +14,18 @@ import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { EventsDataTable, EventsSkeleton } from "../../../../components/tables/events";
 import { EventDetailsDrawer } from "../../../../components/tables/events/event-details-drawer";
 import {
-  MatchupsDataTable,
-  MatchupsSkeleton,
-} from "../../../../components/tables/matchups";
+  PlayoffEventDetailsDrawer,
+  PlayoffEventsDataTable,
+  PlayoffEventsSkeleton,
+} from "../../../../components/tables/playoff-events";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   component: SeasonOverviewPage,
   validateSearch: z.object({
-    view: z.enum(["events", "matchups"]).optional(),
+    view: z.enum(["events", "playoffs"]).optional(),
     eventId: z.string().optional(),
+    playoffEventId: z.string().optional(),
+    /** @deprecated Matchups tab removed; kept for URL compatibility */
     matchupId: z.string().optional(),
   }),
   loader: async ({ params, context }) => {
@@ -49,7 +44,6 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
     return {
       matchupCount: matchupData.matchups.length,
       eventCount: matchupData.events.length,
-      hasMatchups: matchupData.hasMatchups,
       scheduledCount: matchupData.scheduled.length,
       unscheduledCount: matchupData.unscheduled.length,
       teamCount: teams.length,
@@ -90,19 +84,19 @@ function SeasonOverviewPage() {
     season,
     matchupCount,
     eventCount,
-    hasMatchups,
     scheduledCount,
     unscheduledCount,
     teamCount,
   } = Route.useLoaderData();
 
   const handleViewChange = (nextView: string) => {
-    if (nextView !== "events" && nextView !== "matchups") return;
+    if (nextView !== "events" && nextView !== "playoffs") return;
     navigate({
       search: (prev) => ({
         ...prev,
         view: nextView,
         eventId: nextView === "events" ? prev.eventId : undefined,
+        playoffEventId: nextView === "playoffs" ? prev.playoffEventId : undefined,
       }),
     });
   };
@@ -170,57 +164,16 @@ function SeasonOverviewPage() {
         </Card>
       </div>
 
-      {/* Quick actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>
-            Jump to different parts of the season management
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button asChild variant="outline">
-            <Link to="/seasons/$seasonId/configure" params={{ seasonId }}>
-              <Settings2 className="mr-2 size-4" />
-              Configure Groups
-            </Link>
-          </Button>
-
-          {hasMatchups ? (
-            <Button asChild>
-              <Link to="/seasons/$seasonId/build" params={{ seasonId }}>
-                <Calendar className="mr-2 size-4" />
-                Build Schedule
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild variant="secondary">
-              <Link to="/seasons/$seasonId/generate" params={{ seasonId }}>
-                <Swords className="mr-2 size-4" />
-                Generate Matchups
-              </Link>
-            </Button>
-          )}
-
-          <Button asChild variant="outline">
-            <Link to="/seasons/$seasonId/playoffs" params={{ seasonId }}>
-              <GitBranch className="mr-2 size-4" />
-              Playoffs
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-8">
-        <CardHeader>
           <CardTitle>Schedule</CardTitle>
-          <CardDescription>Browse events and matchups for this season</CardDescription>
+          <CardDescription>Browse regular-season and playoff events</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Tabs value={view} onValueChange={handleViewChange}>
             <TabsList>
               <TabsTrigger value="events">Events</TabsTrigger>
-              <TabsTrigger value="matchups">Matchups</TabsTrigger>
+              <TabsTrigger value="playoffs">Playoffs</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -229,14 +182,15 @@ function SeasonOverviewPage() {
               <EventsDataTable seasonId={seasonId} />
             </Suspense>
           ) : (
-            <Suspense fallback={<MatchupsSkeleton />}>
-              <MatchupsDataTable seasonId={seasonId} />
+            <Suspense fallback={<PlayoffEventsSkeleton />}>
+              <PlayoffEventsDataTable seasonId={seasonId} />
             </Suspense>
           )}
         </CardContent>
       </Card>
 
       <EventDetailsDrawer seasonId={seasonId} />
+      <PlayoffEventDetailsDrawer />
     </div>
   );
 }

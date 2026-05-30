@@ -1256,7 +1256,7 @@ export async function getStandingsBySeasonId(
         categoryName: schema.category.name,
         format: schema.category.playoffFormat,
       })
-      .from(schema.category)
+      .from(schema.category),
   ]);
 
   const playoffConfigByCategory = new Map<

@@ -21,6 +21,10 @@ const seasonLinks = [
   { label: "Scorecard", to: "/seasons/$seasonId/scorecard" },
   { label: "Schedule Builder", to: "/seasons/$seasonId/build" },
   { label: "Playoffs", to: "/seasons/$seasonId/playoffs" },
+  {
+    label: "Playoffs Scorecard",
+    to: "/seasons/$seasonId/playoffs/scorecard",
+  },
 ];
 
 const breadcrumbSegmentLabels: Record<string, string> = {

@@ -756,6 +756,34 @@ export async function getPlayoffEventMatchupsWithScores(db: Database, eventId: s
   };
 }
 
+export async function getPlayoffEventWithMatchupsById(db: Database, eventId: string) {
+  const result = await getPlayoffEventMatchupsWithScores(db, eventId);
+  if (!result) return null;
+
+  const { event, matchups } = result;
+
+  return {
+    id: event.id,
+    name: event.name,
+    date: event.date,
+    matchups: matchups.map((matchup) => {
+      const teams = [...matchup.teams].sort((a, b) => a.slotIndex - b.slotIndex);
+      const teamA = teams[0];
+      const teamB = teams[1];
+
+      return {
+        id: matchup.id,
+        label: matchup.label,
+        teamA: { name: teamA?.teamName ?? teamA?.label ?? "TBD" },
+        teamB: { name: teamB?.teamName ?? teamB?.label ?? "TBD" },
+        category: matchup.category,
+        courtId: matchup.courtId,
+        slotIndex: matchup.slotIndex,
+      };
+    }),
+  };
+}
+
 export async function getPlayoffEventsWithMatchupsBySeasonId(
   db: Database,
   seasonId: string,

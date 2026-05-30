@@ -18,6 +18,7 @@ import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
+import { NavigationProgress } from "~/components/navigation-progress";
 import { ThemeProvider } from "~/components/theme-provider";
 import { Toaster } from "~/components/ui/sonner";
 import { TooltipProvider } from "~/components/ui/tooltip";
@@ -152,6 +153,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="font-display flex flex-col antialiased">
         <ThemeProvider>
           <TooltipProvider>
+            <NavigationProgress />
             <Header
               links={[
                 { label: "Inicio", to: "/" },
