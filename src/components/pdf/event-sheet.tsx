@@ -112,11 +112,42 @@ const styles = StyleSheet.create({
     lineHeight: 1.25,
   },
   matchupContextText: {
+    position: "absolute",
+    top: 7,
+    fontSize: 8,
+    fontWeight: "bold",
+    color: "#6b7280",
+  },
+  matchupContextLeft: {
+    left: 8,
+    textAlign: "left",
+  },
+  matchupContextRight: {
+    right: 8,
+    textAlign: "right",
+  },
+  labeledMatchupCell: {
+    position: "relative",
+    paddingTop: 24,
+  },
+  labeledMatchupTeamsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+  },
+  labeledMatchupTeamText: {
+    width: "42.5%",
+    fontSize: 9,
+    fontWeight: "bold",
+    textAlign: "center",
+    lineHeight: 1.25,
+  },
+  labeledMatchupVsText: {
+    width: "15%",
     fontSize: 8,
     fontWeight: "bold",
     textAlign: "center",
     color: "#6b7280",
-    marginBottom: 3,
   },
   vsText: {
     fontSize: 9,
@@ -232,9 +263,11 @@ function buildSlotRows(matchups: EventWithMatchups["matchups"]) {
 function CourtColumns({
   matchup,
   singleCourt,
+  side,
 }: {
   matchup?: EventMatchup;
   singleCourt: boolean;
+  side: "left" | "right";
 }) {
   const teamCellStyle = singleCourt ? styles.singleCourtTeamCell : styles.teamCell;
   const vsCellStyle = singleCourt ? styles.singleCourtVsCell : styles.vsCell;
@@ -262,21 +295,31 @@ function CourtColumns({
   const matchupLabel = matchup.label;
   const hasTeamA = !matchup.teamA.isPlaceholder;
   const hasTeamB = !matchup.teamB.isPlaceholder;
-  const hasExactlyOneTeam = hasTeamA !== hasTeamB;
+  const hasAnyKnownTeam = hasTeamA || hasTeamB;
 
   if (matchupLabel) {
-    if (hasExactlyOneTeam) {
+    const labelAlignment = side === "left" ? "left" : "right";
+
+    if (hasAnyKnownTeam) {
       return (
-        <View style={[styles.cellBase, matchupLabelCellStyle]}>
-          <Text style={styles.matchupContextText}>
+        <View style={[styles.cellBase, matchupLabelCellStyle, styles.labeledMatchupCell]}>
+          <Text
+            style={[
+              styles.matchupContextText,
+              side === "left" ? styles.matchupContextLeft : styles.matchupContextRight,
+            ]}
+          >
             {wrapTeamName(matchupLabel.toUpperCase(), 28)}
           </Text>
-          <Text style={[styles.teamText, { color: matchupColor }]}>
-            {wrapTeamName(
-              `${matchup.teamA.name.toUpperCase()} VS ${matchup.teamB.name.toUpperCase()}`,
-              28,
-            )}
-          </Text>
+          <View style={styles.labeledMatchupTeamsRow}>
+            <Text style={[styles.labeledMatchupTeamText, { color: matchupColor }]}>
+              {wrapTeamName(matchup.teamA.name.toUpperCase())}
+            </Text>
+            <Text style={styles.labeledMatchupVsText}>vs</Text>
+            <Text style={[styles.labeledMatchupTeamText, { color: matchupColor }]}>
+              {wrapTeamName(matchup.teamB.name.toUpperCase())}
+            </Text>
+          </View>
         </View>
       );
     }
@@ -360,7 +403,11 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                       }
                     >
                       {hasCourtA && (
-                        <CourtColumns matchup={slot.courtA} singleCourt={singleCourt} />
+                        <CourtColumns
+                          matchup={slot.courtA}
+                          singleCourt={singleCourt}
+                          side="left"
+                        />
                       )}
                       <View
                         style={[
@@ -375,7 +422,11 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                         </Text>
                       </View>
                       {hasCourtB && (
-                        <CourtColumns matchup={slot.courtB} singleCourt={singleCourt} />
+                        <CourtColumns
+                          matchup={slot.courtB}
+                          singleCourt={singleCourt}
+                          side="right"
+                        />
                       )}
                     </View>
                   );

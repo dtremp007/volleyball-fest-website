@@ -372,9 +372,13 @@ export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string
     const minimumDependencyEventIndex =
       dependencyEventIndexes.length > 0 ? Math.max(...dependencyEventIndexes) : 0;
     const preferredEventIndex = PLAYOFF_ROUND_EVENT_INDEX[matchup.round] ?? 0;
+    const latestEventIndex =
+      lastEvent && !isLastDayPlayoffMatchup(matchup) && orderedEvents.length > 1
+        ? orderedEvents.length - 2
+        : orderedEvents.length - 1;
     const eventIndex = Math.min(
       Math.max(preferredEventIndex, minimumDependencyEventIndex),
-      orderedEvents.length - 1,
+      latestEventIndex,
     );
     const courtId = courts[scheduledMatchupIds.size % courts.length];
     const countKey = `${orderedEvents[eventIndex]?.id}:${courtId}`;
@@ -805,7 +809,7 @@ export async function getPlayoffEventsWithMatchupsBySeasonId(
 
         return {
           id: matchup.id,
-          label: teamA?.teamId && teamB?.teamId ? undefined : matchup.label,
+          label: matchup.label,
           teamA: {
             name: teamA?.teamName ?? teamA?.label ?? "TBD",
             logoUrl: teamA?.teamLogoUrl ?? "",
