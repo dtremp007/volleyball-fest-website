@@ -18,7 +18,7 @@ import {
   TableFooter,
   TableRow,
 } from "~/components/ui/table";
-import { Route } from "~/routes/(authenticated)/teams";
+import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 import { BottomBarWrapper } from "./bottom-bar";
 import { columns } from "./columns";
@@ -30,7 +30,8 @@ export function TeamsDataTable() {
   "use no memo";
   const trpc = useTRPC();
   const navigate = useNavigate();
-  const { seasonId, categoryId } = Route.useSearch();
+  const { seasonId } = Route.useParams();
+  const { categoryId } = Route.useSearch();
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -102,7 +103,11 @@ export function TeamsDataTable() {
   };
 
   const handleClearFilters = () => {
-    navigate({ to: "/teams", search: { seasonId, categoryId: undefined } });
+    navigate({
+      to: "/seasons/$seasonId/teams",
+      params: { seasonId },
+      search: { categoryId: undefined },
+    });
   };
 
   // No teams at all for this season

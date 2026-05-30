@@ -1,11 +1,16 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { cn } from "~/lib/utils";
 import { useTRPC } from "~/trpc/react";
 
 export function CategoryTabs() {
   const trpc = useTRPC();
-  const { seasonId, categoryId } = useSearch({ from: "/(authenticated)/teams/" });
+  const { seasonId } = useParams({
+    from: "/(authenticated)/seasons/$seasonId/teams",
+  });
+  const { categoryId } = useSearch({
+    from: "/(authenticated)/seasons/$seasonId/teams",
+  });
 
   const { data: categories } = useSuspenseQuery(trpc.category.getAll.queryOptions());
 
@@ -16,8 +21,9 @@ export function CategoryTabs() {
         aria-label="Category tabs"
       >
         <Link
-          to="/teams"
-          search={{ seasonId, categoryId: undefined }}
+          to="/seasons/$seasonId/teams"
+          params={{ seasonId }}
+          search={{ categoryId: undefined }}
           className={cn(
             "inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
             "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
@@ -31,8 +37,9 @@ export function CategoryTabs() {
         {categories.map((category) => (
           <Link
             key={category.id}
-            to="/teams"
-            search={{ seasonId, categoryId: category.id }}
+            to="/seasons/$seasonId/teams"
+            params={{ seasonId }}
+            search={{ categoryId: category.id }}
             className={cn(
               "inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
               "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",

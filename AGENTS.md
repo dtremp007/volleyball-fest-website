@@ -39,9 +39,13 @@ Create season → Open signup → Teams register (public form)
 Key admin routes under `/seasons/$seasonId/`:
 
 - **`/`** — season overview (events + matchups tabs, PDF links)
+- **`/teams`** — teams registered for that season
+- **`/scorecard`** — live score entry for that season
 - **`/configure`** — assign teams to groups (DnD)
 - **`/generate`** — generate round-robin matchups and auto-schedule onto dates
 - **`/build`** — visual schedule builder (courts, time slots, drag matchups)
+- **`/playoffs`** — playoff bracket/overview
+- **`/playoffs/build`** — playoff schedule builder
 
 ## Tech Stack
 
@@ -124,14 +128,25 @@ src/
 
 ### Authenticated (admin)
 
-| Route                  | Purpose                                                |
-| ---------------------- | ------------------------------------------------------ |
-| `/teams`               | Team management table                                  |
-| `/seasons`             | Season list                                            |
-| `/seasons/$seasonId/*` | Season workflow (overview, configure, generate, build) |
-| `/scorecard`           | Live score entry for a game night                      |
-| `/settings`            | App settings                                           |
-| `/dashboard`           | Dashboard (if used)                                    |
+| Route                               | Purpose                                            |
+| ----------------------------------- | -------------------------------------------------- |
+| `/seasons`                          | Season list                                        |
+| `/seasons/$seasonId`                | Season overview                                    |
+| `/seasons/$seasonId/teams`          | Team management table for the season               |
+| `/seasons/$seasonId/scorecard`      | Live score entry for the season                    |
+| `/seasons/$seasonId/configure`      | Group assignment workflow                          |
+| `/seasons/$seasonId/generate`       | Matchup generation and auto-scheduling             |
+| `/seasons/$seasonId/build`          | Visual schedule builder                            |
+| `/seasons/$seasonId/playoffs`       | Playoff bracket/overview                           |
+| `/seasons/$seasonId/playoffs/build` | Playoff schedule builder                           |
+| `/settings`                         | App settings                                       |
+| `/dashboard`                        | Legacy dashboard route, not normal season workflow |
+
+Authenticated league operations are season-scoped. Prefer adding admin pages
+that read or mutate season data under `/seasons/$seasonId/*`, and read
+`seasonId` from route params instead of search params or hardcoded constants.
+The season layout lives at `src/routes/(authenticated)/seasons/$seasonId/route.tsx`
+and owns the breadcrumb row plus the horizontal season menu.
 
 ### API
 
@@ -183,6 +198,12 @@ pnpm dev               # http://localhost:3000
 - Validator naming: `createXSchema`, `updateXSchema`
 - UI: shadcn components in `src/components/ui/`
 - Tables: TanStack Table patterns in `src/components/tables/<entity>/`
+- Admin season navigation uses full-width header bars with centered wide content
+  (`max-w-7xl`, `px-4`) for the main header, season breadcrumbs, and horizontal
+  season menu.
+- Season breadcrumbs are derived from the current pathname inside the season
+  layout. Avoid brittle breadcrumb maps keyed by TanStack file-route ids, because
+  route ids can differ from URLs for files such as `playoffs_.build.tsx`.
 
 ### Git / PR Workflow
 
@@ -213,7 +234,7 @@ pnpm dev               # http://localhost:3000
 
 ## Known Gotchas
 
-- **`season-2026-spring` hardcoded** in some routes (`index.tsx`, `scorecard.tsx`, `posiciones.tsx` loader). Prefer resolving the active season dynamically (as `/equipos` and `/posiciones` do in components).
+- **`season-2026-spring` hardcoded** in some public/auth entry points (`src/routes/index.tsx`, `src/routes/posiciones.tsx`, `src/routes/__root.tsx`, and the auth-page redirect). Prefer resolving the active season dynamically where practical.
 - **`.env.example` is stale** — missing R2 vars and Turso `DATABASE_AUTH_TOKEN`; use `src/env/server.ts` as source of truth.
 - **`docker-compose.yml`** is unused (Postgres template leftover).
 - **Public UI is Spanish** (`es-MX`); **admin UI is English** — see Language Policy above.
@@ -253,7 +274,7 @@ volleyball-fest-website-2/
 │   │   └── unavailable-dates.ts   # Team date availability parsing
 │   ├── routes/
 │   │   ├── (auth-pages)/          # login, signup
-│   │   ├── (authenticated)/       # Admin area (teams, seasons, scorecard, settings)
+│   │   ├── (authenticated)/       # Admin area (season-scoped workflows, settings)
 │   │   ├── api/                   # tRPC, auth, upload, PDF endpoints
 │   │   ├── __root.tsx             # Root layout
 │   │   ├── index.tsx              # Public landing page

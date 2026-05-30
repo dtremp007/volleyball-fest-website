@@ -51,7 +51,7 @@ export function ActionsMenu({ team }: Props) {
           <DropdownMenuItem asChild>
             <Link
               to="/signup-form"
-              search={{ teamId: team.id, returnTo: "/teams" }}
+              search={{ teamId: team.id }}
               className="flex items-center"
             >
               <Eye className="mr-2 size-4" />

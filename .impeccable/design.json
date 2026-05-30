@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-29T00:00:00-06:00",
+  "title": "Design System: Volleyball Fest",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Paper Court",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0.005 285.823)",
+          "oklch(0.28 0.005 285.823)",
+          "oklch(0.42 0.005 285.823)",
+          "oklch(0.56 0.005 285.823)",
+          "oklch(0.70 0.004 285.823)",
+          "oklch(0.84 0.003 285.823)",
+          "oklch(0.94 0.002 285.823)",
+          "oklch(1 0 0)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Score Ink",
+        "canonical": "oklch(0.141 0.005 285.823)",
+        "tonalRamp": [
+          "oklch(0.141 0.005 285.823)",
+          "oklch(0.24 0.006 285.823)",
+          "oklch(0.36 0.007 285.823)",
+          "oklch(0.48 0.007 285.823)",
+          "oklch(0.62 0.006 285.823)",
+          "oklch(0.76 0.005 285.823)",
+          "oklch(0.88 0.003 285.823)",
+          "oklch(0.96 0.002 285.823)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Ink Court",
+        "canonical": "oklch(0.21 0.006 285.885)",
+        "tonalRamp": [
+          "oklch(0.15 0.006 285.885)",
+          "oklch(0.21 0.006 285.885)",
+          "oklch(0.32 0.007 285.885)",
+          "oklch(0.45 0.007 285.885)",
+          "oklch(0.60 0.006 285.885)",
+          "oklch(0.74 0.005 285.885)",
+          "oklch(0.88 0.004 285.885)",
+          "oklch(0.95 0.003 285.885)"
+        ]
+      },
+      "volleyball-red": {
+        "role": "primary",
+        "displayName": "Volley Red",
+        "canonical": "#C20A12",
+        "tonalRamp": [
+          "oklch(0.18 0.08 27)",
+          "oklch(0.30 0.13 27)",
+          "oklch(0.42 0.18 27)",
+          "oklch(0.54 0.22 27)",
+          "oklch(0.66 0.19 27)",
+          "oklch(0.78 0.13 27)",
+          "oklch(0.88 0.07 27)",
+          "oklch(0.95 0.03 27)"
+        ]
+      },
+      "destructive": {
+        "role": "semantic",
+        "displayName": "Fault Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "tonalRamp": [
+          "oklch(0.18 0.08 27.325)",
+          "oklch(0.30 0.13 27.325)",
+          "oklch(0.42 0.18 27.325)",
+          "oklch(0.577 0.245 27.325)",
+          "oklch(0.68 0.20 27.325)",
+          "oklch(0.80 0.13 27.325)",
+          "oklch(0.90 0.07 27.325)",
+          "oklch(0.96 0.03 27.325)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Public hero and major brand moments only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Major page and section headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, workflow labels, table sections, and drawers."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default reading text and form content."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, tabs, badges, field labels, and table headers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting-card",
+        "value": "0 1px 2px rgb(0 0 0 / 0.05)",
+        "purpose": "Subtle separation for cards and contained admin surfaces."
+      },
+      {
+        "name": "tiny-control",
+        "value": "0 1px 1px rgb(0 0 0 / 0.04)",
+        "purpose": "Small affordance on outline buttons and inputs."
+      },
+      {
+        "name": "drag-lift",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Hover lift for draggable schedule blocks."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms-250ms ease-out",
+        "purpose": "Default state feedback for color, shadow, and opacity."
+      },
+      {
+        "name": "mobile-nav-reveal",
+        "value": "0.31s-0.56s cubic-bezier(0.32, 0.08, 0.24, 1)",
+        "purpose": "Existing full-screen mobile navigation reveal."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default command button for admin and public actions.",
+      "html": "<button class=\"ds-btn-primary\">Save season</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border: 0; border-radius: 8px; background: var(--primary, oklch(0.21 0.006 285.885)); color: var(--primary-foreground, oklch(0.985 0 0)); font: 500 14px/1.25 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; white-space: nowrap; transition: background-color 160ms ease-out, box-shadow 160ms ease-out; } .ds-btn-primary:hover { background: color-mix(in oklch, var(--primary, oklch(0.21 0.006 285.885)) 90%, transparent); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring, oklch(0.705 0.015 286.067)) 50%, transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary command button for adjacent actions.",
+      "html": "<button class=\"ds-btn-outline\">Export PDF</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border: 1px solid var(--border, oklch(0.92 0.004 286.32)); border-radius: 8px; background: var(--background, oklch(1 0 0)); color: var(--foreground, oklch(0.141 0.005 285.823)); box-shadow: 0 1px 1px rgb(0 0 0 / 0.04); font: 500 14px/1.25 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; white-space: nowrap; transition: background-color 160ms ease-out, box-shadow 160ms ease-out; } .ds-btn-outline:hover { background: var(--accent, oklch(0.967 0.001 286.375)); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring, oklch(0.705 0.015 286.067)) 50%, transparent); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Compact field for forms, tables, and score entry.",
+      "html": "<input class=\"ds-input\" placeholder=\"Team name\" />",
+      "css": ".ds-input { width: 100%; min-width: 0; height: 36px; padding: 4px 12px; border: 1px solid var(--input, oklch(0.92 0.004 286.32)); border-radius: 8px; background: transparent; color: var(--foreground, oklch(0.141 0.005 285.823)); font: 400 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; box-shadow: 0 1px 1px rgb(0 0 0 / 0.04); transition: border-color 160ms ease-out, box-shadow 160ms ease-out; } .ds-input::placeholder { color: var(--muted-foreground, oklch(0.552 0.016 285.938)); } .ds-input:focus-visible { outline: none; border-color: var(--ring, oklch(0.705 0.015 286.067)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring, oklch(0.705 0.015 286.067)) 50%, transparent); }"
+    },
+    {
+      "name": "Secondary Badge",
+      "kind": "chip",
+      "refersTo": "badge-secondary",
+      "description": "Compact label for standings, statuses, and section markers.",
+      "html": "<span class=\"ds-badge-secondary\">Posiciones</span>",
+      "css": ".ds-badge-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: fit-content; padding: 2px 8px; border: 1px solid transparent; border-radius: 9999px; background: var(--secondary, oklch(0.967 0.001 286.375)); color: var(--secondary-foreground, oklch(0.21 0.006 285.885)); font: 500 12px/1.25 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; white-space: nowrap; transition: color 160ms ease-out, box-shadow 160ms ease-out; } .ds-badge-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring, oklch(0.705 0.015 286.067)) 50%, transparent); }"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Contained product surface for repeated content, drawers, and summaries.",
+      "html": "<article class=\"ds-card\"><h3>Schedule Builder</h3><p>Arrange matchups by court and time slot.</p></article>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 24px; padding: 24px; border: 1px solid var(--border, oklch(0.92 0.004 286.32)); border-radius: 14px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.141 0.005 285.823)); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); } .ds-card h3 { margin: 0; font: 600 20px/1.35 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; } .ds-card p { margin: 0; color: var(--muted-foreground, oklch(0.552 0.016 285.938)); font: 400 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; }"
+    },
+    {
+      "name": "Season Tab",
+      "kind": "nav",
+      "refersTo": "season-tab",
+      "description": "Horizontal season-scoped navigation tab.",
+      "html": "<nav class=\"ds-season-tabs\"><a class=\"ds-season-tab ds-active\">Overview</a><a class=\"ds-season-tab\">Teams</a><a class=\"ds-season-tab\">Schedule Builder</a></nav>",
+      "css": ".ds-season-tabs { display: flex; align-items: center; overflow-x: auto; border-bottom: 1px solid var(--border, oklch(0.92 0.004 286.32)); background: var(--background, oklch(1 0 0)); } .ds-season-tab { display: inline-flex; align-items: center; padding: 16px 16px 8px; border-bottom: 2px solid transparent; color: var(--muted-foreground, oklch(0.552 0.016 285.938)); font: 500 16px/1.25 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; text-decoration: none; white-space: nowrap; transition: color 160ms ease-out, border-color 160ms ease-out; } .ds-season-tab:hover, .ds-season-tab.ds-active { color: var(--primary, oklch(0.21 0.006 285.885)); } .ds-season-tab.ds-active { border-bottom-color: var(--primary, oklch(0.21 0.006 285.885)); }"
+    },
+    {
+      "name": "Schedule Matchup Block",
+      "kind": "custom",
+      "refersTo": "schedule-block",
+      "description": "Tactile draggable block for court and time-slot scheduling.",
+      "html": "<div class=\"ds-matchup-block\"><span class=\"ds-grip\">::</span><div><strong>Halcones</strong><span>vs</span><strong>Panteras</strong></div></div>",
+      "css": ".ds-matchup-block { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 2px solid oklch(0.82 0.10 80); border-radius: 8px; background: oklch(0.97 0.03 80); color: oklch(0.35 0.09 80); font: 500 14px/1.25 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; cursor: grab; user-select: none; transition: box-shadow 160ms ease-out, opacity 160ms ease-out; } .ds-matchup-block:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); } .ds-matchup-block:active { cursor: grabbing; } .ds-matchup-block div { min-width: 0; display: grid; gap: 2px; } .ds-matchup-block strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-matchup-block span { color: var(--muted-foreground, oklch(0.552 0.016 285.938)); font-size: 12px; } .ds-grip { color: color-mix(in oklch, var(--muted-foreground, oklch(0.552 0.016 285.938)) 50%, transparent); letter-spacing: -2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Game-Night Ledger",
+    "overview": "Volleyball Fest should feel like a well-run game night: lively at the entrance, calm at the table where scores, schedules, and rosters are managed. The current system is a restrained product interface built on shadcn-style primitives, with energy reserved for public hero moments, team marks, and schedule-builder category cues.\n\nThe product must stay direct. Admins are often doing repeated work before or during league operations, so the system uses familiar controls, compact rows, clear focus rings, sticky navigation, and table-first density. Public pages can feel more athletic, but they should still answer practical questions before they decorate.\n\nIt explicitly rejects the PRODUCT.md anti-references: generic SaaS dashboards, overhyped pro-sports branding, cluttered tournament sheets, and decorative effects that slow down admin work.",
+    "keyCharacteristics": [
+      "Restrained neutral product shell with one hard-working primary voice.",
+      "Sport energy appears in public hero treatment, logo use, and category/status accents.",
+      "Dense tables and schedule blocks are allowed when they make league operations faster.",
+      "Motion is state feedback, not page choreography.",
+      "Spanish public surfaces and English admin surfaces remain visually connected but linguistically separate."
+    ],
+    "rules": [
+      {
+        "name": "The Red Spark Rule",
+        "body": "Volley Red is an identity cue, not the admin system color. Use it for brand moments and explicit destructive or alerting contexts only when the meaning is clear.",
+        "section": "colors"
+      },
+      {
+        "name": "The Category Color Rule",
+        "body": "Category color is earned by comparison: schedule blocks, standings distinctions, or filters. Do not tint unrelated cards just to make a page colorful.",
+        "section": "colors"
+      },
+      {
+        "name": "The Native Workbench Rule",
+        "body": "Use the system sans for product UI. Do not introduce display fonts into admin labels, buttons, data, or form controls.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hero Exception Rule",
+        "body": "Public hero type can be big and bold, but it must stay solid, readable, and direct. No gradient text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Until Touched Rule",
+        "body": "Surfaces are flat or barely raised at rest. Stronger shadow appears only for hover, drag, focus, or sticky navigation separation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do make the current season context obvious in admin navigation, breadcrumbs, headings, and workflow tabs.",
+      "Do use Ink Court for primary actions, active tabs, and selected states.",
+      "Do keep public pages in Spanish and admin pages in English.",
+      "Do use tables, tabs, and dense controls when they make league operations faster.",
+      "Do keep focus rings visible on every keyboard-reachable control.",
+      "Do use category tints only for meaningful comparison, such as schedule-builder blocks or filters."
+    ],
+    "donts": [
+      "Don't create generic SaaS dashboards that could belong to any company.",
+      "Don't use overhyped pro-sports branding, aggressive stadium graphics, or visual noise that makes a recreational league feel inflated.",
+      "Don't mimic cluttered tournament sheets or dense spreadsheet artifacts without improving readability.",
+      "Don't add decorative effects that slow down admin work.",
+      "Don't use gradient text, glassmorphism as a default, or side-stripe borders greater than 1px.",
+      "Don't make Volley Red the default admin surface color.",
+      "Don't rely on color alone for match conflicts, errors, standings changes, or schedule status."
+    ]
+  }
+}

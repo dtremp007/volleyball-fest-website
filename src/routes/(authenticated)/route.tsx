@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { HorizontalMenuLayout, Menu } from "~/components/horizontal-menu";
 
 export const Route = createFileRoute("/(authenticated)")({
   component: Layout,
@@ -16,19 +15,5 @@ export const Route = createFileRoute("/(authenticated)")({
 });
 
 export function Layout() {
-  return (
-    <>
-      <HorizontalMenuLayout>
-        <Menu
-          links={[
-            { label: "Teams", to: "/teams" },
-            { label: "Scorecard", to: "/scorecard" },
-            { label: "Seasons", to: "/seasons" },
-            { label: "Settings", to: "/settings" },
-          ]}
-        />
-      </HorizontalMenuLayout>
-      <Outlet />
-    </>
-  );
+  return <Outlet />;
 }

@@ -17,10 +17,10 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatUnavailableDates, parseUnavailableDates } from "~/lib/unavailable-dates";
-import { Route } from "~/routes/(authenticated)/teams";
+import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 
-const routeApi = getRouteApi("/(authenticated)/teams/");
+const routeApi = getRouteApi("/(authenticated)/seasons/$seasonId/teams");
 
 export function TeamDetailsDrawer() {
   const { teamId } = routeApi.useSearch();

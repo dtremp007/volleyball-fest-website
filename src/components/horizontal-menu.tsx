@@ -11,7 +11,7 @@ export function HorizontalMenuLayout({
   return (
     <nav
       className={cn(
-        "bg-background border-border sticky top-0 z-10 flex flex-row flex-nowrap items-center justify-start overflow-x-auto border-b",
+        "bg-background flex flex-row flex-nowrap items-center justify-start overflow-x-auto",
         className,
       )}
       style={{
@@ -23,14 +23,22 @@ export function HorizontalMenuLayout({
   );
 }
 
-export function Menu({ links }: { links: { label: string; to: string }[] }) {
+export function Menu({
+  links,
+}: {
+  links: { label: string; to: string; params?: Record<string, string> }[];
+}) {
   return (
-    <div className="flex flex-row flex-nowrap items-center px-4">
+    <div className="container mx-auto flex w-full flex-row flex-nowrap items-center">
       {links.map((link) => (
         <Link
           key={link.to}
           to={link.to}
-          className="text-md text-muted-foreground hover:text-primary data-[status=active]:border-primary data-[status=active]:text-primary p-4 pb-2 text-nowrap data-[status=active]:border-b-2"
+          params={link.params}
+          activeOptions={{
+            exact: true,
+          }}
+          className="text-muted-foreground hover:text-primary data-[status=active]:border-primary data-[status=active]:text-primary px-4 py-3 text-sm font-medium text-nowrap transition-colors data-[status=active]:border-b-2"
         >
           {link.label}
         </Link>

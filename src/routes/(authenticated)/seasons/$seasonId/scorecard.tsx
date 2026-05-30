@@ -14,16 +14,16 @@ function formatEventDate(event: { date: string }) {
   });
 }
 
-export const Route = createFileRoute("/(authenticated)/scorecard")({
+export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/scorecard")({
   component: ScorecardPage,
   validateSearch: z.object({
     eventId: z.string().optional(),
   }),
   loaderDeps: ({ search }) => ({ eventId: search.eventId }),
-  loader: async ({ context, deps }) => {
+  loader: async ({ context, deps, params }) => {
     const schedule = await context.queryClient.fetchQuery(
       context.trpc.matchup.getPublicSchedule.queryOptions({
-        seasonId: "season-2026-spring",
+        seasonId: params.seasonId,
         upcomingOnly: false,
       }),
     );

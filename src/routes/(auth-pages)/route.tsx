@@ -4,20 +4,19 @@ import { authQueryOptions } from "~/lib/auth/queries";
 export const Route = createFileRoute("/(auth-pages)")({
   component: RouteComponent,
   beforeLoad: async ({ context }) => {
-    const REDIRECT_URL = "/teams";
-
     const user = await context.queryClient.ensureQueryData({
       ...authQueryOptions(),
       revalidateIfStale: true,
     });
     if (user) {
       throw redirect({
-        to: REDIRECT_URL,
+        to: "/seasons/$seasonId",
+        params: { seasonId: "season-2026-spring" },
       });
     }
 
     return {
-      redirectUrl: REDIRECT_URL,
+      redirectUrl: "/seasons/season-2026-spring",
     };
   },
 });

@@ -1,7 +1,7 @@
 import { flexRender, type Row } from "@tanstack/react-table";
 import { TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
-import { Route } from "~/routes/(authenticated)/teams";
+import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import type { Team } from "./columns";
 
 type Props = {

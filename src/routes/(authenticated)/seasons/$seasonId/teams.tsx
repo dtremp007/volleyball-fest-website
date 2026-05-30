@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 import z from "zod";
 import {
@@ -9,26 +9,12 @@ import {
 } from "~/components/tables/teams";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export const Route = createFileRoute("/(authenticated)/teams/")({
+export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/teams")({
   component: TeamsPage,
   validateSearch: z.object({
-    seasonId: z.string().optional(),
     categoryId: z.string().optional(),
     teamId: z.string().optional(),
   }),
-  beforeLoad: async ({ search, context }) => {
-    if (!search.seasonId) {
-      const seasons = await context.queryClient.fetchQuery(
-        context.trpc.season.getAll.queryOptions(),
-      );
-      const currentSeason =
-        seasons.find((season) => !["completed", "draft"].includes(season.state)) ||
-        seasons[0];
-
-      throw redirect({ to: "/teams", search: { seasonId: currentSeason.id } });
-    }
-    return { seasonId: search.seasonId };
-  },
 });
 
 function TabsSkeleton() {
