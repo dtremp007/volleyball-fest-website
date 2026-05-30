@@ -111,6 +111,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 1.25,
   },
+  matchupContextText: {
+    fontSize: 8,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#6b7280",
+    marginBottom: 3,
+  },
   vsText: {
     fontSize: 9,
     textAlign: "center",
@@ -253,8 +260,27 @@ function CourtColumns({
 
   const matchupColor = CATEGORY_COLORS[matchup.category] ?? "#374151";
   const matchupLabel = matchup.label;
+  const hasTeamA = !matchup.teamA.isPlaceholder;
+  const hasTeamB = !matchup.teamB.isPlaceholder;
+  const hasExactlyOneTeam = hasTeamA !== hasTeamB;
 
   if (matchupLabel) {
+    if (hasExactlyOneTeam) {
+      return (
+        <View style={[styles.cellBase, matchupLabelCellStyle]}>
+          <Text style={styles.matchupContextText}>
+            {wrapTeamName(matchupLabel.toUpperCase(), 28)}
+          </Text>
+          <Text style={[styles.teamText, { color: matchupColor }]}>
+            {wrapTeamName(
+              `${matchup.teamA.name.toUpperCase()} VS ${matchup.teamB.name.toUpperCase()}`,
+              28,
+            )}
+          </Text>
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.cellBase, matchupLabelCellStyle]}>
         <Text style={[styles.teamText, { color: matchupColor }]}>

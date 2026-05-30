@@ -1451,8 +1451,8 @@ export async function getStandingsBySeasonId(
 export type PublicMatchup = {
   id: string;
   label?: string;
-  teamA: { name: string; logoUrl: string };
-  teamB: { name: string; logoUrl: string };
+  teamA: { name: string; logoUrl: string; isPlaceholder?: boolean };
+  teamB: { name: string; logoUrl: string; isPlaceholder?: boolean };
   category: string;
   courtId: string | null;
   slotIndex: number | null;

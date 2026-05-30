@@ -809,10 +809,12 @@ export async function getPlayoffEventsWithMatchupsBySeasonId(
           teamA: {
             name: teamA?.teamName ?? teamA?.label ?? "TBD",
             logoUrl: teamA?.teamLogoUrl ?? "",
+            isPlaceholder: !teamA?.teamId,
           },
           teamB: {
             name: teamB?.teamName ?? teamB?.label ?? "TBD",
             logoUrl: teamB?.teamLogoUrl ?? "",
+            isPlaceholder: !teamB?.teamId,
           },
           category: matchup.category,
           courtId: matchup.courtId,
