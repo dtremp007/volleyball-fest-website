@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
 import { Badge } from "~/components/ui/badge";
+import { formatEventDateForDisplay } from "~/lib/schedule/slot-times";
 import { ActionsMenu } from "./actions-menu";
 
 export type EventRow = {
@@ -20,7 +20,11 @@ export const columns: ColumnDef<EventRow>[] = [
     },
     cell: ({ row }) => (
       <span className="text-muted-foreground">
-        {format(new Date(row.original.date), "MMM d, yyyy")}
+        {formatEventDateForDisplay(row.original.date).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}
       </span>
     ),
   },

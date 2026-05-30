@@ -1417,6 +1417,7 @@ export async function getStandingsBySeasonId(
 
 export type PublicMatchup = {
   id: string;
+  label?: string;
   teamA: { name: string; logoUrl: string };
   teamB: { name: string; logoUrl: string };
   category: string;
@@ -1490,6 +1491,7 @@ export async function getEventsWithMatchupsBySeasonId(db: Database, seasonId: st
       },
       matchups: eventMatchups.map((matchup) => ({
         id: matchup.id,
+        label: undefined,
         teamA: { name: matchup.teamA.name, logoUrl: matchup.teamA.logoUrl },
         teamB: { name: matchup.teamB.name, logoUrl: matchup.teamB.logoUrl },
         category: matchup.category,
@@ -1549,7 +1551,9 @@ export async function getPublicSchedule(
 
   if (upcomingOnly) {
     const yesterday = startOfDay(subDays(new Date(), 1));
-    conditions.push(gte(schema.scheduleEvent.startTime, yesterday.toISOString()));
+    conditions.push(
+      gte(schema.scheduleEvent.startTime, yesterday.toISOString().split("T")[0] ?? ""),
+    );
   }
 
   // Get events

@@ -10,11 +10,23 @@ import {
 } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { CalendarPlus, Check, Cloud, Loader2 } from "lucide-react";
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
+import { Calendar } from "~/components/ui/calendar";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "~/components/ui/popover";
 import { toScheduleBuilderSnapshot } from "~/lib/schedule/builder-state";
+import { combineDateAndTime, getTimePart } from "~/lib/schedule/slot-times";
 import type {
   ScheduleBuilderInitialState,
   ScheduleBuilderSnapshot,
@@ -44,7 +56,7 @@ export function ScheduleBuilder({
   autosaveIntervalMs = AUTOSAVE_INTERVAL,
 }: ScheduleBuilderProps) {
   const init = useScheduleStore((state) => state.init);
-  const addEvent = useScheduleStore((state) => state.addEvent);
+  const addEvents = useScheduleStore((state) => state.addEvents);
   const setActiveMatchup = useScheduleStore((state) => state.setActiveMatchup);
   const moveScheduledToUnscheduled = useScheduleStore(
     (state) => state.moveScheduledToUnscheduled,
@@ -100,10 +112,19 @@ export function ScheduleBuilder({
   });
   const sensors = useSensors(mouseSensor, touchSensor);
 
-  const handleAddEvent = useCallback(() => {
-    const today = new Date().toISOString().split("T")[0];
-    addEvent(format(new Date(), "MMM d, yyyy"), today);
-  }, [addEvent]);
+  const handleAddEvents = useCallback(
+    (dates: Date[], startTime: string) => {
+      const events = dates
+        .map((date) => ({
+          name: format(date, "MMM d, yyyy"),
+          date: combineDateAndTime(format(date, "yyyy-MM-dd"), startTime),
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      addEvents(events);
+    },
+    [addEvents],
+  );
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -224,10 +245,7 @@ export function ScheduleBuilder({
 
               {toolbarActions}
 
-              <Button onClick={handleAddEvent}>
-                <CalendarPlus className="mr-2 size-4" />
-                Add Event
-              </Button>
+              <AddEventsPopover onAddEvents={handleAddEvents} />
             </div>
           </div>
 
@@ -239,10 +257,9 @@ export function ScheduleBuilder({
                 <p className="mt-1 text-sm">
                   Create an event to start scheduling matchups
                 </p>
-                <Button onClick={handleAddEvent} className="mt-4">
-                  <CalendarPlus className="mr-2 size-4" />
+                <AddEventsPopover onAddEvents={handleAddEvents} triggerClassName="mt-4">
                   Create First Event
-                </Button>
+                </AddEventsPopover>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-6 pb-4">
@@ -259,5 +276,83 @@ export function ScheduleBuilder({
         {activeMatchup ? <MatchupBlockOverlay matchup={activeMatchup} /> : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+type AddEventsPopoverProps = {
+  onAddEvents: (dates: Date[], startTime: string) => void;
+  children?: ReactNode;
+  triggerClassName?: string;
+};
+
+function AddEventsPopover({
+  onAddEvents,
+  children = "Add Event",
+  triggerClassName,
+}: AddEventsPopoverProps) {
+  const [open, setOpen] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<Date[] | undefined>();
+  const [startTime, setStartTime] = useState(() => getTimePart(""));
+
+  const selectedCount = selectedDates?.length ?? 0;
+  const sortedDates = useMemo(
+    () => [...(selectedDates ?? [])].sort((a, b) => a.getTime() - b.getTime()),
+    [selectedDates],
+  );
+
+  const handleCreate = useCallback(() => {
+    if (sortedDates.length === 0) return;
+    onAddEvents(sortedDates, startTime);
+    setSelectedDates(undefined);
+    setOpen(false);
+  }, [onAddEvents, sortedDates, startTime]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button className={triggerClassName}>
+          <CalendarPlus className="mr-2 size-4" />
+          {children}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0">
+        <div className="border-b px-4 py-3">
+          <PopoverHeader>
+            <PopoverTitle>Create events</PopoverTitle>
+            <PopoverDescription>
+              Select one or more dates and a start time.
+            </PopoverDescription>
+          </PopoverHeader>
+        </div>
+        <Calendar
+          mode="multiple"
+          selected={selectedDates}
+          onSelect={setSelectedDates}
+          autoFocus
+        />
+        <div className="border-t px-3 py-3">
+          <Label htmlFor="event-start-time" className="text-xs">
+            Start time
+          </Label>
+          <Input
+            id="event-start-time"
+            type="time"
+            value={startTime}
+            onChange={(event) => setStartTime(event.target.value)}
+            className="mt-1 h-9"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t p-3">
+          <span className="text-muted-foreground text-sm">
+            {selectedCount === 0
+              ? "No dates selected"
+              : `${selectedCount} date${selectedCount === 1 ? "" : "s"} selected`}
+          </span>
+          <Button size="sm" onClick={handleCreate} disabled={selectedCount === 0}>
+            Create
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

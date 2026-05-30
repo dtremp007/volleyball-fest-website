@@ -119,7 +119,7 @@ describe("mapSnapshotToSaveInput", () => {
     });
 
     expect(input.seasonId).toBe("season-1");
-    expect(input.events).toEqual([{ id: "e1", name: "Jun 1", date: "2026-06-01" }]);
+    expect(input.events).toEqual([{ id: "e1", name: "Jun 1", date: "2026-06-01 16:15" }]);
     expect(input.matchups).toEqual(
       expect.arrayContaining([
         { id: "m1", eventId: "e1", courtId: "A", slotIndex: 0 },

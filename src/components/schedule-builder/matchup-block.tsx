@@ -63,6 +63,60 @@ function getCategoryColor(category: string) {
   return selected;
 }
 
+function getMatchupDisplayLabel(matchup: Matchup) {
+  const hasMissingTeam = matchup.teamA.isPlaceholder || matchup.teamB.isPlaceholder;
+  return hasMissingTeam ? (matchup.label ?? matchup.id) : null;
+}
+
+function MatchupContent({ matchup }: { matchup: Matchup }) {
+  const label = getMatchupDisplayLabel(matchup);
+  const colors = getCategoryColor(matchup.category);
+
+  return (
+    <div className="flex min-h-14 flex-col justify-center pr-20">
+      <div className="absolute top-2 right-2 max-w-20 truncate text-[10px] leading-none font-semibold text-slate-500 uppercase dark:text-slate-400">
+        {matchup.category}
+      </div>
+
+      {label ? (
+        <div className={cn("truncate text-sm font-semibold tracking-wide", colors.text)}>
+          {label}
+        </div>
+      ) : (
+        <>
+          <div
+            className={cn(
+              "flex items-center gap-1.5 truncate text-sm font-medium",
+              colors.text,
+            )}
+          >
+            {matchup.teamA.name}
+            {matchup.teamA.isFarAway && (
+              <span title="Far away team">
+                <Car className="size-3.5 shrink-0" />
+              </span>
+            )}
+          </div>
+          <div className="text-muted-foreground my-0.5 text-xs">vs</div>
+          <div
+            className={cn(
+              "flex items-center gap-1.5 truncate text-sm font-medium",
+              colors.text,
+            )}
+          >
+            {matchup.teamB.name}
+            {matchup.teamB.isFarAway && (
+              <span title="Far away team">
+                <Car className="size-3.5 shrink-0" />
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 type MatchupBlockProps = {
   matchupId: string;
   eventId: string;
@@ -134,7 +188,7 @@ export const MatchupBlock = memo(function MatchupBlock({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group flex items-center gap-2 rounded-lg border-2 px-3 py-2 transition-shadow select-none",
+        "group relative flex min-h-20 items-center gap-2 rounded-lg border-2 px-3 py-2 transition-shadow select-none",
         colors.bg,
         colors.border,
         isDragging && "z-10 opacity-40",
@@ -145,33 +199,7 @@ export const MatchupBlock = memo(function MatchupBlock({
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "flex items-center gap-1.5 truncate text-sm font-medium",
-            colors.text,
-          )}
-        >
-          {matchup.teamA.name}
-          {matchup.teamA.isFarAway && (
-            <span title="Far away team">
-              <Car className="size-3.5 shrink-0" />
-            </span>
-          )}
-        </div>
-        <div className="text-muted-foreground my-0.5 text-xs">vs</div>
-        <div
-          className={cn(
-            "flex items-center gap-1.5 truncate text-sm font-medium",
-            colors.text,
-          )}
-        >
-          {matchup.teamB.name}
-          {matchup.teamB.isFarAway && (
-            <span title="Far away team">
-              <Car className="size-3.5 shrink-0" />
-            </span>
-          )}
-        </div>
+        <MatchupContent matchup={matchup} />
       </div>
       {hasWarning && (
         <Tooltip>
@@ -227,7 +255,7 @@ export const UnscheduledMatchupBlock = memo(function UnscheduledMatchupBlock({
     <div
       ref={setNodeRef}
       className={cn(
-        "group flex items-center gap-2 rounded-lg border-2 px-3 py-2 transition-all select-none",
+        "group relative flex min-h-20 items-center gap-2 rounded-lg border-2 px-3 py-2 transition-all select-none",
         colors.bg,
         colors.border,
         isDragging && "opacity-40",
@@ -238,33 +266,7 @@ export const UnscheduledMatchupBlock = memo(function UnscheduledMatchupBlock({
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "flex items-center gap-1.5 truncate text-sm font-medium",
-            colors.text,
-          )}
-        >
-          {matchup.teamA.name}
-          {matchup.teamA.isFarAway && (
-            <span title="Far away team">
-              <Car className="size-3.5 shrink-0" />
-            </span>
-          )}
-        </div>
-        <div className="text-muted-foreground my-0.5 text-xs">vs</div>
-        <div
-          className={cn(
-            "flex items-center gap-1.5 truncate text-sm font-medium",
-            colors.text,
-          )}
-        >
-          {matchup.teamB.name}
-          {matchup.teamB.isFarAway && (
-            <span title="Far away team">
-              <Car className="size-3.5 shrink-0" />
-            </span>
-          )}
-        </div>
+        <MatchupContent matchup={matchup} />
       </div>
     </div>
   );
@@ -280,7 +282,7 @@ export const MatchupBlockOverlay = memo(function MatchupBlockOverlay({
   return (
     <div
       className={cn(
-        "flex scale-105 rotate-2 items-center gap-2 rounded-lg border-2 px-3 py-2 shadow-2xl",
+        "relative flex min-h-20 scale-105 rotate-2 items-center gap-2 rounded-lg border-2 px-3 py-2 shadow-2xl",
         colors.bg,
         colors.border,
         "ring-primary/50 ring-2",
@@ -288,33 +290,7 @@ export const MatchupBlockOverlay = memo(function MatchupBlockOverlay({
     >
       <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "flex items-center gap-1.5 truncate text-sm font-medium",
-            colors.text,
-          )}
-        >
-          {matchup.teamA.name}
-          {matchup.teamA.isFarAway && (
-            <span title="Far away team">
-              <Car className="size-3.5 shrink-0" />
-            </span>
-          )}
-        </div>
-        <div className="text-muted-foreground my-0.5 text-xs">vs</div>
-        <div
-          className={cn(
-            "flex items-center gap-1.5 truncate text-sm font-medium",
-            colors.text,
-          )}
-        >
-          {matchup.teamB.name}
-          {matchup.teamB.isFarAway && (
-            <span title="Far away team">
-              <Car className="size-3.5 shrink-0" />
-            </span>
-          )}
-        </div>
+        <MatchupContent matchup={matchup} />
       </div>
     </div>
   );

@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { addDays, isWithinInterval, parseISO, startOfDay, subDays } from "date-fns";
+import { addDays, isWithinInterval, startOfDay, subDays } from "date-fns";
 import z from "zod";
 
 import { EventMatchupsScoreTable } from "~/components/schedule/event-matchups-score-table";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { formatEventDateForDisplay } from "~/lib/schedule/slot-times";
 
 function formatEventDate(event: { date: string }) {
-  return parseISO(event.date).toLocaleDateString("en-US", {
+  return formatEventDateForDisplay(event.date).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/scoreca
     const today = startOfDay(new Date());
     const range = { start: subDays(today, 2), end: addDays(today, 2) };
     const eventWithin2Days = schedule.find((e) => {
-      const eventDate = startOfDay(parseISO(e.date));
+      const eventDate = startOfDay(formatEventDateForDisplay(e.date));
       return isWithinInterval(eventDate, range);
     });
 

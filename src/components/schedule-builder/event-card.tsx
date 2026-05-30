@@ -1,4 +1,4 @@
-import { Calendar, MoreVertical, Trash2 } from "lucide-react";
+import { MoreVertical, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { combineDateAndTime, getDatePart, getTimePart } from "~/lib/schedule/slot-times";
 import { CourtColumn } from "./court-column";
 import { useScheduleStore } from "./store";
 
@@ -21,6 +22,10 @@ export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
   );
   const eventDate = useScheduleStore(
     (state) => state.events.find((e) => e.id === eventId)?.date ?? "",
+  );
+  const eventStartTime = useScheduleStore(
+    (state) =>
+      state.events.find((e) => e.id === eventId)?.startTime ?? getTimePart(eventDate),
   );
   const courtIds = useScheduleStore(
     useShallow(
@@ -46,16 +51,34 @@ export const EventCard = memo(function EventCard({ eventId }: EventCardProps) {
             className="w-full border-none bg-transparent text-lg font-semibold outline-none focus:ring-0"
             placeholder="Event name"
           />
-          <div className="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
-            <Calendar className="size-4" />
-            <input
-              type="date"
-              value={eventDate.split(" ")[0]}
-              onChange={(e) =>
-                updateEvent(eventId, { date: e.target.value + " 12:00:00" })
-              }
-              className="border-none bg-transparent outline-none focus:ring-0"
-            />
+          <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <label>
+              <span className="sr-only">Event date</span>
+              <input
+                type="date"
+                value={getDatePart(eventDate)}
+                onChange={(e) =>
+                  updateEvent(eventId, {
+                    date: combineDateAndTime(e.target.value, eventStartTime),
+                  })
+                }
+                className="border-none bg-transparent outline-none focus:ring-0"
+              />
+            </label>
+            <label>
+              <span className="sr-only">Event start time</span>
+              <input
+                type="time"
+                value={eventStartTime}
+                onChange={(e) =>
+                  updateEvent(eventId, {
+                    date: combineDateAndTime(getDatePart(eventDate), e.target.value),
+                    startTime: e.target.value,
+                  })
+                }
+                className="border-none bg-transparent outline-none focus:ring-0"
+              />
+            </label>
           </div>
         </div>
 

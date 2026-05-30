@@ -2,15 +2,18 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod";
 import { db } from "~/lib/db";
 import {
+  autoSchedulePlayoffMatchups,
   clearPlayoffGraph,
   createDefaultPlayoffScheduleEvents,
   generatePlayoffGraph,
+  getPlayoffEventMatchupsWithScores,
   getPlayoffGraph,
   getPlayoffGraphsBySeason,
   getPlayoffScheduleEventsBySeasonId,
   getPlayoffScheduleMatchupsBySeasonId,
   hasPlayoffScores,
   savePlayoffSchedule,
+  savePlayoffSetScore,
 } from "~/lib/db/queries/playoff";
 import { buildPlayoffScheduleBuilderStateResponse } from "~/lib/schedule/playoff-builder-state";
 import { protectedProcedure } from "~/trpc/init";
@@ -29,6 +32,12 @@ export const playoffRouter = {
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await getPlayoffScheduleEventsBySeasonId(db, input.seasonId);
+    }),
+
+  getEventMatchupsForScoring: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ input }) => {
+      return await getPlayoffEventMatchupsWithScores(db, input.eventId);
     }),
 
   getScheduleBuilderState: protectedProcedure
@@ -76,6 +85,12 @@ export const playoffRouter = {
       return { eventsCreated: events.length, events };
     }),
 
+  regenerateSchedule: protectedProcedure
+    .input(z.object({ seasonId: z.string() }))
+    .mutation(async ({ input }) => {
+      return await autoSchedulePlayoffMatchups(db, input.seasonId);
+    }),
+
   saveSchedule: protectedProcedure
     .input(
       z.object({
@@ -85,6 +100,7 @@ export const playoffRouter = {
             id: z.string(),
             name: z.string(),
             date: z.string(),
+            startTime: z.string().optional(),
           }),
         ),
         matchups: z.array(
@@ -99,6 +115,21 @@ export const playoffRouter = {
     )
     .mutation(async ({ input }) => {
       await savePlayoffSchedule(db, input);
+      return { success: true };
+    }),
+
+  saveSetScore: protectedProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        matchupId: z.string(),
+        teamId: z.string(),
+        set: z.number().int().positive(),
+        points: z.number().int().min(0),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      await savePlayoffSetScore(db, input);
       return { success: true };
     }),
 } satisfies TRPCRouterRecord;

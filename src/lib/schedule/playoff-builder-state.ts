@@ -5,11 +5,13 @@ import type {
   ScheduleBuilderSnapshot,
   ScheduleBuilderStateResponse,
 } from "~/validators/schedule-builder.validators";
+import { combineDateAndTime, getDatePart, getTimePart } from "./slot-times";
 
 type PlayoffScheduleEvent = {
   id: string;
   name: string;
   date: string;
+  startTime?: string;
 };
 
 type PlayoffScheduleSlot = {
@@ -39,18 +41,21 @@ export function toPlayoffScheduleBuilderMatchup(
 
   return {
     id: matchup.id,
+    label: matchup.label,
     category: matchup.category,
     teamA: {
       id: slotA?.teamId ?? slotA?.id ?? `${matchup.id}:slot-0`,
       name: slotA?.teamName ?? slotA?.label ?? "TBD",
       logoUrl: slotA?.teamLogoUrl ?? "",
       category: matchup.category,
+      isPlaceholder: !slotA?.teamId,
     },
     teamB: {
       id: slotB?.teamId ?? slotB?.id ?? `${matchup.id}:slot-1`,
       name: slotB?.teamName ?? slotB?.label ?? "TBD",
       logoUrl: slotB?.teamLogoUrl ?? "",
       category: matchup.category,
+      isPlaceholder: !slotB?.teamId,
     },
   };
 }
@@ -118,6 +123,7 @@ export function toPlayoffScheduleBuilderInitialState(
       id: event.id,
       name: event.name,
       date: event.date,
+      startTime: event.startTime ?? getTimePart(event.date),
       courts: [
         {
           id: "A" as const,
@@ -201,7 +207,10 @@ export function mapPlayoffSnapshotToSaveInput(
     events: snapshot.events.map((event) => ({
       id: event.id,
       name: event.name,
-      date: event.date,
+      date: combineDateAndTime(
+        getDatePart(event.date),
+        event.startTime ?? getTimePart(event.date),
+      ),
     })),
     matchups: matchupPlacements,
   };

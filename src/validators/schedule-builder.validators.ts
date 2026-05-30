@@ -7,10 +7,12 @@ export const scheduleBuilderTeamSchema = z.object({
   category: z.string(),
   unavailableDates: z.string().optional(),
   isFarAway: z.boolean().optional(),
+  isPlaceholder: z.boolean().optional(),
 });
 
 export const scheduleBuilderMatchupSchema = z.object({
   id: z.string(),
+  label: z.string().optional(),
   teamA: scheduleBuilderTeamSchema,
   teamB: scheduleBuilderTeamSchema,
   category: z.string(),
@@ -25,6 +27,7 @@ export const scheduleBuilderEventSchema = z.object({
   id: z.string(),
   name: z.string(),
   date: z.string(),
+  startTime: z.string().optional(),
   courts: z.tuple([scheduleBuilderCourtSchema, scheduleBuilderCourtSchema]),
 });
 

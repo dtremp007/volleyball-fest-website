@@ -27,7 +27,7 @@ export const playoffMatchup = sqliteTable("playoff_matchup", {
   }),
   courtId: text("court_id"),
   slotIndex: integer("slot_index"),
-  duration: integer("duration").notNull().default(45),
+  duration: integer("duration").notNull().default(60),
 });
 
 export const playoffMatchupTeam = sqliteTable("playoff_matchup_team", {
@@ -41,6 +41,7 @@ export const playoffMatchupTeam = sqliteTable("playoff_matchup_team", {
   dependsOn: text("depends_on").references(() => playoffMatchup.id, {
     onDelete: "set null",
   }),
+  dependencyType: text("dependency_type").notNull().default("winner"),
 });
 
 export const playoffPoint = sqliteTable(

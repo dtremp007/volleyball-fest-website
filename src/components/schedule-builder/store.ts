@@ -34,10 +34,11 @@ type ScheduleActions = {
     overMatchupId: string,
   ) => void;
   addEvent: (name: string, date: string) => void;
+  addEvents: (events: { name: string; date: string }[]) => void;
   deleteEvent: (eventId: string) => void;
   updateEvent: (
     eventId: string,
-    updates: Partial<Pick<ScheduleEvent, "name" | "date">>,
+    updates: Partial<Pick<ScheduleEvent, "name" | "date" | "startTime">>,
   ) => void;
   setSaved: () => void;
   markDirty: () => void;
@@ -205,6 +206,18 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
   addEvent: (name, date) => {
     set((state) => ({
       events: [...state.events, createNewEvent(name, date)],
+      isDirty: true,
+    }));
+  },
+
+  addEvents: (events) => {
+    if (events.length === 0) return;
+
+    set((state) => ({
+      events: [
+        ...state.events,
+        ...events.map((event) => createNewEvent(event.name, event.date)),
+      ],
       isDirty: true,
     }));
   },

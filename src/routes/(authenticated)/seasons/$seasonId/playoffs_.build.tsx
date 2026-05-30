@@ -1,6 +1,6 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { CalendarPlus, FileText, Loader2, Sparkles } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { ScheduleBuilder } from "~/components/schedule-builder/schedule-builder";
@@ -38,6 +38,11 @@ function PlayoffBuildPage() {
   );
   const { mutateAsync: createDatesAsync, isPending: isCreatingDates } =
     createDatesMutation;
+  const regenerateMutation = useMutation(
+    trpc.playoff.regenerateSchedule.mutationOptions(),
+  );
+  const { mutateAsync: regenerateScheduleAsync, isPending: isRegeneratingMutation } =
+    regenerateMutation;
 
   const handleSave = useCallback(
     async (snapshot: ScheduleBuilderSnapshot) => {
@@ -58,6 +63,27 @@ function PlayoffBuildPage() {
     }
   }, [createDatesAsync, refetch, seasonId]);
 
+  const handleRegenerate = useCallback(async () => {
+    try {
+      const result = await regenerateScheduleAsync({ seasonId });
+      await refetch();
+
+      if (result.unscheduledCount > 0) {
+        toast.success(
+          `Generated playoff schedule: ${result.scheduledCount} placed, ${result.unscheduledCount} unscheduled.`,
+        );
+      } else {
+        toast.success(
+          `Generated playoff schedule: ${result.scheduledCount} matchups placed.`,
+        );
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate playoff schedule",
+      );
+    }
+  }, [refetch, regenerateScheduleAsync, seasonId]);
+
   if (!data.hasMatchups) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -72,7 +98,8 @@ function PlayoffBuildPage() {
   }
 
   const hasPlayoffDates = data.events.length > 0;
-  const isBusy = isSaving || isCreatingDates || isRefetching;
+  const isRegenerating = isRegeneratingMutation || isRefetching;
+  const isBusy = isSaving || isCreatingDates || isRegenerating;
 
   return (
     <ScheduleBuilder
@@ -82,26 +109,68 @@ function PlayoffBuildPage() {
       onSave={handleSave}
       isSaving={isSaving}
       toolbarActions={
-        !hasPlayoffDates ? (
+        <>
           <Button
+            asChild={hasPlayoffDates}
             variant="outline"
             size="sm"
-            onClick={handleCreateDates}
-            disabled={isBusy}
+            disabled={!hasPlayoffDates}
           >
-            {isCreatingDates || isRefetching ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Creating...
-              </>
+            {hasPlayoffDates ? (
+              <a
+                href={`/api/playoff-event-pdf?seasonId=${encodeURIComponent(seasonId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="mr-2 size-4" />
+                Playoff PDF
+              </a>
             ) : (
               <>
-                <CalendarPlus className="mr-2 size-4" />
-                Create Playoff Dates
+                <FileText className="mr-2 size-4" />
+                Playoff PDF
               </>
             )}
           </Button>
-        ) : null
+          {!hasPlayoffDates ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateDates}
+              disabled={isBusy}
+            >
+              {isCreatingDates || isRefetching ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <CalendarPlus className="mr-2 size-4" />
+                  Create Playoff Dates
+                </>
+              )}
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerate}
+            disabled={isBusy || !hasPlayoffDates}
+          >
+            {isRegenerating ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 size-4" />
+                Generate
+              </>
+            )}
+          </Button>
+        </>
       }
     />
   );

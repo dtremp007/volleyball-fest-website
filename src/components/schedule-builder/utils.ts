@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { getTimePart } from "~/lib/schedule/slot-times";
 import type { ScheduleEvent } from "./types";
 
 export const AUTOSAVE_INTERVAL = 5000; // 5 seconds
@@ -55,6 +56,7 @@ export function createNewEvent(name: string, date: string): ScheduleEvent {
     id: uuidv4(),
     name,
     date,
+    startTime: getTimePart(date),
     courts: [
       { id: "A", matchups: [] },
       { id: "B", matchups: [] },

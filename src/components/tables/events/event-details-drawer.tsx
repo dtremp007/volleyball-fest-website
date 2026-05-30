@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { ImageIcon, Loader2, X } from "lucide-react";
 import { useState } from "react";
-import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import { Button } from "~/components/ui/button";
 import {
   Drawer,
@@ -27,6 +26,11 @@ import {
   downloadScheduleImage,
   generateEventScheduleImage,
 } from "~/lib/canvas/event-schedule-image";
+import {
+  formatEventDateForDisplay,
+  getSlotTimeConfigForEvent,
+  getTimeForSlotIndex,
+} from "~/lib/schedule/slot-times";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId";
 import { useTRPC } from "~/trpc/react";
 
@@ -37,7 +41,7 @@ type Props = {
 };
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("es-MX", {
+  return formatEventDateForDisplay(dateStr).toLocaleDateString("es-MX", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -45,9 +49,9 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatSlot(slotIndex: number | null) {
+function formatSlot(slotIndex: number | null, eventDate: string) {
   if (slotIndex === null) return "Unscheduled";
-  return getTimeForSlotIndex(slotIndex);
+  return getTimeForSlotIndex(slotIndex, getSlotTimeConfigForEvent(eventDate));
 }
 
 function formatMatchup(matchup: {
@@ -182,7 +186,7 @@ export function EventDetailsDrawer({ seasonId }: Props) {
                         return (
                           <TableRow key={slotIndex}>
                             <TableCell className="text-muted-foreground text-xs">
-                              {formatSlot(slotIndex)}
+                              {formatSlot(slotIndex, event.date)}
                             </TableCell>
                             <TableCell className="whitespace-normal">
                               {slot.courtA ? (

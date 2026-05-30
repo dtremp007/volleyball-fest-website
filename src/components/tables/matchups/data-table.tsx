@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-table";
 import * as React from "react";
 import { toast } from "sonner";
-import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import {
   Table,
   TableBody,
@@ -17,6 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import {
+  getSlotTimeConfigForEvent,
+  getTimeForSlotIndex,
+} from "~/lib/schedule/slot-times";
 import { useTRPC } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/router";
 import type { MatchupTableRow, SetSubRow } from "./columns";
@@ -152,7 +155,12 @@ export function MatchupsDataTable({ seasonId }: Props) {
       .map((matchup) => {
         const event = matchup.eventId ? eventsById.get(matchup.eventId) : null;
         const slotLabel =
-          matchup.slotIndex !== null ? getTimeForSlotIndex(matchup.slotIndex) : null;
+          matchup.slotIndex !== null
+            ? getTimeForSlotIndex(
+                matchup.slotIndex,
+                getSlotTimeConfigForEvent(event?.date ?? ""),
+              )
+            : null;
 
         const setsByNum = new Map(
           matchup.sets.map((s) => [

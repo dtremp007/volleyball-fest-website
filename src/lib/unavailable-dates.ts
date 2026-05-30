@@ -6,7 +6,7 @@ export function parseUnavailableDates(unavailableDates: string): string[] {
 }
 
 export function normalizeDateOnly(dateValue: string): string {
-  return dateValue.split("T")[0]?.trim() ?? "";
+  return dateValue.split(/[T ]/)[0]?.trim() ?? "";
 }
 
 export function isDateUnavailable(unavailableDates: string, eventDate: string): boolean {

@@ -1,5 +1,9 @@
 import { format } from "date-fns";
-import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
+import {
+  formatEventDateForDisplay,
+  getSlotTimeConfigForEvent,
+  getTimeForSlotIndex,
+} from "~/lib/schedule/slot-times";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Varonil Libre": "#000000",
@@ -26,9 +30,9 @@ type EventForImage = {
   }>;
 };
 
-function formatSlot(slotIndex: number | null) {
+function formatSlot(slotIndex: number | null, eventDate: string) {
   if (slotIndex === null) return "Unscheduled";
-  return getTimeForSlotIndex(slotIndex);
+  return getTimeForSlotIndex(slotIndex, getSlotTimeConfigForEvent(eventDate));
 }
 
 function wrapText(
@@ -164,7 +168,7 @@ export async function generateEventScheduleImage(
   // Date
   ctx.fillStyle = "#4b5563";
   ctx.font = "22px system-ui, sans-serif";
-  ctx.fillText(format(new Date(event.date), "MMM d, yyyy"), W / 2, y);
+  ctx.fillText(format(formatEventDateForDisplay(event.date), "MMM d, yyyy"), W / 2, y);
   y += 40;
 
   // Legend
@@ -269,7 +273,7 @@ export async function generateEventScheduleImage(
       // Time
       ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
       ctx.fillStyle = "#374151";
-      ctx.fillText(formatSlot(slotIndex), colCenters[3], rowCenterY);
+      ctx.fillText(formatSlot(slotIndex, event.date), colCenters[3], rowCenterY);
 
       // Court B: team | vs | team
       ctx.font = `bold ${fontSize}px system-ui, sans-serif`;

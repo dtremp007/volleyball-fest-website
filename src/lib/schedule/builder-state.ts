@@ -9,6 +9,7 @@ import type {
   ScheduleBuilderSnapshot,
   ScheduleBuilderStateResponse,
 } from "~/validators/schedule-builder.validators";
+import { combineDateAndTime, getDatePart, getTimePart } from "./slot-times";
 
 type DbMatchup = Awaited<ReturnType<typeof getMatchupsBySeasonId>>[number];
 type DbEvent = Awaited<ReturnType<typeof getEventsBySeasonId>>[number];
@@ -101,6 +102,7 @@ export function toScheduleBuilderInitialState(
       id: dbEvent.id,
       name: dbEvent.name,
       date: dbEvent.date,
+      startTime: getTimePart(dbEvent.date),
       courts: [
         {
           id: "A" as const,
@@ -194,7 +196,11 @@ export function mapSnapshotToSaveInput(
 
   return {
     seasonId,
-    events: snapshot.events.map((e) => ({ id: e.id, name: e.name, date: e.date })),
+    events: snapshot.events.map((e) => ({
+      id: e.id,
+      name: e.name,
+      date: combineDateAndTime(getDatePart(e.date), e.startTime ?? getTimePart(e.date)),
+    })),
     matchups: matchupPlacements,
   };
 }

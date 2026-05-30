@@ -1,6 +1,6 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Sparkles } from "lucide-react";
+import { FileText, Loader2, Sparkles } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { ScheduleBuilder } from "~/components/schedule-builder/schedule-builder";
@@ -95,19 +95,48 @@ function BuildPage() {
       onSave={handleSave}
       isSaving={isSaving}
       toolbarActions={
-        <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={isBusy}>
-          {isRegenerating ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              Regenerating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 size-4" />
-              Regenerate
-            </>
-          )}
-        </Button>
+        <>
+          <Button
+            asChild={data.events.length > 0}
+            variant="outline"
+            size="sm"
+            disabled={data.events.length === 0}
+          >
+            {data.events.length > 0 ? (
+              <a
+                href={`/api/event-pdf?seasonId=${encodeURIComponent(seasonId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="mr-2 size-4" />
+                Schedule PDF
+              </a>
+            ) : (
+              <>
+                <FileText className="mr-2 size-4" />
+                Schedule PDF
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerate}
+            disabled={isBusy}
+          >
+            {isRegenerating ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Regenerating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 size-4" />
+                Regenerate
+              </>
+            )}
+          </Button>
+        </>
       }
     />
   );

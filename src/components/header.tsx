@@ -11,7 +11,7 @@ export const Header: React.FC<HeaderProps> = ({ links }) => {
   return (
     <header className="sticky top-0 z-50">
       <Navbar className="dark:border-border shadow-md dark:border-b dark:shadow-none">
-        <div className="relative mx-auto h-16 w-full max-w-7xl px-4">
+        <div className="relative container mx-auto h-16 w-full px-4">
           <div className="absolute top-2 left-4 z-30">
             <Link to="/">
               <img src="/icon-no-bg-512.png" alt="Logo" className="h-10" />

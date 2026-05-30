@@ -23,6 +23,7 @@ import {
   saveSetScore,
 } from "~/lib/db/queries/schedule";
 import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state";
+import { combineDateAndTime } from "~/lib/schedule/slot-times";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
 
 export const matchupRouter = {
@@ -219,6 +220,7 @@ export const matchupRouter = {
             id: z.string(),
             name: z.string(),
             date: z.string(),
+            startTime: z.string().optional(),
           }),
         ),
         matchups: z.array(
@@ -280,7 +282,7 @@ export const matchupRouter = {
         const event = await createEvent(db, {
           seasonId,
           name: format(new Date(`${date}T12:00:00`), "MMM d, yyyy"),
-          date,
+          date: combineDateAndTime(date, input.defaultStartTime),
         });
         eventIds.push(event.id);
       }

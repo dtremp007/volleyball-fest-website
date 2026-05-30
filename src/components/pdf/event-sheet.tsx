@@ -1,7 +1,11 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { format } from "date-fns";
-import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import type { EventWithMatchups } from "~/lib/db/queries/schedule";
+import {
+  formatEventDateForDisplay,
+  getSlotTimeConfigForEvent,
+  getTimeForSlotIndex,
+} from "~/lib/schedule/slot-times";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Varonil Libre": "#000000",
@@ -53,7 +57,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
     minHeight: 44,
     borderBottomWidth: 1,
     borderBottomColor: "#f3f4f6",
@@ -70,11 +74,36 @@ const styles = StyleSheet.create({
   teamCell: {
     width: "18.18%",
   },
+  singleCourtTeamCell: {
+    width: "32%",
+  },
+  matchupLabelCell: {
+    width: "45.45%",
+  },
+  singleCourtMatchupLabelCell: {
+    width: "80%",
+  },
   vsCell: {
     width: "9.09%",
   },
+  singleCourtVsCell: {
+    width: "16%",
+  },
   timeCell: {
     width: "9.09%",
+    borderLeftWidth: 1,
+    borderLeftColor: "#e5e7eb",
+    borderRightWidth: 1,
+    borderRightColor: "#e5e7eb",
+  },
+  singleCourtTimeCell: {
+    width: "20%",
+  },
+  timeCellNoLeftBorder: {
+    borderLeftWidth: 0,
+  },
+  timeCellNoRightBorder: {
+    borderRightWidth: 0,
   },
   teamText: {
     fontSize: 9,
@@ -124,9 +153,9 @@ type Props = {
 
 type EventMatchup = EventWithMatchups["matchups"][number];
 
-function formatSlot(slotIndex: number | null) {
+function formatSlot(slotIndex: number | null, eventDate: string) {
   if (slotIndex === null) return "Unscheduled";
-  return getTimeForSlotIndex(slotIndex);
+  return getTimeForSlotIndex(slotIndex, getSlotTimeConfigForEvent(eventDate));
 }
 
 function wrapTeamName(name: string, maxCharsPerLine = 14) {
@@ -166,6 +195,8 @@ function wrapTeamName(name: string, maxCharsPerLine = 14) {
 
 function buildSlotRows(matchups: EventWithMatchups["matchups"]) {
   const scheduledMatchups = matchups.filter((matchup) => matchup.slotIndex !== null);
+  const hasCourtA = scheduledMatchups.some((matchup) => matchup.courtId === "A");
+  const hasCourtB = scheduledMatchups.some((matchup) => matchup.courtId === "B");
   const slotRows = new Map<
     number,
     {
@@ -185,21 +216,35 @@ function buildSlotRows(matchups: EventWithMatchups["matchups"]) {
   return {
     sortedSlotIndices: Array.from(slotRows.keys()).sort((a, b) => a - b),
     slotRows,
+    hasCourtA,
+    hasCourtB,
     unscheduledCount: matchups.length - scheduledMatchups.length,
   };
 }
 
-function CourtColumns({ matchup }: { matchup?: EventMatchup }) {
+function CourtColumns({
+  matchup,
+  singleCourt,
+}: {
+  matchup?: EventMatchup;
+  singleCourt: boolean;
+}) {
+  const teamCellStyle = singleCourt ? styles.singleCourtTeamCell : styles.teamCell;
+  const vsCellStyle = singleCourt ? styles.singleCourtVsCell : styles.vsCell;
+  const matchupLabelCellStyle = singleCourt
+    ? styles.singleCourtMatchupLabelCell
+    : styles.matchupLabelCell;
+
   if (!matchup) {
     return (
       <>
-        <View style={[styles.cellBase, styles.teamCell]}>
+        <View style={[styles.cellBase, teamCellStyle]}>
           <Text style={styles.emptyCellText}>-</Text>
         </View>
-        <View style={[styles.cellBase, styles.vsCell]}>
+        <View style={[styles.cellBase, vsCellStyle]}>
           <Text style={styles.emptyCellText}>-</Text>
         </View>
-        <View style={[styles.cellBase, styles.teamCell]}>
+        <View style={[styles.cellBase, teamCellStyle]}>
           <Text style={styles.emptyCellText}>-</Text>
         </View>
       </>
@@ -207,18 +252,29 @@ function CourtColumns({ matchup }: { matchup?: EventMatchup }) {
   }
 
   const matchupColor = CATEGORY_COLORS[matchup.category] ?? "#374151";
+  const matchupLabel = matchup.label;
+
+  if (matchupLabel) {
+    return (
+      <View style={[styles.cellBase, matchupLabelCellStyle]}>
+        <Text style={[styles.teamText, { color: matchupColor }]}>
+          {wrapTeamName(matchupLabel.toUpperCase(), 28)}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <>
-      <View style={[styles.cellBase, styles.teamCell]}>
+      <View style={[styles.cellBase, teamCellStyle]}>
         <Text style={[styles.teamText, { color: matchupColor }]}>
           {wrapTeamName(matchup.teamA.name.toUpperCase())}
         </Text>
       </View>
-      <View style={[styles.cellBase, styles.vsCell]}>
+      <View style={[styles.cellBase, vsCellStyle]}>
         <Text style={styles.vsText}>vs</Text>
       </View>
-      <View style={[styles.cellBase, styles.teamCell]}>
+      <View style={[styles.cellBase, teamCellStyle]}>
         <Text style={[styles.teamText, { color: matchupColor }]}>
           {wrapTeamName(matchup.teamB.name.toUpperCase())}
         </Text>
@@ -231,9 +287,14 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
   return (
     <Document>
       {events.map((event) => {
-        const { sortedSlotIndices, slotRows, unscheduledCount } = buildSlotRows(
-          event.matchups,
-        );
+        const { sortedSlotIndices, slotRows, hasCourtA, hasCourtB, unscheduledCount } =
+          buildSlotRows(event.matchups);
+        const singleCourt = hasCourtA !== hasCourtB;
+        const timeCellEdgeStyle = !singleCourt
+          ? {}
+          : hasCourtA
+            ? styles.timeCellNoRightBorder
+            : styles.timeCellNoLeftBorder;
 
         return (
           <Page key={event.id} size="A4" style={styles.page}>
@@ -241,7 +302,7 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
               <Image src={`${baseUrl}/icon-no-bg-512.png`} style={styles.logo} />
               <Text style={styles.title}>Volleyball Fest</Text>
               <Text style={styles.subtitle}>
-                {format(new Date(event.date), "MMM d, yyyy")}
+                {format(formatEventDateForDisplay(event.date), "MMM d, yyyy")}
               </Text>
             </View>
 
@@ -272,11 +333,24 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                         rowIndex % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row
                       }
                     >
-                      <CourtColumns matchup={slot.courtA} />
-                      <View style={[styles.cellBase, styles.timeCell]}>
-                        <Text style={styles.timeText}>{formatSlot(slotIndex)}</Text>
+                      {hasCourtA && (
+                        <CourtColumns matchup={slot.courtA} singleCourt={singleCourt} />
+                      )}
+                      <View
+                        style={[
+                          styles.cellBase,
+                          styles.timeCell,
+                          singleCourt ? styles.singleCourtTimeCell : {},
+                          timeCellEdgeStyle,
+                        ]}
+                      >
+                        <Text style={styles.timeText}>
+                          {formatSlot(slotIndex, event.date)}
+                        </Text>
                       </View>
-                      <CourtColumns matchup={slot.courtB} />
+                      {hasCourtB && (
+                        <CourtColumns matchup={slot.courtB} singleCourt={singleCourt} />
+                      )}
                     </View>
                   );
                 })}

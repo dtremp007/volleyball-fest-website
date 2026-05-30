@@ -1,6 +1,5 @@
 import { Calendar } from "lucide-react";
 
-import { getTimeForSlotIndex } from "~/lib/schedule/slot-times";
 import {
   AccordionContent,
   AccordionItem,
@@ -8,6 +7,11 @@ import {
 } from "~/components/ui/accordion";
 import { Badge } from "~/components/ui/badge";
 import { Card } from "~/components/ui/card";
+import {
+  formatEventDateForDisplay,
+  getSlotTimeConfigForEvent,
+  getTimeForSlotIndex,
+} from "~/lib/schedule/slot-times";
 
 import { TeamBadge } from "./team-badge";
 import type { ScheduleEvent } from "./types";
@@ -34,6 +38,8 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
   }
 
   const sortedSlots = Array.from(matchupsBySlot.keys()).sort((a, b) => a - b);
+  const slotTimeConfig = getSlotTimeConfigForEvent(event.date);
+  const displayDate = formatEventDateForDisplay(event.date);
 
   return (
     <AccordionItem value={event.id} className="border-none">
@@ -42,14 +48,14 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
           <div className="flex items-center gap-4">
             <div className="flex size-12 flex-col items-center justify-center rounded-lg bg-amber-500/10">
               <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                {new Date(event.date)
+                {displayDate
                   .toLocaleDateString("es-MX", {
                     month: "short",
                   })
                   .toUpperCase()}
               </span>
               <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                {new Date(event.date).getDate()}
+                {displayDate.getDate()}
               </span>
             </div>
             <div>
@@ -91,7 +97,7 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                         >
                           <td className="px-4 py-3">
                             <span className="text-muted-foreground text-sm font-medium">
-                              {getTimeForSlotIndex(slotIndex)}
+                              {getTimeForSlotIndex(slotIndex, slotTimeConfig)}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -123,7 +129,7 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                     <div key={slotIndex} className="space-y-3">
                       <div className="text-muted-foreground flex items-center gap-2 text-sm font-semibold">
                         <Calendar className="size-4" />
-                        {getTimeForSlotIndex(slotIndex)}
+                        {getTimeForSlotIndex(slotIndex, slotTimeConfig)}
                       </div>
 
                       {slot.court1 && (
@@ -176,7 +182,7 @@ function MatchupCell({ matchup }: { matchup: ScheduleEvent["matchups"][number] }
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("es-MX", {
+  return formatEventDateForDisplay(dateStr).toLocaleDateString("es-MX", {
     weekday: "long",
     day: "numeric",
     month: "long",
