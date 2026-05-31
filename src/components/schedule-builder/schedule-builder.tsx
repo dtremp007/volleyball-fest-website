@@ -33,6 +33,7 @@ import type {
 } from "~/validators/schedule-builder.validators";
 import { EventCard } from "./event-card";
 import { MatchupBlockOverlay } from "./matchup-block";
+import { ScheduleBuilderMobileNotice } from "./schedule-builder-mobile-notice";
 import { useScheduleStore } from "./store";
 import type { DragData, DropData } from "./types";
 import { UnscheduledPanel } from "./unscheduled-panel";
@@ -215,67 +216,76 @@ export function ScheduleBuilder({
   );
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex">
-        <UnscheduledPanel matchupsByCategory={initialState.matchupsByCategory} />
+    <>
+      <ScheduleBuilderMobileNotice title={title} />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="bg-card flex items-center justify-between border-b p-4">
-            <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+      <div className="hidden min-h-0 md:flex md:flex-1 md:flex-col">
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="flex min-h-0 flex-1">
+            <UnscheduledPanel matchupsByCategory={initialState.matchupsByCategory} />
 
-            <div className="flex items-center gap-3">
-              <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                {isSaving ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    <span>Saving...</span>
-                  </>
-                ) : isDirty ? (
-                  <>
-                    <Cloud className="size-4" />
-                    <span>Unsaved changes</span>
-                  </>
-                ) : lastSaved ? (
-                  <>
-                    <Check className="size-4 text-green-500" />
-                    <span>Saved</span>
-                  </>
-                ) : null}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="bg-card flex items-center justify-between border-b p-4">
+                <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : isDirty ? (
+                      <>
+                        <Cloud className="size-4" />
+                        <span>Unsaved changes</span>
+                      </>
+                    ) : lastSaved ? (
+                      <>
+                        <Check className="size-4 text-green-500" />
+                        <span>Saved</span>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {toolbarActions}
+
+                  <AddEventsPopover onAddEvents={handleAddEvents} />
+                </div>
               </div>
 
-              {toolbarActions}
-
-              <AddEventsPopover onAddEvents={handleAddEvents} />
+              <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
+                {eventIds.length === 0 ? (
+                  <div className="text-muted-foreground flex h-full flex-col items-center justify-center">
+                    <CalendarPlus className="mb-4 size-16 opacity-30" />
+                    <p className="text-lg font-medium">No events yet</p>
+                    <p className="mt-1 text-sm">
+                      Create an event to start scheduling matchups
+                    </p>
+                    <AddEventsPopover
+                      onAddEvents={handleAddEvents}
+                      triggerClassName="mt-4"
+                    >
+                      Create First Event
+                    </AddEventsPopover>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-6 pb-4">
+                    {eventIds.map((eventId) => (
+                      <EventCard key={eventId} eventId={eventId} />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
-            {eventIds.length === 0 ? (
-              <div className="text-muted-foreground flex h-full flex-col items-center justify-center">
-                <CalendarPlus className="mb-4 size-16 opacity-30" />
-                <p className="text-lg font-medium">No events yet</p>
-                <p className="mt-1 text-sm">
-                  Create an event to start scheduling matchups
-                </p>
-                <AddEventsPopover onAddEvents={handleAddEvents} triggerClassName="mt-4">
-                  Create First Event
-                </AddEventsPopover>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-6 pb-4">
-                {eventIds.map((eventId) => (
-                  <EventCard key={eventId} eventId={eventId} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+          <DragOverlay dropAnimation={null}>
+            {activeMatchup ? <MatchupBlockOverlay matchup={activeMatchup} /> : null}
+          </DragOverlay>
+        </DndContext>
       </div>
-
-      <DragOverlay dropAnimation={null}>
-        {activeMatchup ? <MatchupBlockOverlay matchup={activeMatchup} /> : null}
-      </DragOverlay>
-    </DndContext>
+    </>
   );
 }
 

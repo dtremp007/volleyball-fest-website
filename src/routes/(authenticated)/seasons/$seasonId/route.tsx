@@ -56,7 +56,7 @@ function SeasonLayout() {
 
   return (
     <>
-      <div className="border-border bg-background sticky top-0 z-10 border-b">
+      <div className="border-border bg-background sticky -top-6 z-10 border-b">
         <div className="container mx-auto w-full px-4 py-3">
           <Breadcrumb>
             <BreadcrumbList>
