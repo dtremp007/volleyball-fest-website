@@ -28,8 +28,9 @@ import {
 } from "~/lib/canvas/event-schedule-image";
 import {
   formatEventDateForDisplay,
+  getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
-  getTimeForSlotIndex,
+  getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId";
 import { useTRPC } from "~/trpc/react";
@@ -49,9 +50,17 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatSlot(slotIndex: number | null, eventDate: string) {
+function formatSlot(
+  slotIndex: number | null,
+  eventDate: string,
+  slotDurations: Map<number, number>,
+) {
   if (slotIndex === null) return "Unscheduled";
-  return getTimeForSlotIndex(slotIndex, getSlotTimeConfigForEvent(eventDate));
+  return getTimeForSlotIndexWithDurations(
+    slotIndex,
+    slotDurations,
+    getSlotTimeConfigForEvent(eventDate),
+  );
 }
 
 function formatMatchup(matchup: {
@@ -102,6 +111,7 @@ export function EventDetailsDrawer({ seasonId }: Props) {
   }
 
   const sortedSlotIndices = Array.from(slotRows.keys()).sort((a, b) => a - b);
+  const slotDurations = getSlotDurationsByIndex(scheduledMatchups);
 
   const [imageLoading, setImageLoading] = useState(false);
 
@@ -186,7 +196,7 @@ export function EventDetailsDrawer({ seasonId }: Props) {
                         return (
                           <TableRow key={slotIndex}>
                             <TableCell className="text-muted-foreground text-xs">
-                              {formatSlot(slotIndex, event.date)}
+                              {formatSlot(slotIndex, event.date, slotDurations)}
                             </TableCell>
                             <TableCell className="whitespace-normal">
                               {slot.courtA ? (

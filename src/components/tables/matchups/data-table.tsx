@@ -17,8 +17,9 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import {
+  getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
-  getTimeForSlotIndex,
+  getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
 import { useTRPC } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/router";
@@ -151,13 +152,22 @@ export function MatchupsDataTable({ seasonId }: Props) {
 
   const matchupRowsWithSubRows = React.useMemo(() => {
     const eventsById = new Map(data.events.map((event) => [event.id, event]));
+    const slotDurationsByEventId = new Map(
+      data.events.map((event) => [
+        event.id,
+        getSlotDurationsByIndex(
+          data.matchups.filter((matchup) => matchup.eventId === event.id),
+        ),
+      ]),
+    );
     return data.matchups
       .map((matchup) => {
         const event = matchup.eventId ? eventsById.get(matchup.eventId) : null;
         const slotLabel =
           matchup.slotIndex !== null
-            ? getTimeForSlotIndex(
+            ? getTimeForSlotIndexWithDurations(
                 matchup.slotIndex,
+                slotDurationsByEventId.get(matchup.eventId ?? "") ?? new Map(),
                 getSlotTimeConfigForEvent(event?.date ?? ""),
               )
             : null;

@@ -16,6 +16,7 @@ export const scheduleBuilderMatchupSchema = z.object({
   teamA: scheduleBuilderTeamSchema,
   teamB: scheduleBuilderTeamSchema,
   category: z.string(),
+  duration: z.number().optional(),
 });
 
 export const scheduleBuilderCourtSchema = z.object({

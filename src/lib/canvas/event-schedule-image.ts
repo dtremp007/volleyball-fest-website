@@ -1,8 +1,9 @@
 import { format } from "date-fns";
 import {
   formatEventDateForDisplay,
+  getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
-  getTimeForSlotIndex,
+  getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -27,12 +28,21 @@ type EventForImage = {
     category: string;
     courtId: string | null;
     slotIndex: number | null;
+    duration?: number | null;
   }>;
 };
 
-function formatSlot(slotIndex: number | null, eventDate: string) {
+function formatSlot(
+  slotIndex: number | null,
+  eventDate: string,
+  slotDurations: Map<number, number>,
+) {
   if (slotIndex === null) return "Unscheduled";
-  return getTimeForSlotIndex(slotIndex, getSlotTimeConfigForEvent(eventDate));
+  return getTimeForSlotIndexWithDurations(
+    slotIndex,
+    slotDurations,
+    getSlotTimeConfigForEvent(eventDate),
+  );
 }
 
 function wrapText(
@@ -97,6 +107,8 @@ async function loadLogo(baseUrl: string): Promise<HTMLImageElement | null> {
 
 function buildSlotRows(matchups: EventForImage["matchups"]) {
   const scheduledMatchups = matchups.filter((m) => m.slotIndex !== null);
+  const hasCourtA = scheduledMatchups.some((matchup) => matchup.courtId === "A");
+  const hasCourtB = scheduledMatchups.some((matchup) => matchup.courtId === "B");
   const slotRows = new Map<
     number,
     {
@@ -116,6 +128,8 @@ function buildSlotRows(matchups: EventForImage["matchups"]) {
   return {
     sortedSlotIndices: Array.from(slotRows.keys()).sort((a, b) => a - b),
     slotRows,
+    hasCourtA,
+    hasCourtB,
     unscheduledCount: matchups.length - scheduledMatchups.length,
   };
 }
@@ -139,7 +153,9 @@ export async function generateEventScheduleImage(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context not available");
 
-  const { sortedSlotIndices, slotRows, unscheduledCount } = buildSlotRows(event.matchups);
+  const { sortedSlotIndices, slotRows, hasCourtA, hasCourtB, unscheduledCount } =
+    buildSlotRows(event.matchups);
+  const slotDurations = getSlotDurationsByIndex(event.matchups);
 
   const logo = await loadLogo(baseUrl);
 
@@ -185,22 +201,31 @@ export async function generateEventScheduleImage(
   });
   y += 36;
 
-  // Table: team | vs | team | time | team | vs | team
+  // Table: team | vs | team | time | team | vs | team, collapsing unused courts.
   const tableLeft = PADDING;
   const tableRight = W - PADDING;
   const tableWidth = tableRight - tableLeft;
   const rowHeight = 56;
   const fontSize = 18;
-  // Column widths as fractions: team=2, vs=1, time=1 (11 parts total)
-  const parts = [2, 1, 2, 1, 2, 1, 2];
+  const parts =
+    hasCourtA && hasCourtB
+      ? [2, 1, 2, 1, 2, 1, 2]
+      : hasCourtA
+        ? [2, 1, 2, 1]
+        : [1, 2, 1, 2];
   const partTotal = parts.reduce((a, b) => a + b, 0);
   const colWidths = parts.map((p) => (p / partTotal) * tableWidth);
+  const colLefts = colWidths.map((_, i) => {
+    return tableLeft + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+  });
   const colCenters = colWidths.map((w, i) => {
     const leftEdge = tableLeft + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
     return leftEdge + w / 2;
   });
-  const teamColWidth = colWidths[0]! - 8; // padding for team columns
+  const firstTeamColumnIndex = hasCourtA ? 0 : 1;
+  const teamColWidth = colWidths[firstTeamColumnIndex]! - 8; // padding for team columns
   const lineHeight = 20;
+  const timeColumnIndex = hasCourtA && hasCourtB ? 3 : hasCourtA ? 3 : 0;
 
   const drawWrappedTeam = (
     text: string,
@@ -217,6 +242,33 @@ export async function generateEventScheduleImage(
     lines.forEach((line, i) => {
       ctx.fillText(line, centerX, startY + i * lineHeight);
     });
+  };
+
+  const drawCourtMatchup = (
+    matchup: EventForImage["matchups"][number] | undefined,
+    indices: [number, number, number],
+    rowCenterY: number,
+  ) => {
+    if (!matchup) return;
+
+    const color = CATEGORY_COLORS[matchup.category] ?? "#374151";
+    drawWrappedTeam(
+      matchup.teamA.name.toUpperCase(),
+      colCenters[indices[0]]!,
+      rowCenterY,
+      teamColWidth,
+      color,
+    );
+    ctx.font = `${fontSize}px system-ui, sans-serif`;
+    ctx.fillStyle = "#6b7280";
+    ctx.fillText("vs", colCenters[indices[1]], rowCenterY);
+    drawWrappedTeam(
+      matchup.teamB.name.toUpperCase(),
+      colCenters[indices[2]]!,
+      rowCenterY,
+      teamColWidth,
+      color,
+    );
   };
 
   if (sortedSlotIndices.length > 0) {
@@ -240,68 +292,27 @@ export async function generateEventScheduleImage(
 
       const rowCenterY = y + rowHeight / 2 + 5;
 
-      // Court A: team | vs | team (bold uppercase for team names)
       ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
       ctx.textAlign = "center";
-      if (slot.courtA) {
-        const color = CATEGORY_COLORS[slot.courtA.category] ?? "#374151";
-        drawWrappedTeam(
-          slot.courtA.teamA.name.toUpperCase(),
-          colCenters[0]!,
-          rowCenterY,
-          teamColWidth,
-          color,
-        );
-        ctx.font = `${fontSize}px system-ui, sans-serif`;
-        ctx.fillStyle = "#6b7280";
-        ctx.fillText("vs", colCenters[1], rowCenterY);
-        drawWrappedTeam(
-          slot.courtA.teamB.name.toUpperCase(),
-          colCenters[2]!,
-          rowCenterY,
-          teamColWidth,
-          color,
-        );
-      } else {
-        ctx.font = `${fontSize}px system-ui, sans-serif`;
-        ctx.fillStyle = "#9ca3af";
-        ctx.fillText("-", colCenters[0], rowCenterY);
-        ctx.fillText("-", colCenters[1], rowCenterY);
-        ctx.fillText("-", colCenters[2], rowCenterY);
+
+      if (hasCourtA) {
+        drawCourtMatchup(slot.courtA, [0, 1, 2], rowCenterY);
       }
 
-      // Time
       ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
       ctx.fillStyle = "#374151";
-      ctx.fillText(formatSlot(slotIndex, event.date), colCenters[3], rowCenterY);
+      ctx.fillText(
+        formatSlot(slotIndex, event.date, slotDurations),
+        colCenters[timeColumnIndex],
+        rowCenterY,
+      );
 
-      // Court B: team | vs | team
-      ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-      if (slot.courtB) {
-        const color = CATEGORY_COLORS[slot.courtB.category] ?? "#374151";
-        drawWrappedTeam(
-          slot.courtB.teamA.name.toUpperCase(),
-          colCenters[4]!,
+      if (hasCourtB) {
+        drawCourtMatchup(
+          slot.courtB,
+          hasCourtA ? [4, 5, 6] : [1, 2, 3],
           rowCenterY,
-          teamColWidth,
-          color,
         );
-        ctx.font = `${fontSize}px system-ui, sans-serif`;
-        ctx.fillStyle = "#6b7280";
-        ctx.fillText("vs", colCenters[5], rowCenterY);
-        drawWrappedTeam(
-          slot.courtB.teamB.name.toUpperCase(),
-          colCenters[6]!,
-          rowCenterY,
-          teamColWidth,
-          color,
-        );
-      } else {
-        ctx.font = `${fontSize}px system-ui, sans-serif`;
-        ctx.fillStyle = "#9ca3af";
-        ctx.fillText("-", colCenters[4], rowCenterY);
-        ctx.fillText("-", colCenters[5], rowCenterY);
-        ctx.fillText("-", colCenters[6], rowCenterY);
       }
 
       y += rowHeight;
@@ -310,6 +321,19 @@ export async function generateEventScheduleImage(
     ctx.strokeStyle = "#e5e7eb";
     ctx.lineWidth = 2;
     ctx.strokeRect(tableLeft, tableTop, tableWidth, y - tableTop);
+
+    const timeColumnLeft = colLefts[timeColumnIndex]!;
+    const timeColumnRight = timeColumnLeft + colWidths[timeColumnIndex]!;
+    ctx.beginPath();
+    if (timeColumnIndex > 0) {
+      ctx.moveTo(timeColumnLeft, tableTop);
+      ctx.lineTo(timeColumnLeft, y);
+    }
+    if (timeColumnIndex < colWidths.length - 1) {
+      ctx.moveTo(timeColumnRight, tableTop);
+      ctx.lineTo(timeColumnRight, y);
+    }
+    ctx.stroke();
   } else {
     ctx.fillStyle = "#6b7280";
     ctx.font = "italic 24px system-ui, sans-serif";

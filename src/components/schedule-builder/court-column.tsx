@@ -4,8 +4,9 @@ import { Clock } from "lucide-react";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
+  getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
-  getTimeForSlotIndex,
+  getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
 import { cn } from "~/lib/utils";
 import { MatchupBlock } from "./matchup-block";
@@ -31,7 +32,20 @@ export const CourtColumn = memo(function CourtColumn({
   const eventDate = useScheduleStore(
     (state) => state.events.find((e) => e.id === eventId)?.date ?? "",
   );
+  const eventCourts = useScheduleStore(
+    (state) => state.events.find((e) => e.id === eventId)?.courts,
+  );
   const slotTimeConfig = useMemo(() => getSlotTimeConfigForEvent(eventDate), [eventDate]);
+  const slotDurations = useMemo(() => {
+    const eventMatchups =
+      eventCourts?.flatMap((court) =>
+        court.matchups.map((matchup, index) => ({
+          slotIndex: index,
+          duration: matchup.duration,
+        })),
+      ) ?? [];
+    return getSlotDurationsByIndex(eventMatchups);
+  }, [eventCourts]);
 
   const sortableItems = useMemo(
     () => matchupIds.map((id) => `matchup-${id}-${eventId}-${courtId}`),
@@ -72,7 +86,11 @@ export const CourtColumn = memo(function CourtColumn({
                 <div className="text-muted-foreground absolute top-1/2 -left-22 flex -translate-y-1/2 items-center gap-1.5 text-xs">
                   <Clock className="size-3" />
                   <span className="font-mono">
-                    {getTimeForSlotIndex(index, slotTimeConfig)}
+                    {getTimeForSlotIndexWithDurations(
+                      index,
+                      slotDurations,
+                      slotTimeConfig,
+                    )}
                   </span>
                 </div>
                 <MatchupBlock

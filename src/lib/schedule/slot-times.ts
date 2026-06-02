@@ -90,3 +90,39 @@ export function getTimeForSlotIndex(
   const minute = totalMinutes % 60;
   return formatSlotTime(hour, minute);
 }
+
+export function getTimeForSlotIndexWithDurations(
+  slotIndex: number,
+  slotDurations: Map<number, number>,
+  config: SlotTimeConfig = DEFAULT_SLOT_TIME_CONFIG,
+): string {
+  let elapsedMinutes = 0;
+
+  for (let index = 0; index < slotIndex; index++) {
+    elapsedMinutes += slotDurations.get(index) ?? config.slotDurationMinutes;
+  }
+
+  const totalMinutes = config.startHour * 60 + config.startMinute + elapsedMinutes;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  return formatSlotTime(hour, minute);
+}
+
+export function getSlotDurationsByIndex(
+  matchups: { slotIndex: number | null; duration?: number | null }[],
+  fallbackDurationMinutes = DEFAULT_SLOT_DURATION_MINUTES,
+): Map<number, number> {
+  const durations = new Map<number, number>();
+
+  for (const matchup of matchups) {
+    if (matchup.slotIndex === null) continue;
+    const duration =
+      typeof matchup.duration === "number" && matchup.duration > 0
+        ? matchup.duration
+        : fallbackDurationMinutes;
+    const currentDuration = durations.get(matchup.slotIndex) ?? fallbackDurationMinutes;
+    durations.set(matchup.slotIndex, Math.max(currentDuration, duration));
+  }
+
+  return durations;
+}

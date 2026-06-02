@@ -14,12 +14,13 @@ import { combineDateAndTime, getDatePart, getTimePart } from "./slot-times";
 type DbMatchup = Awaited<ReturnType<typeof getMatchupsBySeasonId>>[number];
 type DbEvent = Awaited<ReturnType<typeof getEventsBySeasonId>>[number];
 
-type MatchupSource = Pick<DbMatchup, "id" | "category" | "teamA" | "teamB">;
+type MatchupSource = Pick<DbMatchup, "id" | "category" | "teamA" | "teamB" | "duration">;
 
 export function toScheduleBuilderMatchup(matchup: MatchupSource): ScheduleBuilderMatchup {
   return {
     id: matchup.id,
     category: matchup.category,
+    duration: matchup.duration,
     teamA: {
       id: matchup.teamA.id,
       name: matchup.teamA.name,

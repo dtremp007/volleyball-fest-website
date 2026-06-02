@@ -145,6 +145,7 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       eventId: schema.matchup.eventId,
       courtId: schema.matchup.courtId,
       slotIndex: schema.matchup.slotIndex,
+      duration: schema.matchup.duration,
       bestOf: schema.matchup.bestOf,
       teamAName: schema.team.name,
       teamALogo: schema.team.logoUrl,
@@ -252,6 +253,7 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       eventId: m.eventId,
       courtId: m.courtId,
       slotIndex: m.slotIndex,
+      duration: m.duration,
       bestOf: m.bestOf,
       sets,
       teamASetsWon,
@@ -1456,6 +1458,7 @@ export type PublicMatchup = {
   category: string;
   courtId: string | null;
   slotIndex: number | null;
+  duration: number;
 };
 
 export type PublicScheduleEvent = {
@@ -1530,6 +1533,7 @@ export async function getEventsWithMatchupsBySeasonId(db: Database, seasonId: st
         category: matchup.category,
         courtId: matchup.courtId,
         slotIndex: matchup.slotIndex,
+        duration: matchup.duration,
       })),
     } satisfies EventWithMatchups;
   });
@@ -1638,6 +1642,7 @@ export async function getPublicSchedule(
         category: m.category,
         courtId: m.courtId,
         slotIndex: m.slotIndex,
+        duration: m.duration,
       })),
     };
   });
@@ -1688,6 +1693,7 @@ export async function getEventWithMatchupsById(db: Database, eventId: string) {
       category: matchup.category,
       courtId: matchup.courtId,
       slotIndex: matchup.slotIndex,
+      duration: matchup.duration,
     })),
   } satisfies EventWithMatchups;
 }

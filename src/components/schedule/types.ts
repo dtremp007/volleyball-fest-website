@@ -12,5 +12,6 @@ export type ScheduleEvent = {
     category: string;
     courtId: string | null;
     slotIndex: number | null;
+    duration: number;
   }[];
 };

@@ -168,6 +168,7 @@ export async function getPlayoffScheduleMatchupsBySeasonId(
       label: schema.playoffMatchup.label,
       category: schema.category.name,
       bestOf: schema.playoffMatchup.bestOf,
+      duration: schema.playoffMatchup.duration,
       eventId: schema.playoffMatchup.eventId,
       courtId: schema.playoffMatchup.courtId,
       slotIndex: schema.playoffMatchup.slotIndex,
@@ -779,6 +780,7 @@ export async function getPlayoffEventWithMatchupsById(db: Database, eventId: str
         category: matchup.category,
         courtId: matchup.courtId,
         slotIndex: matchup.slotIndex,
+        duration: matchup.duration,
       };
     }),
   };
@@ -851,6 +853,7 @@ export async function getPlayoffEventsWithMatchupsBySeasonId(
           category: matchup.category,
           courtId: matchup.courtId,
           slotIndex: matchup.slotIndex,
+          duration: matchup.duration,
         };
       }),
     } satisfies EventWithMatchups;

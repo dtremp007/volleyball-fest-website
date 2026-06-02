@@ -68,6 +68,7 @@ export async function getPublicUnifiedSchedule(
           category: matchup.category,
           courtId: matchup.courtId,
           slotIndex: matchup.slotIndex,
+          duration: matchup.duration,
         };
       }),
     };

@@ -30,6 +30,7 @@ type PlayoffScheduleMatchup = {
   courtId: string | null;
   slotIndex: number | null;
   label: string;
+  duration: number;
   teams: PlayoffScheduleSlot[];
 };
 
@@ -43,6 +44,7 @@ export function toPlayoffScheduleBuilderMatchup(
     id: matchup.id,
     label: matchup.label,
     category: matchup.category,
+    duration: matchup.duration,
     teamA: {
       id: slotA?.teamId ?? slotA?.id ?? `${matchup.id}:slot-0`,
       name: slotA?.teamName ?? slotA?.label ?? "TBD",

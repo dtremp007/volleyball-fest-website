@@ -9,8 +9,9 @@ import { Badge } from "~/components/ui/badge";
 import { Card } from "~/components/ui/card";
 import {
   formatEventDateForDisplay,
+  getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
-  getTimeForSlotIndex,
+  getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
 
 import { TeamBadge } from "./team-badge";
@@ -38,6 +39,7 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
   }
 
   const sortedSlots = Array.from(matchupsBySlot.keys()).sort((a, b) => a - b);
+  const slotDurations = getSlotDurationsByIndex(event.matchups);
   const slotTimeConfig = getSlotTimeConfigForEvent(event.date);
   const displayDate = formatEventDateForDisplay(event.date);
   const hasPlayoffs = event.matchups.some((matchup) => matchup.type === "playoff");
@@ -111,7 +113,11 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                         >
                           <td className="px-4 py-3">
                             <span className="text-muted-foreground text-sm font-medium">
-                              {getTimeForSlotIndex(slotIndex, slotTimeConfig)}
+                              {getTimeForSlotIndexWithDurations(
+                                slotIndex,
+                                slotDurations,
+                                slotTimeConfig,
+                              )}
                             </span>
                           </td>
                           {hasCourt1 ? (
@@ -147,7 +153,11 @@ export function EventAccordionItem({ event }: { event: ScheduleEvent }) {
                     <div key={slotIndex} className="space-y-3">
                       <div className="text-muted-foreground flex items-center gap-2 text-sm font-semibold">
                         <Calendar className="size-4" />
-                        {getTimeForSlotIndex(slotIndex, slotTimeConfig)}
+                        {getTimeForSlotIndexWithDurations(
+                          slotIndex,
+                          slotDurations,
+                          slotTimeConfig,
+                        )}
                       </div>
 
                       {slot.court1 && (

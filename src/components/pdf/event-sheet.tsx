@@ -3,8 +3,9 @@ import { format } from "date-fns";
 import type { EventWithMatchups } from "~/lib/db/queries/schedule";
 import {
   formatEventDateForDisplay,
+  getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
-  getTimeForSlotIndex,
+  getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -191,9 +192,17 @@ type Props = {
 
 type EventMatchup = EventWithMatchups["matchups"][number];
 
-function formatSlot(slotIndex: number | null, eventDate: string) {
+function formatSlot(
+  slotIndex: number | null,
+  eventDate: string,
+  slotDurations: Map<number, number>,
+) {
   if (slotIndex === null) return "Unscheduled";
-  return getTimeForSlotIndex(slotIndex, getSlotTimeConfigForEvent(eventDate));
+  return getTimeForSlotIndexWithDurations(
+    slotIndex,
+    slotDurations,
+    getSlotTimeConfigForEvent(eventDate),
+  );
 }
 
 function wrapTeamName(name: string, maxCharsPerLine = 14) {
@@ -298,8 +307,6 @@ function CourtColumns({
   const hasAnyKnownTeam = hasTeamA || hasTeamB;
 
   if (matchupLabel) {
-    const labelAlignment = side === "left" ? "left" : "right";
-
     if (hasAnyKnownTeam) {
       return (
         <View style={[styles.cellBase, matchupLabelCellStyle, styles.labeledMatchupCell]}>
@@ -358,6 +365,7 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
       {events.map((event) => {
         const { sortedSlotIndices, slotRows, hasCourtA, hasCourtB, unscheduledCount } =
           buildSlotRows(event.matchups);
+        const slotDurations = getSlotDurationsByIndex(event.matchups);
         const singleCourt = hasCourtA !== hasCourtB;
         const timeCellEdgeStyle = !singleCourt
           ? {}
@@ -418,7 +426,7 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                         ]}
                       >
                         <Text style={styles.timeText}>
-                          {formatSlot(slotIndex, event.date)}
+                          {formatSlot(slotIndex, event.date, slotDurations)}
                         </Text>
                       </View>
                       {hasCourtB && (

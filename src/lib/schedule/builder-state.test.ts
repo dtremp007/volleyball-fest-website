@@ -30,6 +30,7 @@ function dbMatchup(
     courtId: string | null;
     slotIndex: number | null;
     category: string;
+    duration: number;
   }> = {},
 ) {
   return {
@@ -39,6 +40,7 @@ function dbMatchup(
     eventId: null,
     courtId: null,
     slotIndex: null,
+    duration: 45,
     bestOf: 3,
     sets: [],
     teamASetsWon: 0,
