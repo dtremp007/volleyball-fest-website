@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Trophy } from "lucide-react";
 
 import { EventList } from "~/components/schedule/event-list";
-import { StandingsTable } from "~/components/standings";
+import { PreviousSeasonsSection, SeasonStandings } from "~/components/standings";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 
@@ -17,30 +17,36 @@ export const Route = createFileRoute("/(public)/")({
       imageUrl: "/hero.jpeg",
     };
 
-    const { competitionSeason, registrationSeason } =
+    const { competitionSeason, registrationSeason, completedSeasons } =
       await context.queryClient.fetchQuery(
         context.trpc.season.getPublicContext.queryOptions(),
       );
-    const [schedule, standings] = competitionSeason
-      ? await Promise.all([
-          context.queryClient.fetchQuery(
-            context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
-              seasonId: competitionSeason.id,
-              upcomingOnly: true,
-            }),
-          ),
-          context.queryClient.fetchQuery(
-            context.trpc.matchup.getStandings.queryOptions({
-              seasonId: competitionSeason.id,
-            }),
-          ),
-        ])
-      : [[], []];
+
+    const isActiveCompetition = competitionSeason?.state === "active";
+
+    const schedule = competitionSeason
+      ? await context.queryClient.fetchQuery(
+          context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
+            seasonId: competitionSeason.id,
+            upcomingOnly: true,
+          }),
+        )
+      : [];
+
+    const standings = isActiveCompetition
+      ? await context.queryClient.fetchQuery(
+          context.trpc.matchup.getStandings.queryOptions({
+            seasonId: competitionSeason.id,
+          }),
+        )
+      : [];
 
     return {
       heroContent: { ...heroContent, ctaVisible: Boolean(registrationSeason) },
       schedule,
       standings,
+      activeSeasonId: isActiveCompetition ? competitionSeason.id : null,
+      completedSeasons,
     };
   },
 });
@@ -55,7 +61,8 @@ const heroDefaults = {
 };
 
 function LandingPage() {
-  const { heroContent, schedule, standings } = Route.useLoaderData();
+  const { heroContent, schedule, standings, activeSeasonId, completedSeasons } =
+    Route.useLoaderData();
 
   const hero = heroContent ?? heroDefaults;
 
@@ -114,8 +121,8 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Standings Preview Section */}
-      {hasStandings && (
+      {/* Standings Preview Section — active season only */}
+      {hasStandings && activeSeasonId ? (
         <section className="py-20">
           <div className="mx-auto max-w-6xl px-6">
             <div className="mb-12 text-center">
@@ -128,24 +135,15 @@ function LandingPage() {
               </h2>
             </div>
 
-            <div className="space-y-10">
-              {standings?.map(({ category, sections, playoffQualifierCount }) => (
-                <div key={category}>
-                  <h3 className="mb-4 text-xl font-semibold">{category}</h3>
-                  <div className="overflow-hidden rounded-lg border">
-                    <StandingsTable
-                      sections={sections}
-                      variant="compact"
-                      limit={playoffQualifierCount}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <SeasonStandings
+              standings={standings}
+              variant="compact"
+              limitToPlayoffQualifiers
+            />
 
             <div className="mt-8 flex justify-center">
               <Button asChild variant="outline">
-                <Link to="/posiciones">
+                <Link to="/posiciones/$seasonId" params={{ seasonId: activeSeasonId }}>
                   Ver todas las posiciones
                   <ChevronRight className="size-4" />
                 </Link>
@@ -153,10 +151,12 @@ function LandingPage() {
             </div>
           </div>
         </section>
-      )}
+      ) : null}
 
       {/* Schedule Section */}
       {schedule && schedule.length > 0 ? <EventList schedule={schedule} /> : null}
+
+      <PreviousSeasonsSection seasons={completedSeasons} />
 
       {/* Final CTA Section */}
       {showCta ? (

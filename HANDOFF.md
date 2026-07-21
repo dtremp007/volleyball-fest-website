@@ -108,4 +108,3 @@ Important rollout caveat: `0006` was applied locally with the SQLite CLI, not wi
 - `impeccable` — use for follow-up admin UI polish, responsive review, or accessibility work.
 - `browser:control-in-app-browser` — use only if the user wants localhost UI smoke testing.
 - `github:yeet` — use only if the user explicitly asks to branch, commit, push, and open a draft PR.
-

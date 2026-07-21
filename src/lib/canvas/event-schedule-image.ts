@@ -308,11 +308,7 @@ export async function generateEventScheduleImage(
       );
 
       if (hasCourtB) {
-        drawCourtMatchup(
-          slot.courtB,
-          hasCourtA ? [4, 5, 6] : [1, 2, 3],
-          rowCenterY,
-        );
+        drawCourtMatchup(slot.courtB, hasCourtA ? [4, 5, 6] : [1, 2, 3], rowCenterY);
       }
 
       y += rowHeight;

@@ -220,7 +220,11 @@ export function ScheduleBuilder({
       <ScheduleBuilderMobileNotice title={title} />
 
       <div className="hidden min-h-0 md:flex md:flex-1 md:flex-col">
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
           <div className="flex min-h-0 flex-1">
             <UnscheduledPanel matchupsByCategory={initialState.matchupsByCategory} />
 

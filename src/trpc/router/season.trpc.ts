@@ -55,8 +55,7 @@ export const seasonRouter = {
     } catch (error) {
       throw new TRPCError({
         code: "BAD_REQUEST",
-        message:
-          error instanceof Error ? error.message : "Season could not be created",
+        message: error instanceof Error ? error.message : "Season could not be created",
       });
     }
   }),

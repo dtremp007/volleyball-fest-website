@@ -12,8 +12,8 @@ export function ScheduleBuilderMobileNotice({ title }: ScheduleBuilderMobileNoti
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
           The schedule builder uses drag-and-drop on a wide layout and is not supported on
-          phones or small tablets. Open this page on a laptop or desktop computer to build or
-          edit the schedule.
+          phones or small tablets. Open this page on a laptop or desktop computer to build
+          or edit the schedule.
         </p>
       </div>
     </div>

@@ -66,15 +66,14 @@ export function SeasonStatusDialog({ seasonId, currentState }: Props) {
     }),
   );
 
-  const canSave =
-    selectedState !== currentState && selectableStates.has(selectedState);
+  const canSave = selectedState !== currentState && selectableStates.has(selectedState);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
           type="button"
-          className="hidden rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:inline-flex"
+          className="focus-visible:ring-ring hidden rounded-full focus-visible:ring-2 focus-visible:outline-none sm:inline-flex"
           aria-label={`Change season status (currently ${stateLabels[currentState]})`}
         >
           <Badge
@@ -89,8 +88,7 @@ export function SeasonStatusDialog({ seasonId, currentState }: Props) {
         <DialogHeader>
           <DialogTitle>Season status</DialogTitle>
           <DialogDescription>
-            Choose the next status for this season. Only valid transitions are
-            available.
+            Choose the next status for this season. Only valid transitions are available.
           </DialogDescription>
         </DialogHeader>
         <RadioGroup

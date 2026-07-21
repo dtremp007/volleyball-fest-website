@@ -35,6 +35,7 @@ export const selectPublicSeasonContext = <
       sorted.find((season) => season.state === "completed") ??
       null,
     registrationSeason: sorted.find((season) => season.state === "signup_open") ?? null,
+    completedSeasons: sorted.filter((season) => season.state === "completed"),
   };
 };
 
