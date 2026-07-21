@@ -16,14 +16,11 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
-import { Footer } from "~/components/footer";
-import { Header } from "~/components/header";
 import { NavigationProgress } from "~/components/navigation-progress";
 import { ThemeProvider } from "~/components/theme-provider";
 import { Toaster } from "~/components/ui/sonner";
 import { TooltipProvider } from "~/components/ui/tooltip";
 import { auth } from "~/lib/auth/auth";
-import authClient from "~/lib/auth/auth-client";
 import { seo } from "~/lib/utils";
 import appCss from "~/styles.css?url";
 import type { AppRouter } from "~/trpc/router";
@@ -109,17 +106,6 @@ export const Route = createRootRouteWithContext<{
               addressCountry: "MX",
             },
           },
-          event: {
-            "@type": "SportsEvent",
-            name: "Temporada Primavera 2025",
-            description: "Temporada de primavera con partidos cada sábado",
-            startDate: "2025-02-01",
-            endDate: "2025-05-31",
-            location: {
-              "@type": "Place",
-              name: "Gimnasio de Escuela Álvaro Obregón",
-            },
-          },
         }),
       },
     ],
@@ -143,8 +129,6 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const { data: session } = authClient.useSession();
-
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -154,30 +138,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <ThemeProvider>
           <TooltipProvider>
             <NavigationProgress />
-            <Header
-              links={[
-                { label: "Inicio", to: "/" },
-                { label: "Equipos", to: "/equipos" },
-                {
-                  label: "Posiciones",
-                  to: "/posiciones",
-                },
-                {
-                  label: "Inscribir equipo",
-                  to: "/signup-form",
-                },
-                ...(session?.user
-                  ? [
-                      {
-                        label: "Dashboard",
-                        to: "/seasons/season-2026-spring",
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            <main className="min-h-screen flex-1 pt-16">{children}</main>
-            <Footer />
+            {children}
             <Toaster richColors />
           </TooltipProvider>
         </ThemeProvider>

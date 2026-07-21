@@ -5,6 +5,7 @@ import { db } from "~/lib/db";
 import {
   createSeason,
   deleteSeason,
+  getPublicSeasonContext,
   getSeasonById,
   getSeasonByState,
   getSeasons,
@@ -28,8 +29,12 @@ const validStateTransitions: Record<string, string[]> = {
 };
 
 export const seasonRouter = {
-  getAll: publicProcedure.query(async () => {
+  getAll: protectedProcedure.query(async () => {
     return await getSeasons(db);
+  }),
+
+  getPublicContext: publicProcedure.query(async () => {
+    return await getPublicSeasonContext(db);
   }),
 
   getById: protectedProcedure
@@ -45,7 +50,15 @@ export const seasonRouter = {
     }),
 
   create: protectedProcedure.input(createSeasonSchema).mutation(async ({ input }) => {
-    return await createSeason(db, input);
+    try {
+      return await createSeason(db, input);
+    } catch (error) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          error instanceof Error ? error.message : "Season could not be created",
+      });
+    }
   }),
 
   update: protectedProcedure
@@ -75,6 +88,16 @@ export const seasonRouter = {
           code: "BAD_REQUEST",
           message: `Cannot transition from '${currentState}' to '${input.state}'. Allowed transitions: ${allowedTransitions.join(", ") || "none"}`,
         });
+      }
+
+      if (input.state === "active" || input.state === "signup_open") {
+        const existing = await getSeasonByState(db, input.state);
+        if (existing && existing.id !== input.id) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Only one season can be ${input.state === "active" ? "active" : "open for sign-up"} at a time.`,
+          });
+        }
       }
 
       return await updateSeasonState(db, input.id, input.state);

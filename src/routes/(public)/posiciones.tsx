@@ -8,30 +8,29 @@ import {
 } from "~/components/standings";
 import { useTRPC } from "~/trpc/react";
 
-export const Route = createFileRoute("/posiciones")({
+export const Route = createFileRoute("/(public)/posiciones")({
   component: PosicionesPage,
   loader: async ({ context }) => {
-    Promise.all([
-      context.queryClient.ensureQueryData(
-        context.trpc.season.getByState.queryOptions({
-          state: "active",
-        }),
-      ),
-      context.queryClient.ensureQueryData(
+    const { competitionSeason } = await context.queryClient.ensureQueryData(
+      context.trpc.season.getPublicContext.queryOptions(),
+    );
+    if (competitionSeason) {
+      await context.queryClient.ensureQueryData(
         context.trpc.matchup.getStandings.queryOptions({
-          seasonId: "season-2026-spring",
+          seasonId: competitionSeason.id,
         }),
-      ),
-    ]);
+      );
+    }
   },
 });
 
 function PosicionesPage() {
   const trpc = useTRPC();
 
-  const { data: currentSeason, isLoading: seasonLoading } = useQuery(
-    trpc.season.getByState.queryOptions({ state: "active" }),
+  const { data: publicContext, isLoading: seasonLoading } = useQuery(
+    trpc.season.getPublicContext.queryOptions(),
   );
+  const currentSeason = publicContext?.competitionSeason;
 
   const { data: standings, isLoading: standingsLoading } = useQuery(
     trpc.matchup.getStandings.queryOptions(

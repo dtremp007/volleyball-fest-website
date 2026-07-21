@@ -9,9 +9,7 @@ export const signupPositionEnum = z.enum([
   "defensive-specialist",
 ]);
 
-export const signupFormSchema = z.object({
-  id: z.string().or(z.undefined()),
-  seasonId: z.string(),
+export const teamDetailsSchema = z.object({
   name: z.string().min(2, "El nombre del equipo es requerido"),
   logoUrl: z.string(),
   categoryId: z.string(),
@@ -32,6 +30,10 @@ export const signupFormSchema = z.object({
   unavailableDates: z.array(z.string()),
   comingFrom: z.string().or(z.undefined()),
   notes: z.string().or(z.undefined()),
+  isFarAway: z.boolean(),
+});
+
+export const signupFormSchema = teamDetailsSchema.extend({
   acceptTerms: z.boolean().refine((val) => val === true, {
     message: "Debes aceptar los términos y condiciones",
   }),
@@ -40,4 +42,7 @@ export const signupFormSchema = z.object({
   }),
 });
 
+export const adminTeamUpdateSchema = teamDetailsSchema;
+
 export type SignupFormValues = z.infer<typeof signupFormSchema>;
+export type AdminTeamUpdateValues = z.infer<typeof adminTeamUpdateSchema>;

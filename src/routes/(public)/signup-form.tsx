@@ -1,10 +1,9 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Plus, Trash } from "lucide-react";
-import z from "zod";
 import AvatarUpload from "~/components/avatar-upload";
 import { Button } from "~/components/ui/button";
 import {
@@ -30,85 +29,43 @@ import { Label } from "~/components/ui/label";
 import { NativeSelect } from "~/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { Textarea } from "~/components/ui/textarea";
-import { parseUnavailableDates } from "~/lib/unavailable-dates";
 import { useTRPC } from "~/trpc/react";
 import { signupFormSchema } from "~/validators/signup-form.validators";
 
-export const Route = createFileRoute("/signup-form")({
+export const Route = createFileRoute("/(public)/signup-form")({
   component: SignupFormPage,
   errorComponent: SignupFormError,
-  validateSearch: z.object({
-    teamId: z.string().optional(),
-    returnTo: z.string().optional(),
-  }),
   pendingComponent: SignupFormPending,
-  loaderDeps: ({ search }) => ({ teamId: search.teamId }),
-  beforeLoad: async ({ context }) => {
-    if (context.session) {
-      return { canEdit: true };
-    }
-
-    return { canEdit: false };
-  },
-  loader: async ({ context, deps }) => {
-    // wait 2 seconds
-    const [categories, positions, season] = await Promise.all([
+  loader: async ({ context }) => {
+    const [categories, positions, publicContext] = await Promise.all([
       context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
       context.queryClient.fetchQuery(context.trpc.position.getAll.queryOptions()),
-      context.queryClient.fetchQuery(
-        context.trpc.season.getByState.queryOptions({ state: "signup_open" }),
-      ),
+      context.queryClient.fetchQuery(context.trpc.season.getPublicContext.queryOptions()),
     ]);
-
-    if (context.canEdit && deps.teamId) {
-      const team = await context.queryClient.fetchQuery(
-        context.trpc.team.getById.queryOptions({ id: deps.teamId }),
-      );
-      return {
-        team,
-        categories,
-        positions,
-      };
-    }
-
-    return { team: null, season, categories, positions };
+    return { season: publicContext.registrationSeason, categories, positions };
   },
 });
 
 function SignupFormPage() {
   const trpc = useTRPC();
-  const { season: currentSeason, categories, positions, team } = Route.useLoaderData();
-  const upsertMutation = useMutation(trpc.team.upsert.mutationOptions());
+  const { season: currentSeason, categories, positions } = Route.useLoaderData();
+  const registerMutation = useMutation(trpc.team.register.mutationOptions());
   const navigate = useNavigate();
-  const router = useRouter();
-  const { returnTo } = Route.useSearch();
-  const isEditing = Boolean(team?.id);
-  const defaultUnavailableDates = (() => {
-    const parsedUnavailableDates = parseUnavailableDates(team?.unavailableDates ?? "");
-    return [parsedUnavailableDates[0] ?? "", parsedUnavailableDates[1] ?? ""];
-  })();
-  const queryClient = useQueryClient();
 
   const form = useForm({
     defaultValues: {
-      id: team?.id,
-      seasonId: currentSeason?.id ?? team?.season.id ?? "",
-      name: team?.name ?? "",
-      categoryId: team?.category.id ?? categories?.[0]?.id ?? "",
-      logoUrl: team?.logoUrl ?? "",
-      captainName: team?.captainName ?? "",
-      captainPhone: team?.captainPhone ?? "",
-      coCaptainName: team?.coCaptainName ?? "",
-      coCaptainPhone: team?.coCaptainPhone ?? "",
-      players: team?.players.map((player) => ({
-        id: player.id,
-        name: player.name,
-        jerseyNumber: player.jerseyNumber,
-        positionId: player.position?.id ?? positions?.[0]?.id ?? "",
-      })) ?? [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
-      unavailableDates: defaultUnavailableDates,
-      comingFrom: team?.comingFrom,
-      notes: team?.notes || undefined,
+      name: "",
+      categoryId: categories?.[0]?.id ?? "",
+      logoUrl: "",
+      captainName: "",
+      captainPhone: "",
+      coCaptainName: "",
+      coCaptainPhone: "",
+      players: [{ name: "", jerseyNumber: "", positionId: positions?.[0]?.id ?? "" }],
+      unavailableDates: ["", ""],
+      comingFrom: undefined as string | undefined,
+      notes: undefined as string | undefined,
+      isFarAway: false,
       acceptTerms: false,
       acceptCost: false,
     },
@@ -122,25 +79,10 @@ function SignupFormPage() {
     },
     onSubmit: async ({ value, formApi }) => {
       try {
-        await upsertMutation.mutateAsync({
+        await registerMutation.mutateAsync({
           ...value,
           notes: value.notes ?? undefined,
         });
-
-        router.invalidate();
-        // invalidate all
-        queryClient.invalidateQueries();
-
-        if (isEditing) {
-          if (returnTo) {
-            navigate({ to: returnTo });
-          }
-
-          toast.success("Inscripcion actualizada", {
-            description: "Hemos guardado los cambios del equipo.",
-          });
-          return;
-        }
 
         navigate({ to: "/signup-success" });
 
@@ -156,6 +98,8 @@ function SignupFormPage() {
   });
 
   const logoValue = useStore(form.store, (state) => state.values.logoUrl);
+
+  if (!currentSeason) return <SignupClosed />;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-2 py-6">
@@ -187,7 +131,7 @@ function SignupFormPage() {
                   initialUrl={logoValue || undefined}
                   onUploadSuccess={(url) => form.setFieldValue("logoUrl", url)}
                   onUploadError={(message) => toast.error(message)}
-                  disabled={upsertMutation.isPending}
+                  disabled={registerMutation.isPending}
                 />
               </div>
               <form.Field
@@ -367,7 +311,7 @@ function SignupFormPage() {
                     <div className="flex flex-col gap-4">
                       {field.state.value.map((player, index) => (
                         <form.Field
-                          key={"id" in player && player.id ? player.id : `new-${index}`}
+                          key={`new-${index}`}
                           name={`players[${index}]`}
                           children={(playerField) => {
                             const invalid =
@@ -662,7 +606,7 @@ function SignupFormPage() {
               type="button"
               variant="outline"
               onClick={() => form.reset()}
-              disabled={upsertMutation.isPending}
+              disabled={registerMutation.isPending}
             >
               Limpiar
             </Button>
@@ -693,6 +637,10 @@ function SignupFormPending() {
 
 // let user know there is currently no signup form
 function SignupFormError() {
+  return <SignupClosed />;
+}
+
+function SignupClosed() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <div className="space-y-2">

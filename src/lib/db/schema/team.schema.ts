@@ -1,5 +1,11 @@
 import { relations } from "drizzle-orm";
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  foreignKey,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 import { matchup } from "./schedule.schema";
 
 export const seasonStateEnum = [
@@ -43,35 +49,53 @@ export const group = sqliteTable("team_group", {
 export const seasonTeam = sqliteTable(
   "season_team",
   {
-    seasonId: text("season_id").references(() => season.id, { onDelete: "cascade" }),
-    teamId: text("team_id").references(() => team.id, { onDelete: "cascade" }),
+    seasonId: text("season_id")
+      .notNull()
+      .references(() => season.id, { onDelete: "cascade" }),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => team.id, { onDelete: "cascade" }),
     groupId: text("group_id").references(() => group.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    logoUrl: text("logo_url").notNull(),
+    categoryId: text("category_id").references(() => category.id, {
+      onDelete: "cascade",
+    }),
+    captainName: text("captain_name").notNull(),
+    captainPhone: text("captain_phone").notNull(),
+    coCaptainName: text("co_captain_name").notNull(),
+    coCaptainPhone: text("co_captain_phone").notNull(),
+    unavailableDates: text("unavailable_dates").notNull(),
+    comingFrom: text("coming_from").notNull(),
+    isFarAway: integer("is_far_away").notNull().default(0),
+    notes: text("notes"),
   },
   (t) => [primaryKey({ columns: [t.seasonId, t.teamId] })],
 );
 
 export const team = sqliteTable("team", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  logoUrl: text("logo_url").notNull(),
-  categoryId: text("category_id").references(() => category.id, { onDelete: "cascade" }),
-  captainName: text("captain_name").notNull(),
-  captainPhone: text("captain_phone").notNull(),
-  coCaptainName: text("co_captain_name").notNull(),
-  coCaptainPhone: text("co_captain_phone").notNull(),
-  unavailableDates: text("unavailable_dates").notNull(),
-  comingFrom: text("coming_from").notNull(),
-  isFarAway: integer("is_far_away").notNull().default(0), // 0 = false, 1 = true (SQLite boolean)
-  notes: text("notes"),
 });
 
-export const player = sqliteTable("player", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  jerseyNumber: text("jersey_number").notNull(),
-  positionId: text("position_id").references(() => position.id, { onDelete: "cascade" }),
-  teamId: text("team_id").references(() => team.id, { onDelete: "cascade" }),
-});
+export const player = sqliteTable(
+  "player",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    jerseyNumber: text("jersey_number").notNull(),
+    positionId: text("position_id").references(() => position.id, {
+      onDelete: "cascade",
+    }),
+    teamId: text("team_id").notNull(),
+    seasonId: text("season_id").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.seasonId, t.teamId],
+      foreignColumns: [seasonTeam.seasonId, seasonTeam.teamId],
+    }).onDelete("cascade"),
+  ],
+);
 
 export const position = sqliteTable("position", {
   id: text("id").primaryKey(),
@@ -123,15 +147,15 @@ export const seasonTeamRelations = relations(seasonTeam, ({ one }) => ({
     fields: [seasonTeam.groupId],
     references: [group.id],
   }),
-}));
-
-export const teamRelations = relations(team, ({ many, one }) => ({
-  seasonTeams: many(seasonTeam),
-  players: many(player),
   category: one(category, {
-    fields: [team.categoryId],
+    fields: [seasonTeam.categoryId],
     references: [category.id],
   }),
+}));
+
+export const teamRelations = relations(team, ({ many }) => ({
+  seasonTeams: many(seasonTeam),
+  players: many(player),
 }));
 
 export const categoryRelations = relations(category, ({ many }) => ({
@@ -151,6 +175,10 @@ export const playerRelations = relations(player, ({ one }) => ({
   team: one(team, {
     fields: [player.teamId],
     references: [team.id],
+  }),
+  seasonTeam: one(seasonTeam, {
+    fields: [player.seasonId, player.teamId],
+    references: [seasonTeam.seasonId, seasonTeam.teamId],
   }),
 }));
 

@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 
-export const Route = createFileRoute("/signup-success")({
+export const Route = createFileRoute("/(public)/signup-success")({
   component: SignupSuccessPage,
 });
 

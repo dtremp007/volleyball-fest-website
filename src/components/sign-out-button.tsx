@@ -1,10 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
+import type { ComponentProps } from "react";
 import { Button } from "~/components/ui/button";
 import authClient from "~/lib/auth/auth-client";
 import { authQueryOptions } from "~/lib/auth/queries";
 
-export function SignOutButton() {
+export function SignOutButton({
+  className = "w-fit",
+  variant = "destructive",
+  size = "lg",
+}: Pick<ComponentProps<typeof Button>, "className" | "variant" | "size"> = {}) {
   const queryClient = useQueryClient();
   const router = useRouter();
   return (
@@ -21,9 +26,9 @@ export function SignOutButton() {
         });
       }}
       type="button"
-      className="w-fit"
-      variant="destructive"
-      size="lg"
+      className={className}
+      variant={variant}
+      size={size}
     >
       Sign out
     </Button>

@@ -1,22 +1,35 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createFileRoute } from "@tanstack/react-router";
 import { TeamSheetDocument } from "~/components/pdf/team-sheet";
+import { auth } from "~/lib/auth/auth";
 import { db } from "~/lib/db";
-import { getTeamById } from "~/lib/db/queries/team";
+import { getTeamForSeason } from "~/lib/db/queries/team";
 
 async function handleGetTeamPDF({ request }: { request: Request }) {
   try {
     const url = new URL(request.url);
-    const teamId = url.searchParams.get("id");
+    const teamId = url.searchParams.get("teamId");
+    const seasonId = url.searchParams.get("seasonId");
 
-    if (!teamId) {
-      return new Response(JSON.stringify({ error: "Team ID is required" }), {
-        status: 400,
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const team = await getTeamById(db, teamId);
+    if (!teamId || !seasonId) {
+      return new Response(
+        JSON.stringify({ error: "Season ID and team ID are required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const team = await getTeamForSeason(db, seasonId, teamId);
 
     if (!team) {
       return new Response(JSON.stringify({ error: "Team not found" }), {

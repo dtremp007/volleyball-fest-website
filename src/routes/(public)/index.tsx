@@ -6,7 +6,7 @@ import { StandingsTable } from "~/components/standings";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/(public)/")({
   component: LandingPage,
   loader: async ({ context }) => {
     const heroContent = {
@@ -17,22 +17,28 @@ export const Route = createFileRoute("/")({
       imageUrl: "/hero.jpeg",
     };
 
-    const [schedule, standings] = await Promise.all([
-      context.queryClient.fetchQuery(
-        context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
-          seasonId: "season-2026-spring",
-          upcomingOnly: true,
-        }),
-      ),
-      context.queryClient.fetchQuery(
-        context.trpc.matchup.getStandings.queryOptions({
-          seasonId: "season-2026-spring",
-        }),
-      ),
-    ]);
+    const { competitionSeason, registrationSeason } =
+      await context.queryClient.fetchQuery(
+        context.trpc.season.getPublicContext.queryOptions(),
+      );
+    const [schedule, standings] = competitionSeason
+      ? await Promise.all([
+          context.queryClient.fetchQuery(
+            context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
+              seasonId: competitionSeason.id,
+              upcomingOnly: true,
+            }),
+          ),
+          context.queryClient.fetchQuery(
+            context.trpc.matchup.getStandings.queryOptions({
+              seasonId: competitionSeason.id,
+            }),
+          ),
+        ])
+      : [[], []];
 
     return {
-      heroContent,
+      heroContent: { ...heroContent, ctaVisible: Boolean(registrationSeason) },
       schedule,
       standings,
     };

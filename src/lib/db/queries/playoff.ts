@@ -197,13 +197,23 @@ export async function getPlayoffScheduleMatchupsBySeasonId(
             matchupId: schema.playoffMatchupTeam.matchupId,
             slotIndex: schema.playoffMatchupTeam.slotIndex,
             teamId: schema.playoffMatchupTeam.teamId,
-            teamName: schema.team.name,
-            teamLogoUrl: schema.team.logoUrl,
+            teamName: schema.seasonTeam.name,
+            teamLogoUrl: schema.seasonTeam.logoUrl,
             label: schema.playoffMatchupTeam.label,
             dependencyType: schema.playoffMatchupTeam.dependencyType,
           })
           .from(schema.playoffMatchupTeam)
-          .leftJoin(schema.team, eq(schema.playoffMatchupTeam.teamId, schema.team.id))
+          .innerJoin(
+            schema.playoffMatchup,
+            eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
+          )
+          .leftJoin(
+            schema.seasonTeam,
+            and(
+              eq(schema.playoffMatchupTeam.teamId, schema.seasonTeam.teamId),
+              eq(schema.playoffMatchup.seasonId, schema.seasonTeam.seasonId),
+            ),
+          )
           .where(inArray(schema.playoffMatchupTeam.matchupId, matchupIds))
           .orderBy(
             asc(schema.playoffMatchupTeam.matchupId),
@@ -482,8 +492,8 @@ export async function getPlayoffGraph(
         matchupId: schema.playoffMatchupTeam.matchupId,
         slotIndex: schema.playoffMatchupTeam.slotIndex,
         teamId: schema.playoffMatchupTeam.teamId,
-        teamName: schema.team.name,
-        teamLogoUrl: schema.team.logoUrl,
+        teamName: schema.seasonTeam.name,
+        teamLogoUrl: schema.seasonTeam.logoUrl,
         label: schema.playoffMatchupTeam.label,
         dependsOn: schema.playoffMatchupTeam.dependsOn,
         dependencyType: schema.playoffMatchupTeam.dependencyType,
@@ -493,7 +503,13 @@ export async function getPlayoffGraph(
         schema.playoffMatchup,
         eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
       )
-      .leftJoin(schema.team, eq(schema.playoffMatchupTeam.teamId, schema.team.id))
+      .leftJoin(
+        schema.seasonTeam,
+        and(
+          eq(schema.playoffMatchupTeam.teamId, schema.seasonTeam.teamId),
+          eq(schema.playoffMatchup.seasonId, schema.seasonTeam.seasonId),
+        ),
+      )
       .where(
         and(
           eq(schema.playoffMatchup.seasonId, params.seasonId),
@@ -587,8 +603,8 @@ export async function getPlayoffGraphsBySeason(db: Database, seasonId: string) {
         matchupId: schema.playoffMatchupTeam.matchupId,
         slotIndex: schema.playoffMatchupTeam.slotIndex,
         teamId: schema.playoffMatchupTeam.teamId,
-        teamName: schema.team.name,
-        teamLogoUrl: schema.team.logoUrl,
+        teamName: schema.seasonTeam.name,
+        teamLogoUrl: schema.seasonTeam.logoUrl,
         label: schema.playoffMatchupTeam.label,
         dependsOn: schema.playoffMatchupTeam.dependsOn,
         dependencyType: schema.playoffMatchupTeam.dependencyType,
@@ -598,7 +614,13 @@ export async function getPlayoffGraphsBySeason(db: Database, seasonId: string) {
         schema.playoffMatchup,
         eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
       )
-      .leftJoin(schema.team, eq(schema.playoffMatchupTeam.teamId, schema.team.id))
+      .leftJoin(
+        schema.seasonTeam,
+        and(
+          eq(schema.playoffMatchupTeam.teamId, schema.seasonTeam.teamId),
+          eq(schema.playoffMatchup.seasonId, schema.seasonTeam.seasonId),
+        ),
+      )
       .where(eq(schema.playoffMatchup.seasonId, seasonId))
       .orderBy(
         asc(schema.playoffMatchupTeam.matchupId),

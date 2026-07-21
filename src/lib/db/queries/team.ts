@@ -1,24 +1,24 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
-import { Database } from "~/lib/db";
+import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
 
 const teamColumns = {
   id: schema.team.id,
-  name: schema.team.name,
-  logoUrl: schema.team.logoUrl,
-  captainName: schema.team.captainName,
-  captainPhone: schema.team.captainPhone,
-  coCaptainName: schema.team.coCaptainName,
-  coCaptainPhone: schema.team.coCaptainPhone,
-  unavailableDates: schema.team.unavailableDates,
-  comingFrom: schema.team.comingFrom,
-  isFarAway: schema.team.isFarAway,
+  name: schema.seasonTeam.name,
+  logoUrl: schema.seasonTeam.logoUrl,
+  captainName: schema.seasonTeam.captainName,
+  captainPhone: schema.seasonTeam.captainPhone,
+  coCaptainName: schema.seasonTeam.coCaptainName,
+  coCaptainPhone: schema.seasonTeam.coCaptainPhone,
+  unavailableDates: schema.seasonTeam.unavailableDates,
+  comingFrom: schema.seasonTeam.comingFrom,
+  isFarAway: schema.seasonTeam.isFarAway,
   season: {
     id: schema.season.id,
     name: schema.season.name,
   },
-  notes: schema.team.notes,
+  notes: schema.seasonTeam.notes,
   category: {
     id: schema.category.id,
     name: schema.category.name,
@@ -35,32 +35,53 @@ const playerColumns = {
   },
 };
 
-export const getTeams = async (db: Database) => {
-  return await db
-    .select(teamColumns)
-    .from(schema.team)
-    .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
-    .innerJoin(schema.season, eq(schema.seasonTeam.seasonId, schema.season.id))
-    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id));
+export type TeamPlayerInput = {
+  id?: string;
+  name: string;
+  jerseyNumber: string;
+  positionId: string;
 };
 
-export const getTeamById = async (db: Database, id: string) => {
+export type TeamRegistrationInput = {
+  name: string;
+  logoUrl: string;
+  categoryId: string;
+  captainName: string;
+  captainPhone: string;
+  coCaptainName: string;
+  coCaptainPhone: string;
+  unavailableDates: string;
+  comingFrom: string;
+  isFarAway?: boolean;
+  notes?: string;
+  players: TeamPlayerInput[];
+};
+
+export const getTeamForSeason = async (
+  db: Database,
+  seasonId: string,
+  teamId: string,
+) => {
   const [team] = await db
     .select(teamColumns)
     .from(schema.team)
-    .where(eq(schema.team.id, id))
-    .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
+    .innerJoin(
+      schema.seasonTeam,
+      and(
+        eq(schema.team.id, schema.seasonTeam.teamId),
+        eq(schema.seasonTeam.seasonId, seasonId),
+      ),
+    )
     .innerJoin(schema.season, eq(schema.seasonTeam.seasonId, schema.season.id))
-    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id));
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
+    .where(eq(schema.team.id, teamId));
 
-  if (!team) {
-    return null;
-  }
+  if (!team) return null;
 
   const players = await db
     .select(playerColumns)
     .from(schema.player)
-    .where(eq(schema.player.teamId, id))
+    .where(and(eq(schema.player.teamId, teamId), eq(schema.player.seasonId, seasonId)))
     .leftJoin(schema.position, eq(schema.player.positionId, schema.position.id));
 
   return { ...team, players };
@@ -72,176 +93,185 @@ export const getTeamsBySeasonId = async (
   categoryId?: string,
 ) => {
   const conditions = [eq(schema.seasonTeam.seasonId, seasonId)];
-
-  if (categoryId) {
-    conditions.push(eq(schema.team.categoryId, categoryId));
-  }
+  if (categoryId) conditions.push(eq(schema.seasonTeam.categoryId, categoryId));
 
   return await db
-    .select({
-      ...teamColumns,
-      groupId: schema.seasonTeam.groupId,
-    })
+    .select({ ...teamColumns, groupId: schema.seasonTeam.groupId })
     .from(schema.team)
     .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
     .innerJoin(schema.season, eq(schema.seasonTeam.seasonId, schema.season.id))
-    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
     .where(and(...conditions));
 };
 
-type UpsertPlayerInput = {
-  id?: string;
-  name: string;
-  jerseyNumber: string;
-  positionId: string;
-};
-
-type UpsertTeamParams = {
-  id?: string;
-  name: string;
-  logoUrl: string;
-  categoryId: string;
-  captainName: string;
-  captainPhone: string;
-  coCaptainName: string;
-  coCaptainPhone: string;
-  unavailableDates: string;
-  comingFrom: string;
-  isFarAway?: boolean;
-  seasonId: string;
-  players: UpsertPlayerInput[];
-};
-
-export const upsertTeam = async (db: Database, params: UpsertTeamParams) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured to exclude from teamParams
-  const { id, players, seasonId, ...teamParams } = params;
-  const { isFarAway, ...restTeamParams } = teamParams;
-  const teamId = id ?? uuidv4();
-
-  const teamInsertValues = {
-    ...restTeamParams,
-    ...(isFarAway !== undefined && { isFarAway: isFarAway ? 1 : 0 }),
-  };
+export const createTeamRegistration = async (
+  db: Database,
+  seasonId: string,
+  input: TeamRegistrationInput,
+) => {
+  const teamId = uuidv4();
+  const { players, isFarAway, ...registration } = input;
 
   await db.transaction(async (tx) => {
-    await tx
-      .insert(schema.team)
-      .values({
-        id: teamId,
-        ...teamInsertValues,
-      })
-      .onConflictDoUpdate({
-        target: [schema.team.id],
-        set: teamInsertValues,
-      });
+    await tx.insert(schema.team).values({ id: teamId });
+    await tx.insert(schema.seasonTeam).values({
+      seasonId,
+      teamId,
+      ...registration,
+      isFarAway: isFarAway ? 1 : 0,
+    });
 
-    await tx
-      .insert(schema.seasonTeam)
-      .values({
-        seasonId: params.seasonId,
-        teamId,
-      })
-      .onConflictDoNothing();
-
-    const existingPlayers = await tx
-      .select({
-        id: schema.player.id,
-        name: schema.player.name,
-        jerseyNumber: schema.player.jerseyNumber,
-        positionId: schema.player.positionId,
-      })
-      .from(schema.player)
-      .where(eq(schema.player.teamId, teamId));
-
-    const existingById = new Map(existingPlayers.map((p) => [p.id, p]));
-    const submittedById = new Map<string, UpsertPlayerInput>();
-    for (const p of players) {
-      if (p.id) submittedById.set(p.id, p);
-    }
-
-    const toDelete: string[] = [];
-    for (const { id: playerId } of existingPlayers) {
-      if (!submittedById.has(playerId)) toDelete.push(playerId);
-    }
-
-    const toUpdate: UpsertPlayerInput[] = [];
-    const toInsert: UpsertPlayerInput[] = [];
-    for (const player of players) {
-      if (player.id) {
-        const existing = existingById.get(player.id);
-        if (!existing) {
-          throw new Error(`Player ${player.id} does not belong to team ${teamId}`);
-        }
-        const changed =
-          existing.name !== player.name ||
-          existing.jerseyNumber !== player.jerseyNumber ||
-          existing.positionId !== player.positionId;
-        if (changed) toUpdate.push(player);
-      } else {
-        toInsert.push(player);
-      }
-    }
-
-    if (toDelete.length > 0) {
-      await tx.delete(schema.player).where(inArray(schema.player.id, toDelete));
-    }
-
-    for (const player of toUpdate) {
-      if (!player.id) continue;
-      await tx
-        .update(schema.player)
-        .set({
-          name: player.name,
-          jerseyNumber: player.jerseyNumber,
-          positionId: player.positionId,
-        })
-        .where(eq(schema.player.id, player.id));
-    }
-
-    if (toInsert.length > 0) {
+    if (players.length) {
       await tx.insert(schema.player).values(
-        toInsert.map((player) => ({
+        players.map((player) => ({
           id: uuidv4(),
           name: player.name,
           jerseyNumber: player.jerseyNumber,
           positionId: player.positionId,
           teamId,
+          seasonId,
         })),
       );
     }
   });
 
-  const [team] = await db.select().from(schema.team).where(eq(schema.team.id, teamId));
-  return team;
+  return { id: teamId, seasonId };
+};
+
+export const updateTeamForSeason = async (
+  db: Database,
+  seasonId: string,
+  teamId: string,
+  input: TeamRegistrationInput,
+) => {
+  const existing = await getTeamForSeason(db, seasonId, teamId);
+  if (!existing) throw new Error("Team registration not found");
+
+  const { players, isFarAway, ...registration } = input;
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.seasonTeam)
+      .set({ ...registration, isFarAway: isFarAway ? 1 : 0 })
+      .where(
+        and(
+          eq(schema.seasonTeam.seasonId, seasonId),
+          eq(schema.seasonTeam.teamId, teamId),
+        ),
+      );
+
+    const existingPlayers = await tx
+      .select({ id: schema.player.id })
+      .from(schema.player)
+      .where(and(eq(schema.player.seasonId, seasonId), eq(schema.player.teamId, teamId)));
+    const existingIds = new Set(existingPlayers.map((player) => player.id));
+    const submittedIds = new Set(
+      players.flatMap((player) => (player.id ? [player.id] : [])),
+    );
+    const deleteIds = existingPlayers
+      .filter((player) => !submittedIds.has(player.id))
+      .map((player) => player.id);
+
+    if (deleteIds.length) {
+      await tx.delete(schema.player).where(inArray(schema.player.id, deleteIds));
+    }
+
+    for (const player of players) {
+      if (player.id) {
+        if (!existingIds.has(player.id)) {
+          throw new Error(`Player ${player.id} does not belong to this registration`);
+        }
+        await tx
+          .update(schema.player)
+          .set({
+            name: player.name,
+            jerseyNumber: player.jerseyNumber,
+            positionId: player.positionId,
+          })
+          .where(
+            and(
+              eq(schema.player.id, player.id),
+              eq(schema.player.seasonId, seasonId),
+              eq(schema.player.teamId, teamId),
+            ),
+          );
+      } else {
+        await tx.insert(schema.player).values({
+          id: uuidv4(),
+          name: player.name,
+          jerseyNumber: player.jerseyNumber,
+          positionId: player.positionId,
+          teamId,
+          seasonId,
+        });
+      }
+    }
+  });
+
+  return { id: teamId, seasonId };
 };
 
 export const copyTeamsToSeason = async (
   db: Database,
-  teamIds: string[],
+  sourceSeasonId: string,
   targetSeasonId: string,
+  teamIds: string[],
 ) => {
-  if (teamIds.length === 0) return { count: 0 };
+  if (!teamIds.length || sourceSeasonId === targetSeasonId) return { count: 0 };
 
-  await db
-    .insert(schema.seasonTeam)
-    .values(
-      teamIds.map((teamId) => ({
-        seasonId: targetSeasonId,
-        teamId,
-      })),
-    )
-    .onConflictDoNothing();
+  const registrations = await db
+    .select()
+    .from(schema.seasonTeam)
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, sourceSeasonId),
+        inArray(schema.seasonTeam.teamId, teamIds),
+      ),
+    );
+  const sourcePlayers = await db
+    .select()
+    .from(schema.player)
+    .where(
+      and(
+        eq(schema.player.seasonId, sourceSeasonId),
+        inArray(schema.player.teamId, teamIds),
+      ),
+    );
 
-  return { count: teamIds.length };
+  let copiedCount = 0;
+  await db.transaction(async (tx) => {
+    for (const registration of registrations) {
+      const inserted = await tx
+        .insert(schema.seasonTeam)
+        .values({ ...registration, seasonId: targetSeasonId, groupId: null })
+        .onConflictDoNothing()
+        .returning({ teamId: schema.seasonTeam.teamId });
+      if (!inserted.length) continue;
+
+      copiedCount += 1;
+      const players = sourcePlayers.filter(
+        (player) => player.teamId === registration.teamId,
+      );
+      if (players.length) {
+        await tx.insert(schema.player).values(
+          players.map((player) => ({
+            ...player,
+            id: uuidv4(),
+            seasonId: targetSeasonId,
+          })),
+        );
+      }
+    }
+  });
+
+  return { count: copiedCount };
 };
 
-// Public columns - excludes sensitive captain info
 const publicTeamColumns = {
   id: schema.team.id,
-  name: schema.team.name,
-  logoUrl: schema.team.logoUrl,
+  name: schema.seasonTeam.name,
+  logoUrl: schema.seasonTeam.logoUrl,
   category: schema.category.name,
-  categoryId: schema.team.categoryId,
+  categoryId: schema.seasonTeam.categoryId,
 };
 
 export type PublicTeam = {
@@ -258,25 +288,19 @@ export type PublicTeam = {
   }[];
 };
 
-/**
- * Get all teams with players for public display (no sensitive data)
- */
 export const getPublicTeamsBySeasonId = async (
   db: Database,
   seasonId: string,
 ): Promise<PublicTeam[]> => {
-  // Get all teams for the season
   const teams = await db
     .select(publicTeamColumns)
     .from(schema.team)
     .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
-    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
     .where(eq(schema.seasonTeam.seasonId, seasonId));
 
-  if (teams.length === 0) return [];
-
-  // Get all players for these teams
-  const teamIds = teams.map((t) => t.id);
+  if (!teams.length) return [];
+  const teamIds = teams.map((team) => team.id);
   const players = await db
     .select({
       id: schema.player.id,
@@ -286,33 +310,81 @@ export const getPublicTeamsBySeasonId = async (
       teamId: schema.player.teamId,
     })
     .from(schema.player)
-    .leftJoin(schema.position, eq(schema.player.positionId, schema.position.id));
-
-  // Group players by team
-  const playersByTeam = new Map<string, typeof players>();
-  for (const player of players) {
-    if (player.teamId && teamIds.includes(player.teamId)) {
-      const existing = playersByTeam.get(player.teamId) ?? [];
-      existing.push(player);
-      playersByTeam.set(player.teamId, existing);
-    }
-  }
+    .leftJoin(schema.position, eq(schema.player.positionId, schema.position.id))
+    .where(
+      and(eq(schema.player.seasonId, seasonId), inArray(schema.player.teamId, teamIds)),
+    );
 
   return teams.map((team) => ({
     ...team,
-    players: (playersByTeam.get(team.id) ?? []).map((p) => ({
-      id: p.id,
-      name: p.name,
-      jerseyNumber: p.jerseyNumber,
-      position: p.position,
-    })),
+    players: players
+      .filter((player) => player.teamId === team.id)
+      .map(({ id, name, jerseyNumber, position }) => ({
+        id,
+        name,
+        jerseyNumber,
+        position,
+      })),
   }));
 };
 
-export const deleteTeam = async (db: Database, id: string) => {
+export const removeTeamFromSeason = async (
+  db: Database,
+  seasonId: string,
+  teamId: string,
+) => {
+  const [regularReference] = await db
+    .select({ id: schema.matchup.id })
+    .from(schema.matchup)
+    .where(
+      and(
+        eq(schema.matchup.seasonId, seasonId),
+        // Keep this expression SQL-portable through Drizzle.
+        inArray(schema.matchup.teamAId, [teamId]),
+      ),
+    )
+    .limit(1);
+  const [regularReferenceB] = await db
+    .select({ id: schema.matchup.id })
+    .from(schema.matchup)
+    .where(and(eq(schema.matchup.seasonId, seasonId), eq(schema.matchup.teamBId, teamId)))
+    .limit(1);
+  const [playoffReference] = await db
+    .select({ id: schema.playoffMatchupTeam.id })
+    .from(schema.playoffMatchupTeam)
+    .innerJoin(
+      schema.playoffMatchup,
+      eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
+    )
+    .where(
+      and(
+        eq(schema.playoffMatchup.seasonId, seasonId),
+        eq(schema.playoffMatchupTeam.teamId, teamId),
+      ),
+    )
+    .limit(1);
+
+  if (regularReference || regularReferenceB || playoffReference) {
+    throw new Error(
+      "This team is used by the season schedule. Remove or regenerate its matchups first.",
+    );
+  }
+
   await db.transaction(async (tx) => {
-    await tx.delete(schema.player).where(eq(schema.player.teamId, id));
-    await tx.delete(schema.team).where(eq(schema.team.id, id));
+    await tx
+      .delete(schema.seasonTeam)
+      .where(
+        and(
+          eq(schema.seasonTeam.seasonId, seasonId),
+          eq(schema.seasonTeam.teamId, teamId),
+        ),
+      );
+    const [remaining] = await tx
+      .select({ teamId: schema.seasonTeam.teamId })
+      .from(schema.seasonTeam)
+      .where(eq(schema.seasonTeam.teamId, teamId))
+      .limit(1);
+    if (!remaining) await tx.delete(schema.team).where(eq(schema.team.id, teamId));
   });
 
   return { success: true };
@@ -320,11 +392,14 @@ export const deleteTeam = async (db: Database, id: string) => {
 
 export const updateTeamIsFarAway = async (
   db: Database,
+  seasonId: string,
   teamId: string,
   isFarAway: boolean,
 ) => {
   await db
-    .update(schema.team)
+    .update(schema.seasonTeam)
     .set({ isFarAway: isFarAway ? 1 : 0 })
-    .where(eq(schema.team.id, teamId));
+    .where(
+      and(eq(schema.seasonTeam.seasonId, seasonId), eq(schema.seasonTeam.teamId, teamId)),
+    );
 };

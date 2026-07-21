@@ -59,8 +59,7 @@ export function Footer() {
                 Inscribir equipo
               </Link>
               <Link
-                to="/seasons/$seasonId"
-                params={{ seasonId: "season-2026-spring" }}
+                to="/admin"
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
               >
                 Admin

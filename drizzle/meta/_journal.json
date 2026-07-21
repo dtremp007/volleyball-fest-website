@@ -15,6 +15,41 @@
       "when": 1771972309791,
       "tag": "0001_hesitant_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1780090407000,
+      "tag": "0002_playoff_matchup_slot_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1780179193000,
+      "tag": "0003_playoff_dependency_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1780179193000,
+      "tag": "0004_playoff_duration_sixty",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1780181914000,
+      "tag": "0005_category_playoff_format",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784668053453,
+      "tag": "0006_season_team_snapshots",
+      "breakpoints": true
     }
   ]
 }

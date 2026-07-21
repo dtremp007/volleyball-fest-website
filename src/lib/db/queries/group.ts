@@ -103,13 +103,12 @@ export async function deleteGroup(db: Database, groupId: string) {
 export async function getTeamsByGroup(db: Database, seasonId: string, groupId: string) {
   return await db
     .select({
-      id: schema.team.id,
-      name: schema.team.name,
-      logoUrl: schema.team.logoUrl,
-      categoryId: schema.team.categoryId,
+      id: schema.seasonTeam.teamId,
+      name: schema.seasonTeam.name,
+      logoUrl: schema.seasonTeam.logoUrl,
+      categoryId: schema.seasonTeam.categoryId,
     })
-    .from(schema.team)
-    .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
+    .from(schema.seasonTeam)
     .where(
       and(
         eq(schema.seasonTeam.seasonId, seasonId),

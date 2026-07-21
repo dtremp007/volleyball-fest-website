@@ -15,7 +15,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { useTRPC } from "~/trpc/react";
 
-export const Route = createFileRoute("/equipos")({
+export const Route = createFileRoute("/(public)/equipos")({
   component: EquiposPage,
 });
 
@@ -24,9 +24,10 @@ function EquiposPage() {
   const [search, setSearch] = useState("");
 
   // Get current season
-  const { data: currentSeason, isLoading: seasonLoading } = useQuery(
-    trpc.season.getByState.queryOptions({ state: "active" }),
+  const { data: publicContext, isLoading: seasonLoading } = useQuery(
+    trpc.season.getPublicContext.queryOptions(),
   );
+  const currentSeason = publicContext?.competitionSeason;
 
   // Get teams with players
   const { data: teams, isLoading: teamsLoading } = useQuery(

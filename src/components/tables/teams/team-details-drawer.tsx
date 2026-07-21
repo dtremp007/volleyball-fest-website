@@ -1,9 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
-import { X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import AvatarUpload from "~/components/avatar-upload";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   Drawer,
   DrawerClose,
@@ -13,228 +17,604 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "~/components/ui/drawer";
+import { Field, FieldLabel } from "~/components/ui/field";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { NativeSelect } from "~/components/ui/native-select";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Textarea } from "~/components/ui/textarea";
 import { formatUnavailableDates, parseUnavailableDates } from "~/lib/unavailable-dates";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
+import type { RouterOutputs } from "~/trpc/router";
 
 const routeApi = getRouteApi("/(authenticated)/seasons/$seasonId/teams");
 
+type DraftPlayer = {
+  id?: string;
+  name: string;
+  jerseyNumber: string;
+  positionId: string;
+};
+
+type TeamDraft = {
+  name: string;
+  logoUrl: string;
+  categoryId: string;
+  captainName: string;
+  captainPhone: string;
+  coCaptainName: string;
+  coCaptainPhone: string;
+  players: DraftPlayer[];
+  unavailableDates: string[];
+  comingFrom: string;
+  isFarAway: boolean;
+  notes: string;
+};
+
 export function TeamDetailsDrawer() {
   const { teamId } = routeApi.useSearch();
+  const { seasonId } = Route.useParams();
   const navigate = Route.useNavigate();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<TeamDraft | null>(null);
+  const [initialDraft, setInitialDraft] = useState<TeamDraft | null>(null);
 
   const { data: team, isLoading } = useQuery({
-    ...trpc.team.getById.queryOptions({ id: teamId! }),
-    enabled: !!teamId,
+    ...trpc.team.getForSeason.queryOptions({ seasonId, teamId: teamId! }),
+    enabled: Boolean(teamId),
   });
-  const unavailableDateValues = parseUnavailableDates(team?.unavailableDates ?? "");
-  const unavailableDatesLabel = formatUnavailableDates(team?.unavailableDates ?? "");
+  const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
+  const { data: positions = [] } = useQuery(trpc.position.getAll.queryOptions());
+
+  const updateTeam = useMutation({
+    ...trpc.team.updateForSeason.mutationOptions(),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.team.getForSeason.queryKey({ seasonId, teamId: teamId! }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.team.list.queryKey({ seasonId }),
+        }),
+      ]);
+      setIsEditing(false);
+      toast.success(`${draft?.name ?? "Team"} updated`);
+    },
+    onError: (error) => toast.error(error.message || "Team could not be updated"),
+  });
+
+  const makeDraft = useMemo(() => {
+    if (!team) return null;
+    const dates = parseUnavailableDates(team.unavailableDates);
+    return {
+      name: team.name,
+      logoUrl: team.logoUrl,
+      categoryId: team.category.id,
+      captainName: team.captainName,
+      captainPhone: team.captainPhone,
+      coCaptainName: team.coCaptainName,
+      coCaptainPhone: team.coCaptainPhone,
+      players: team.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        jerseyNumber: player.jerseyNumber,
+        positionId: player.position?.id ?? positions[0]?.id ?? "",
+      })),
+      unavailableDates: [dates[0] ?? "", dates[1] ?? ""],
+      comingFrom: team.comingFrom,
+      isFarAway: Boolean(team.isFarAway),
+      notes: team.notes ?? "",
+    } satisfies TeamDraft;
+  }, [positions, team]);
+
+  const isDirty = Boolean(
+    isEditing &&
+    draft &&
+    initialDraft &&
+    JSON.stringify(draft) !== JSON.stringify(initialDraft),
+  );
+
+  const confirmDiscard = () =>
+    !isDirty || window.confirm("Discard the unsaved changes to this team?");
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) {
+    if (!open && confirmDiscard()) {
+      setIsEditing(false);
       navigate({ search: (prev) => ({ ...prev, teamId: undefined }) });
     }
   };
 
-  const handleEditClick = () => {
-    navigate({
-      to: "/signup-form",
-      search: { teamId: teamId },
-      replace: true,
-      resetScroll: false,
+  const cancelEditing = () => {
+    if (!confirmDiscard()) return;
+    setDraft(initialDraft);
+    setIsEditing(false);
+  };
+
+  const save = () => {
+    if (!draft || !teamId) return;
+    const required = [
+      draft.name,
+      draft.categoryId,
+      draft.captainName,
+      draft.captainPhone,
+      draft.coCaptainName,
+      draft.coCaptainPhone,
+    ];
+    if (required.some((value) => !value.trim())) {
+      toast.error("Complete the team and captain fields before saving.");
+      return;
+    }
+    if (!draft.players.length || draft.players.some((player) => !player.name.trim())) {
+      toast.error("Add at least one player and enter every player name.");
+      return;
+    }
+    updateTeam.mutate({
+      seasonId,
+      teamId,
+      data: {
+        ...draft,
+        notes: draft.notes || undefined,
+        comingFrom: draft.comingFrom || undefined,
+      },
     });
   };
 
+  const setField = <K extends keyof TeamDraft>(key: K, value: TeamDraft[K]) => {
+    setDraft((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  const startEditing = () => {
+    if (!makeDraft) return;
+    setDraft(makeDraft);
+    setInitialDraft(makeDraft);
+    setIsEditing(true);
+  };
+
   return (
-    <Drawer open={!!teamId} onOpenChange={handleOpenChange} direction="right">
-      <DrawerContent className="h-full overflow-hidden">
+    <Drawer open={Boolean(teamId)} onOpenChange={handleOpenChange} direction="right">
+      <DrawerContent className="h-full w-full overflow-hidden data-[vaul-drawer-direction=right]:sm:max-w-xl">
         <DrawerHeader className="border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {isLoading ? (
-                <>
-                  <Skeleton className="size-10 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                </>
+                <Skeleton className="size-10 rounded-full" />
               ) : team ? (
-                <>
-                  <Avatar className="size-10">
-                    {team.logoUrl && (
-                      <AvatarImage src={team.logoUrl} alt={`${team.name} logo`} />
-                    )}
-                    <AvatarFallback className="text-sm font-medium">
-                      {team.name?.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <DrawerTitle>{team.name}</DrawerTitle>
-                    <DrawerDescription>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        <Badge variant="secondary">{team.category.name}</Badge>
-                        {Boolean(team.isFarAway) && (
-                          <Badge variant="outline">Equipo de lejos</Badge>
-                        )}
-                      </div>
-                    </DrawerDescription>
-                  </div>
-                </>
+                <Avatar className="size-10 shrink-0">
+                  {team.logoUrl && (
+                    <AvatarImage src={team.logoUrl} alt={`${team.name} logo`} />
+                  )}
+                  <AvatarFallback>{team.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
               ) : null}
+              <div className="min-w-0">
+                <DrawerTitle className="truncate">
+                  {isEditing ? "Edit team" : (team?.name ?? "Team details")}
+                </DrawerTitle>
+                <DrawerDescription>
+                  {isEditing
+                    ? `Update this registration for ${team?.season.name ?? "the season"}.`
+                    : (team?.season.name ?? "Loading registration…")}
+                </DrawerDescription>
+              </div>
             </div>
             <DrawerClose asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="Close team details">
                 <X className="size-4" />
-                <span className="sr-only">Close</span>
               </Button>
             </DrawerClose>
           </div>
         </DrawerHeader>
 
-        <ScrollArea className="h-0 flex-1 p-4">
-          {isLoading ? (
-            <DrawerLoadingSkeleton />
-          ) : team ? (
-            <div className="space-y-6">
-              {/* Captain Info */}
-              <section>
-                <h3 className="text-muted-foreground mb-2 text-sm font-medium">
-                  Captain
-                </h3>
-                <div className="space-y-1">
-                  <p className="font-medium">{team.captainName}</p>
-                  <a
-                    href={`tel:${team.captainPhone}`}
-                    className="text-primary text-sm hover:underline"
-                  >
-                    {team.captainPhone}
-                  </a>
-                </div>
-              </section>
-
-              {/* Co-Captain Info */}
-              {team.coCaptainName && (
-                <section>
-                  <h3 className="text-muted-foreground mb-2 text-sm font-medium">
-                    Co-Captain
-                  </h3>
-                  <div className="space-y-1">
-                    <p className="font-medium">{team.coCaptainName}</p>
-                    {team.coCaptainPhone && (
-                      <a
-                        href={`tel:${team.coCaptainPhone}`}
-                        className="text-primary text-sm hover:underline"
-                      >
-                        {team.coCaptainPhone}
-                      </a>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              <Separator />
-
-              {/* Players */}
-              <section>
-                <h3 className="text-muted-foreground mb-3 text-sm font-medium">
-                  Players ({team.players?.length ?? 0})
-                </h3>
-                <div className="space-y-2">
-                  {team.players?.map((player) => (
-                    <div
-                      key={player.id}
-                      className="flex items-center justify-between rounded-lg border p-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="bg-muted flex size-6 items-center justify-center rounded text-xs font-medium">
-                          {player.jerseyNumber || "-"}
-                        </span>
-                        <span className="font-medium">{player.name}</span>
-                      </div>
-                      {player.position?.name && (
-                        <Badge variant="outline" className="text-xs">
-                          {player.position.name}
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
-                  {(!team.players || team.players.length === 0) && (
-                    <p className="text-muted-foreground text-sm">No players registered</p>
-                  )}
-                </div>
-              </section>
-
-              <Separator />
-
-              {/* Coming From */}
-              {team.comingFrom && (
-                <section>
-                  <h3 className="text-muted-foreground mb-2 text-sm font-medium">
-                    Coming From
-                  </h3>
-                  <p className="text-sm">{team.comingFrom}</p>
-                </section>
-              )}
-
-              {/* Unavailable Dates */}
-              {unavailableDateValues.length > 0 && (
-                <section>
-                  <h3 className="text-muted-foreground mb-2 text-sm font-medium">
-                    Unavailable Dates
-                  </h3>
-                  <p className="text-sm">{unavailableDatesLabel}</p>
-                </section>
-              )}
-
-              {/* Notes */}
-              {team.notes && (
-                <section>
-                  <h3 className="text-muted-foreground mb-2 text-sm font-medium">
-                    Notes
-                  </h3>
-                  <p className="text-sm">{team.notes}</p>
-                </section>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">Team not found</p>
-          )}
+        <ScrollArea className="h-0 flex-1">
+          <div className="p-4 sm:p-6">
+            {isLoading ? (
+              <DrawerLoadingSkeleton />
+            ) : !team ? (
+              <p className="text-muted-foreground text-sm">
+                Team not found in this season.
+              </p>
+            ) : isEditing && draft ? (
+              <TeamEditForm
+                draft={draft}
+                categories={categories}
+                positions={positions}
+                disabled={updateTeam.isPending}
+                setField={setField}
+              />
+            ) : (
+              <TeamReadView team={team} />
+            )}
+          </div>
         </ScrollArea>
 
-        <DrawerFooter className="flex flex-col gap-2 border-t">
-          <Button onClick={handleEditClick} className="w-full">
-            Edit Team
-          </Button>
-        </DrawerFooter>
+        {team && (
+          <DrawerFooter className="border-t pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {isEditing ? (
+              <div className="flex w-full justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={cancelEditing}
+                  disabled={updateTeam.isPending}
+                >
+                  Keep existing details
+                </Button>
+                <Button onClick={save} disabled={updateTeam.isPending || !isDirty}>
+                  {updateTeam.isPending ? "Saving changes…" : "Save changes"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" asChild>
+                  <a
+                    href={`/api/team-pdf?seasonId=${encodeURIComponent(seasonId)}&teamId=${encodeURIComponent(team.id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View roster PDF
+                  </a>
+                </Button>
+                <Button onClick={startEditing}>Edit team</Button>
+              </div>
+            )}
+          </DrawerFooter>
+        )}
       </DrawerContent>
     </Drawer>
+  );
+}
+
+function TeamReadView({
+  team,
+}: {
+  team: NonNullable<RouterOutputs["team"]["getForSeason"]>;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary">{team.category.name}</Badge>
+        {Boolean(team.isFarAway) && <Badge variant="outline">Travelling team</Badge>}
+      </div>
+      <section className="grid gap-5 sm:grid-cols-2">
+        <Detail
+          label="Captain"
+          value={team.captainName}
+          href={`tel:${team.captainPhone}`}
+          secondary={team.captainPhone}
+        />
+        <Detail
+          label="Co-captain"
+          value={team.coCaptainName}
+          href={`tel:${team.coCaptainPhone}`}
+          secondary={team.coCaptainPhone}
+        />
+      </section>
+      <Separator />
+      <section>
+        <h3 className="text-muted-foreground mb-3 text-sm font-medium">
+          Roster ({team.players.length})
+        </h3>
+        <div className="divide-y rounded-lg border">
+          {team.players.map((player) => (
+            <div key={player.id} className="flex items-center gap-3 px-3 py-2.5">
+              <span className="bg-muted flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold">
+                {player.jerseyNumber || "–"}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {player.name}
+              </span>
+              {player.position?.name && (
+                <span className="text-muted-foreground text-xs">
+                  {player.position.name}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+      <Separator />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Detail label="Coming from" value={team.comingFrom || "Not specified"} />
+        <Detail
+          label="Unavailable dates"
+          value={formatUnavailableDates(team.unavailableDates) || "None"}
+        />
+      </div>
+      {team.notes && <Detail label="Notes" value={team.notes} />}
+    </div>
+  );
+}
+
+function Detail({
+  label,
+  value,
+  secondary,
+  href,
+}: {
+  label: string;
+  value: string;
+  secondary?: string;
+  href?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <h3 className="text-muted-foreground text-sm font-medium">{label}</h3>
+      <p className="text-sm font-medium">{value}</p>
+      {secondary && href && (
+        <a href={href} className="text-primary text-sm hover:underline">
+          {secondary}
+        </a>
+      )}
+    </div>
+  );
+}
+
+function TeamEditForm({
+  draft,
+  categories,
+  positions,
+  disabled,
+  setField,
+}: {
+  draft: TeamDraft;
+  categories: Array<{ id: string; name: string }>;
+  positions: Array<{ id: string; name: string }>;
+  disabled: boolean;
+  setField: <K extends keyof TeamDraft>(key: K, value: TeamDraft[K]) => void;
+}) {
+  const updatePlayer = (index: number, patch: Partial<DraftPlayer>) => {
+    setField(
+      "players",
+      draft.players.map((player, playerIndex) =>
+        playerIndex === index ? { ...player, ...patch } : player,
+      ),
+    );
+  };
+  return (
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <div>
+          <Label>Team logo</Label>
+          <div className="mt-2">
+            <AvatarUpload
+              initialUrl={draft.logoUrl || undefined}
+              onUploadSuccess={(url) => setField("logoUrl", url)}
+              onUploadError={(message) => toast.error(message)}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+        <Field>
+          <FieldLabel htmlFor="admin-team-name">Team name</FieldLabel>
+          <Input
+            id="admin-team-name"
+            value={draft.name}
+            onChange={(event) => setField("name", event.target.value)}
+            disabled={disabled}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="admin-team-category">Category</FieldLabel>
+          <NativeSelect
+            id="admin-team-category"
+            value={draft.categoryId}
+            onChange={(event) => setField("categoryId", event.target.value)}
+            disabled={disabled}
+          >
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      </section>
+      <Separator />
+      <section className="space-y-4">
+        <h3 className="font-semibold">Captains</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label="Captain name"
+            value={draft.captainName}
+            onChange={(value) => setField("captainName", value)}
+            disabled={disabled}
+          />
+          <TextField
+            label="Captain phone"
+            value={draft.captainPhone}
+            onChange={(value) => setField("captainPhone", value)}
+            disabled={disabled}
+            type="tel"
+          />
+          <TextField
+            label="Co-captain name"
+            value={draft.coCaptainName}
+            onChange={(value) => setField("coCaptainName", value)}
+            disabled={disabled}
+          />
+          <TextField
+            label="Co-captain phone"
+            value={draft.coCaptainPhone}
+            onChange={(value) => setField("coCaptainPhone", value)}
+            disabled={disabled}
+            type="tel"
+          />
+        </div>
+      </section>
+      <Separator />
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-semibold">Roster ({draft.players.length})</h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setField("players", [
+                ...draft.players,
+                { name: "", jerseyNumber: "", positionId: positions[0]?.id ?? "" },
+              ])
+            }
+            disabled={disabled}
+          >
+            <Plus className="size-4" /> Add player
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {draft.players.map((player, index) => (
+            <div
+              key={player.id ?? `new-${index}`}
+              className="grid grid-cols-[5rem_1fr_auto] gap-2 rounded-lg border p-3"
+            >
+              <Input
+                aria-label={`Player ${index + 1} jersey number`}
+                placeholder="#"
+                value={player.jerseyNumber}
+                onChange={(event) =>
+                  updatePlayer(index, { jerseyNumber: event.target.value })
+                }
+                disabled={disabled}
+              />
+              <Input
+                aria-label={`Player ${index + 1} name`}
+                placeholder="Player name"
+                value={player.name}
+                onChange={(event) => updatePlayer(index, { name: event.target.value })}
+                disabled={disabled}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete ${player.name || `player ${index + 1}`}`}
+                onClick={() =>
+                  setField(
+                    "players",
+                    draft.players.filter((_, playerIndex) => playerIndex !== index),
+                  )
+                }
+                disabled={disabled || draft.players.length === 1}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+              <NativeSelect
+                className="col-span-3"
+                aria-label={`Player ${index + 1} position`}
+                value={player.positionId}
+                onChange={(event) =>
+                  updatePlayer(index, { positionId: event.target.value })
+                }
+                disabled={disabled}
+              >
+                {positions.map((position) => (
+                  <option key={position.id} value={position.id}>
+                    {position.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ))}
+        </div>
+      </section>
+      <Separator />
+      <section className="space-y-4">
+        <h3 className="font-semibold">Availability and notes</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[0, 1].map((index) => (
+            <Field key={index}>
+              <FieldLabel htmlFor={`unavailable-${index}`}>
+                Unavailable date {index + 1}
+              </FieldLabel>
+              <Input
+                id={`unavailable-${index}`}
+                type="date"
+                value={draft.unavailableDates[index] ?? ""}
+                onChange={(event) =>
+                  setField(
+                    "unavailableDates",
+                    draft.unavailableDates.map((date, dateIndex) =>
+                      dateIndex === index ? event.target.value : date,
+                    ),
+                  )
+                }
+                disabled={disabled}
+              />
+            </Field>
+          ))}
+        </div>
+        <Field>
+          <FieldLabel htmlFor="coming-from">Coming from</FieldLabel>
+          <Input
+            id="coming-from"
+            value={draft.comingFrom}
+            onChange={(event) => setField("comingFrom", event.target.value)}
+            disabled={disabled}
+          />
+        </Field>
+        <div className="flex items-center gap-3 rounded-lg border p-3">
+          <Checkbox
+            id="far-away"
+            checked={draft.isFarAway}
+            onCheckedChange={(checked) => setField("isFarAway", checked === true)}
+            disabled={disabled}
+          />
+          <Label htmlFor="far-away">
+            Travelling team with limited scheduling availability
+          </Label>
+        </div>
+        <Field>
+          <FieldLabel htmlFor="team-notes">Notes</FieldLabel>
+          <Textarea
+            id="team-notes"
+            value={draft.notes}
+            onChange={(event) => setField("notes", event.target.value)}
+            rows={4}
+            disabled={disabled}
+          />
+        </Field>
+      </section>
+    </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  disabled,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  type?: string;
+}) {
+  const id = `field-${label.toLowerCase().replaceAll(" ", "-")}`;
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+      />
+    </Field>
   );
 }
 
 function DrawerLoadingSkeleton() {
   return (
     <div className="space-y-6">
-      <section>
-        <Skeleton className="mb-2 h-4 w-16" />
-        <Skeleton className="mb-1 h-5 w-32" />
-        <Skeleton className="h-4 w-28" />
-      </section>
-
-      <Separator />
-
-      <section>
-        <Skeleton className="mb-3 h-4 w-20" />
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-10 w-full rounded-lg" />
-          ))}
-        </div>
-      </section>
+      <Skeleton className="h-6 w-36" />
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-48 w-full" />
     </div>
   );
 }

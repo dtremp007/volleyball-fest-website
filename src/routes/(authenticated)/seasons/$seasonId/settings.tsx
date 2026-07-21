@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -27,31 +26,9 @@ import { Input } from "~/components/ui/input";
 import { NativeSelect } from "~/components/ui/native-select";
 import { Textarea } from "~/components/ui/textarea";
 import type { CmsValueType } from "~/lib/db/schema/cms.schema";
-import type { SeasonState } from "~/lib/db/schema/team.schema";
 import { useTRPC } from "~/trpc/react";
 
-// Season state display configuration
-const seasonStateConfig: Record<
-  SeasonState,
-  { label: string; variant: "default" | "secondary" | "outline" }
-> = {
-  draft: { label: "Borrador", variant: "secondary" },
-  signup_open: { label: "Inscripciones Abiertas", variant: "default" },
-  signup_closed: { label: "Inscripciones Cerradas", variant: "outline" },
-  active: { label: "En Curso", variant: "default" },
-  completed: { label: "Finalizada", variant: "secondary" },
-};
-
-// Valid state transitions
-const validStateTransitions: Record<SeasonState, SeasonState[]> = {
-  draft: ["signup_open"],
-  signup_open: ["signup_closed", "active"],
-  signup_closed: ["signup_open", "active"],
-  active: ["completed"],
-  completed: [],
-};
-
-export const Route = createFileRoute("/(authenticated)/settings")({
+export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/settings")({
   component: SettingsPage,
 });
 
@@ -61,261 +38,14 @@ function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-2">
-          Manage seasons, categories, player positions, and site content
+          Manage categories, player positions, and site content
         </p>
       </div>
 
       <div className="flex flex-col gap-8">
-        <SeasonsSection />
         <CategoriesSection />
         <PositionsSection />
         <CmsSection />
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// Seasons Section
-// ============================================================================
-
-function SeasonsSection() {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const { data: seasons = [] } = useQuery(trpc.season.getAll.queryOptions());
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
-
-  const createMutation = useMutation({
-    ...trpc.season.create.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.season.getAll.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.season.getByState.queryKey() });
-      setIsAdding(false);
-      toast.success("Season created");
-    },
-    onError: () => toast.error("Failed to create season"),
-  });
-
-  const updateMutation = useMutation({
-    ...trpc.season.update.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.season.getAll.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.season.getByState.queryKey() });
-      setEditingId(null);
-      toast.success("Season updated");
-    },
-    onError: () => toast.error("Failed to update season"),
-  });
-
-  const updateStateMutation = useMutation({
-    ...trpc.season.updateState.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.season.getAll.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.season.getByState.queryKey() });
-      toast.success("Season state updated");
-    },
-    onError: (error) => toast.error(error.message || "Failed to update season state"),
-  });
-
-  const deleteMutation = useMutation({
-    ...trpc.season.delete.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.season.getAll.queryKey() });
-      queryClient.invalidateQueries({ queryKey: trpc.season.getByState.queryKey() });
-      toast.success("Season deleted");
-    },
-    onError: () => toast.error("Failed to delete season"),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Seasons</CardTitle>
-        <CardDescription>
-          Manage tournament seasons with start and end dates
-        </CardDescription>
-        <CardAction>
-          <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
-            <Plus className="size-4" />
-            Add Season
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-2">
-          {isAdding && (
-            <SeasonRow
-              isNew
-              onSave={(data) =>
-                createMutation.mutate({
-                  name: data.name,
-                  startDate: data.startDate,
-                  endDate: data.endDate,
-                })
-              }
-              onCancel={() => setIsAdding(false)}
-              isPending={createMutation.isPending}
-            />
-          )}
-          {seasons.map((season) => (
-            <SeasonRow
-              key={season.id}
-              season={season}
-              isEditing={editingId === season.id}
-              onEdit={() => setEditingId(season.id)}
-              onSave={(data) => updateMutation.mutate({ id: season.id, data })}
-              onStateChange={(state) =>
-                updateStateMutation.mutate({ id: season.id, state })
-              }
-              onCancel={() => setEditingId(null)}
-              onDelete={() => deleteMutation.mutate({ id: season.id })}
-              isPending={
-                updateMutation.isPending ||
-                deleteMutation.isPending ||
-                updateStateMutation.isPending
-              }
-            />
-          ))}
-          {seasons.length === 0 && !isAdding && (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              No seasons yet. Add one to get started.
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface SeasonRowProps {
-  season?: {
-    id: string;
-    name: string;
-    startDate: string;
-    endDate: string;
-    state: SeasonState | null;
-  };
-  isNew?: boolean;
-  isEditing?: boolean;
-  onEdit?: () => void;
-  onSave: (data: { name: string; startDate: string; endDate: string }) => void;
-  onStateChange?: (state: SeasonState) => void;
-  onCancel: () => void;
-  onDelete?: () => void;
-  isPending?: boolean;
-}
-
-function SeasonRow({
-  season,
-  isNew,
-  isEditing,
-  onEdit,
-  onSave,
-  onStateChange,
-  onCancel,
-  onDelete,
-  isPending,
-}: SeasonRowProps) {
-  const [name, setName] = useState(season?.name ?? "");
-  const [startDate, setStartDate] = useState(season?.startDate ?? "");
-  const [endDate, setEndDate] = useState(season?.endDate ?? "");
-
-  const isEditMode = isNew || isEditing;
-  const currentState = (season?.state ?? "draft") as SeasonState;
-  const stateConfig = seasonStateConfig[currentState];
-  const availableTransitions = validStateTransitions[currentState];
-
-  const handleSave = () => {
-    if (!name.trim() || !startDate || !endDate) {
-      toast.error("All fields are required");
-      return;
-    }
-    onSave({ name: name.trim(), startDate, endDate });
-  };
-
-  const handleCancel = () => {
-    setName(season?.name ?? "");
-    setStartDate(season?.startDate ?? "");
-    setEndDate(season?.endDate ?? "");
-    onCancel();
-  };
-
-  if (isEditMode) {
-    return (
-      <div className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-lg p-3">
-        <Input
-          placeholder="Season name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="min-w-[150px] flex-1"
-          disabled={isPending}
-        />
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-[150px]"
-          disabled={isPending}
-        />
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="w-[150px]"
-          disabled={isPending}
-        />
-        <div className="flex gap-1">
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={isPending}>
-            <Check className="size-4" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={handleCancel} disabled={isPending}>
-            <X className="size-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="hover:bg-muted/50 flex items-center justify-between gap-4 rounded-lg p-3 transition-colors">
-      <div className="flex flex-1 flex-wrap items-center gap-4">
-        <span className="font-medium">{season?.name}</span>
-        <span className="text-muted-foreground text-sm">
-          {season?.startDate} — {season?.endDate}
-        </span>
-        <Badge variant={stateConfig.variant}>{stateConfig.label}</Badge>
-      </div>
-      <div className="flex items-center gap-2">
-        {/* State transition dropdown */}
-        {availableTransitions.length > 0 && (
-          <NativeSelect
-            value=""
-            onChange={(e) => {
-              if (e.target.value && onStateChange) {
-                onStateChange(e.target.value as SeasonState);
-              }
-            }}
-            className="w-[180px] text-sm"
-            disabled={isPending}
-          >
-            <option value="">Cambiar estado...</option>
-            {availableTransitions.map((state) => (
-              <option key={state} value={state}>
-                → {seasonStateConfig[state].label}
-              </option>
-            ))}
-          </NativeSelect>
-        )}
-        <div className="flex gap-1">
-          <Button size="icon" variant="ghost" onClick={onEdit}>
-            <Pencil className="size-4" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete}>
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
       </div>
     </div>
   );
@@ -686,7 +416,7 @@ function CmsSection() {
   const { data: rootEntries = [] } = useQuery(trpc.cms.getRoots.queryOptions());
 
   const [isAdding, setIsAdding] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   const createMutation = useMutation({
     ...trpc.cms.create.mutationOptions(),

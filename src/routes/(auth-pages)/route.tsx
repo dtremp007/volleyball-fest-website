@@ -9,14 +9,11 @@ export const Route = createFileRoute("/(auth-pages)")({
       revalidateIfStale: true,
     });
     if (user) {
-      throw redirect({
-        to: "/seasons/$seasonId",
-        params: { seasonId: "season-2026-spring" },
-      });
+      throw redirect({ to: "/admin" });
     }
 
     return {
-      redirectUrl: "/seasons/season-2026-spring",
+      redirectUrl: "/admin",
     };
   },
 });

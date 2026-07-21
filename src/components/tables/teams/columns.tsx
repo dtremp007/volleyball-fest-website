@@ -7,6 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
+import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/router";
 import { ActionsMenu } from "./actions-menu";
@@ -16,16 +17,17 @@ export type Team = RouterOutputs["team"]["list"][number];
 function FarAwayCell({ team }: { team: Team }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { seasonId } = Route.useParams();
 
   const updateIsFarAwayMutation = useMutation(
     trpc.team.updateIsFarAway.mutationOptions({
       onSuccess: async () => {
         toast.success("Team updated");
         await queryClient.invalidateQueries({
-          queryKey: trpc.team.getById.queryKey({ id: team.id }),
+          queryKey: trpc.team.getForSeason.queryKey({ seasonId, teamId: team.id }),
         });
         await queryClient.invalidateQueries({
-          queryKey: trpc.team.list.queryKey(),
+          queryKey: trpc.team.list.queryKey({ seasonId }),
         });
       },
       onError: () => {
@@ -36,7 +38,8 @@ function FarAwayCell({ team }: { team: Team }) {
 
   const handleCheckedChange = (checked: boolean | "indeterminate") => {
     updateIsFarAwayMutation.mutate({
-      id: team.id,
+      seasonId,
+      teamId: team.id,
       isFarAway: checked === true,
     });
   };

@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 
 export function EmptyState() {
@@ -13,9 +12,9 @@ export function EmptyState() {
           </p>
         </div>
 
-        <Button variant="outline" asChild>
-          <Link to="/signup-form">Register a Team</Link>
-        </Button>
+        <p className="text-muted-foreground text-xs">
+          Public registrations will appear here automatically.
+        </p>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Eye, FileText, Loader, MoreHorizontal, Trash2 } from "lucide-react";
+import { FileText, Loader, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -10,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 import type { Team } from "./columns";
 
@@ -20,13 +20,15 @@ type Props = {
 export function ActionsMenu({ team }: Props) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const navigate = Route.useNavigate();
+  const { seasonId } = Route.useParams();
 
   const deleteMutation = useMutation(
-    trpc.team.delete.mutationOptions({
+    trpc.team.removeFromSeason.mutationOptions({
       onSuccess: () => {
         toast.success("Team deleted successfully");
         queryClient.invalidateQueries({
-          queryKey: trpc.team.list.queryKey(),
+          queryKey: trpc.team.list.queryKey({ seasonId }),
         });
       },
     }),
@@ -48,19 +50,17 @@ export function ActionsMenu({ team }: Props) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem asChild>
-            <Link
-              to="/signup-form"
-              search={{ teamId: team.id }}
-              className="flex items-center"
-            >
-              <Eye className="mr-2 size-4" />
-              Edit Team
-            </Link>
+          <DropdownMenuItem
+            onSelect={() =>
+              navigate({ search: (prev) => ({ ...prev, teamId: team.id }) })
+            }
+          >
+            <Pencil className="mr-2 size-4" />
+            Edit Team
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <a
-              href={`/api/team-pdf?id=${team.id}`}
+              href={`/api/team-pdf?seasonId=${encodeURIComponent(seasonId)}&teamId=${encodeURIComponent(team.id)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center"
@@ -73,12 +73,12 @@ export function ActionsMenu({ team }: Props) {
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              deleteMutation.mutate({ id: team.id });
+              deleteMutation.mutate({ seasonId, teamId: team.id });
             }}
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 size-4" />
-            Delete Team
+            Remove from Season
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -1,6 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Calendar, Eye, Loader, MoreHorizontal, Settings2, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Eye,
+  Loader,
+  MoreHorizontal,
+  RefreshCw,
+  Settings2,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -29,6 +37,35 @@ export function ActionsMenu({ season }: Props) {
       },
     }),
   );
+  const updateStateMutation = useMutation(
+    trpc.season.updateState.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Season state updated");
+        await queryClient.invalidateQueries({ queryKey: trpc.season.getAll.queryKey() });
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+  const transitions: Record<
+    string,
+    Array<{
+      state: "signup_open" | "signup_closed" | "active" | "completed";
+      label: string;
+    }>
+  > = {
+    draft: [{ state: "signup_open", label: "Open sign-up" }],
+    signup_open: [
+      { state: "signup_closed", label: "Close sign-up" },
+      { state: "active", label: "Start season" },
+    ],
+    signup_closed: [
+      { state: "signup_open", label: "Reopen sign-up" },
+      { state: "active", label: "Start season" },
+    ],
+    active: [{ state: "completed", label: "Complete season" }],
+    completed: [],
+  };
+  const availableTransitions = transitions[season.state] ?? [];
 
   return (
     <div className="flex items-center justify-end">
@@ -76,6 +113,17 @@ export function ActionsMenu({ season }: Props) {
               Build Schedule
             </Link>
           </DropdownMenuItem>
+          {availableTransitions.map((transition) => (
+            <DropdownMenuItem
+              key={transition.state}
+              onSelect={() =>
+                updateStateMutation.mutate({ id: season.id, state: transition.state })
+              }
+            >
+              <RefreshCw className="mr-2 size-4" />
+              {transition.label}
+            </DropdownMenuItem>
+          ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={(e) => {

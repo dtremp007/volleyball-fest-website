@@ -14,10 +14,13 @@ export const createSeasonSchema = z.object({
   name: z.string().min(1, "Name is required"),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
-  state: seasonStateEnum.optional().default("draft"),
 });
 
-export const updateSeasonSchema = createSeasonSchema.partial();
+export const updateSeasonSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  startDate: z.string().min(1, "Start date is required").optional(),
+  endDate: z.string().min(1, "End date is required").optional(),
+});
 
 export const updateSeasonStateSchema = z.object({
   id: z.string(),

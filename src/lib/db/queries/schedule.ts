@@ -147,13 +147,19 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
       slotIndex: schema.matchup.slotIndex,
       duration: schema.matchup.duration,
       bestOf: schema.matchup.bestOf,
-      teamAName: schema.team.name,
-      teamALogo: schema.team.logoUrl,
-      teamAUnavailableDates: schema.team.unavailableDates,
-      teamAIsFarAway: schema.team.isFarAway,
+      teamAName: schema.seasonTeam.name,
+      teamALogo: schema.seasonTeam.logoUrl,
+      teamAUnavailableDates: schema.seasonTeam.unavailableDates,
+      teamAIsFarAway: schema.seasonTeam.isFarAway,
     })
     .from(schema.matchup)
-    .innerJoin(schema.team, eq(schema.matchup.teamAId, schema.team.id))
+    .innerJoin(
+      schema.seasonTeam,
+      and(
+        eq(schema.matchup.teamAId, schema.seasonTeam.teamId),
+        eq(schema.matchup.seasonId, schema.seasonTeam.seasonId),
+      ),
+    )
     .leftJoin(schema.scheduleEvent, eq(schema.matchup.eventId, schema.scheduleEvent.id))
     .where(eq(schema.matchup.seasonId, seasonId))
     .orderBy(
@@ -167,15 +173,21 @@ export async function getMatchupsBySeasonId(db: Database, seasonId: string) {
   const teamBInfo = await db
     .select({
       matchupId: schema.matchup.id,
-      teamBName: schema.team.name,
-      teamBLogo: schema.team.logoUrl,
-      teamBUnavailableDates: schema.team.unavailableDates,
-      teamBIsFarAway: schema.team.isFarAway,
+      teamBName: schema.seasonTeam.name,
+      teamBLogo: schema.seasonTeam.logoUrl,
+      teamBUnavailableDates: schema.seasonTeam.unavailableDates,
+      teamBIsFarAway: schema.seasonTeam.isFarAway,
       category: schema.category.name,
     })
     .from(schema.matchup)
-    .innerJoin(schema.team, eq(schema.matchup.teamBId, schema.team.id))
-    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
+    .innerJoin(
+      schema.seasonTeam,
+      and(
+        eq(schema.matchup.teamBId, schema.seasonTeam.teamId),
+        eq(schema.matchup.seasonId, schema.seasonTeam.seasonId),
+      ),
+    )
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
     .where(eq(schema.matchup.seasonId, seasonId));
 
   const teamBMap = new Map(teamBInfo.map((t) => [t.matchupId, t]));
@@ -372,16 +384,15 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
   // Get all teams for this season with their group assignments
   const teams = await db
     .select({
-      id: schema.team.id,
-      name: schema.team.name,
-      logoUrl: schema.team.logoUrl,
-      categoryId: schema.team.categoryId,
+      id: schema.seasonTeam.teamId,
+      name: schema.seasonTeam.name,
+      logoUrl: schema.seasonTeam.logoUrl,
+      categoryId: schema.seasonTeam.categoryId,
       category: schema.category.name,
       groupId: schema.seasonTeam.groupId,
     })
-    .from(schema.team)
-    .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
-    .innerJoin(schema.category, eq(schema.team.categoryId, schema.category.id))
+    .from(schema.seasonTeam)
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
     .where(eq(schema.seasonTeam.seasonId, seasonId));
 
   // Group teams by category and then by group
@@ -462,6 +473,7 @@ export async function clearMatchupPlacementsForSeason(db: Database, seasonId: st
 async function buildConstraintValidationContext(
   db: Database,
   params: {
+    seasonId: string;
     eventDates: Array<{ id: string; date: string }>;
     teamIds: string[];
   },
@@ -477,12 +489,17 @@ async function buildConstraintValidationContext(
 
   const teamRows = await db
     .select({
-      id: schema.team.id,
-      unavailableDates: schema.team.unavailableDates,
-      isFarAway: schema.team.isFarAway,
+      id: schema.seasonTeam.teamId,
+      unavailableDates: schema.seasonTeam.unavailableDates,
+      isFarAway: schema.seasonTeam.isFarAway,
     })
-    .from(schema.team)
-    .where(inArray(schema.team.id, params.teamIds));
+    .from(schema.seasonTeam)
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, params.seasonId),
+        inArray(schema.seasonTeam.teamId, params.teamIds),
+      ),
+    );
 
   const teamUnavailableDatesById = new Map(
     teamRows.map((row) => [row.id, row.unavailableDates]),
@@ -902,6 +919,7 @@ export async function autoScheduleMatchups(
     new Set(allSeasonMatchups.flatMap((matchup) => [matchup.teamAId, matchup.teamBId])),
   );
   const validationContext = await buildConstraintValidationContext(db, {
+    seasonId,
     eventDates: events,
     teamIds,
   });
@@ -909,11 +927,16 @@ export async function autoScheduleMatchups(
   // Build matchup category map (both teams in a matchup have same category)
   const teamRows = await db
     .select({
-      id: schema.team.id,
-      categoryId: schema.team.categoryId,
+      id: schema.seasonTeam.teamId,
+      categoryId: schema.seasonTeam.categoryId,
     })
-    .from(schema.team)
-    .where(inArray(schema.team.id, teamIds));
+    .from(schema.seasonTeam)
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, seasonId),
+        inArray(schema.seasonTeam.teamId, teamIds),
+      ),
+    );
   const teamCategoryById = new Map(teamRows.map((r) => [r.id, r.categoryId]));
   const matchupCategoryById = new Map(
     allSeasonMatchups.map((m) => [

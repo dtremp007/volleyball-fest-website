@@ -14,6 +14,7 @@ import {
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 
 type Props = {
@@ -27,6 +28,7 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { seasonId: sourceSeasonId } = Route.useParams();
 
   const { data: seasons } = useQuery(trpc.season.getAll.queryOptions());
 
@@ -34,9 +36,7 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
     trpc.team.copyToSeason.mutationOptions({
       onSuccess: async () => {
         await queryClient.invalidateQueries({ queryKey: trpc.team.list.queryKey() });
-        toast.success(
-          `Copied ${selectedTeamIds.length} team${selectedTeamIds.length !== 1 ? "s" : ""} to season`,
-        );
+        toast.success("Selected teams copied to season");
         setOpen(false);
         setSelectedSeasonId("");
         onSuccess?.();
@@ -55,7 +55,8 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
 
     copyMutation.mutate({
       teamIds: selectedTeamIds,
-      seasonId: selectedSeasonId,
+      sourceSeasonId,
+      targetSeasonId: selectedSeasonId,
     });
   };
 
@@ -86,11 +87,13 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
               onChange={(e) => setSelectedSeasonId(e.target.value)}
             >
               <NativeSelectOption value="">Select a season...</NativeSelectOption>
-              {seasons?.map((season) => (
-                <NativeSelectOption key={season.id} value={season.id}>
-                  {season.name}
-                </NativeSelectOption>
-              ))}
+              {seasons
+                ?.filter((season) => season.id !== sourceSeasonId)
+                .map((season) => (
+                  <NativeSelectOption key={season.id} value={season.id}>
+                    {season.name}
+                  </NativeSelectOption>
+                ))}
             </NativeSelect>
           </div>
         </div>
