@@ -30,9 +30,6 @@ const getServerSession = createServerFn({ method: "GET" }).handler(async () => {
 
   const serverSession = await auth.api.getSession({
     headers,
-    query: {
-      disableCookieCache: true,
-    },
   });
 
   if (serverSession) {
@@ -142,19 +139,21 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             <Toaster richColors />
           </TooltipProvider>
         </ThemeProvider>
-        <TanStackDevtools
-          plugins={[
-            formDevtoolsPlugin(),
-            {
-              name: "TanStack Query",
-              render: <ReactQueryDevtoolsPanel />,
-            },
-            {
-              name: "TanStack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {import.meta.env.DEV ? (
+          <TanStackDevtools
+            plugins={[
+              formDevtoolsPlugin(),
+              {
+                name: "TanStack Query",
+                render: <ReactQueryDevtoolsPanel />,
+              },
+              {
+                name: "TanStack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        ) : null}
         <Scripts />
       </body>
     </html>

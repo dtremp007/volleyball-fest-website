@@ -46,12 +46,12 @@ export function Footer() {
               >
                 Inicio
               </Link>
-              <a
-                href="/equipos"
+              <Link
+                to="/equipos"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 Equipos
-              </a>
+              </Link>
               <Link
                 to="/signup-form"
                 className="text-muted-foreground hover:text-foreground transition-colors"

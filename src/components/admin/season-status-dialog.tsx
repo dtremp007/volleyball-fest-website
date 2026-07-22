@@ -59,6 +59,9 @@ export function SeasonStatusDialog({ seasonId, currentState }: Props) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: trpc.season.getAll.queryKey() }),
           queryClient.invalidateQueries({ queryKey: trpc.season.getById.queryKey() }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.season.getPublicContext.queryKey(),
+          }),
         ]);
         setOpen(false);
       },

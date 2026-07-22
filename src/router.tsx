@@ -3,23 +3,45 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
-import { createTRPCClient, httpBatchStreamLink, loggerLink } from "@trpc/client";
+import { createIsomorphicFn, createServerFn } from "@tanstack/react-start";
+import {
+  createTRPCClient,
+  httpBatchStreamLink,
+  loggerLink,
+  type TRPCClient,
+} from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import superjson from "superjson";
 import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { DefaultNotFound } from "~/components/default-not-found";
 import { getUrl } from "~/lib/utils";
+import { createServerTrpc } from "~/trpc/create-server-trpc.server";
+import {
+  PUBLIC_CONTEXT_STALE_TIME,
+  REFERENCE_DATA_STALE_TIME,
+} from "~/trpc/query-stale-times";
 import { TRPCProvider } from "~/trpc/react";
 import type { AppRouter } from "~/trpc/router";
 import { routeTree } from "./routeTree.gen";
 
 const getHeaders = createServerFn({ method: "GET" }).handler(async () => {
+  const { getRequestHeaders } = await import("@tanstack/react-start/server");
   const headers = getRequestHeaders();
 
   return Object.fromEntries(headers);
 });
+
+/** SSR uses in-process procedures; browser uses HTTP. */
+const createAppTrpc = createIsomorphicFn()
+  .server((queryClient: QueryClient, _trpcClient: TRPCClient<AppRouter>) => {
+    return createServerTrpc(queryClient);
+  })
+  .client((queryClient: QueryClient, trpcClient: TRPCClient<AppRouter>) => {
+    return createTRPCOptionsProxy<AppRouter>({
+      queryClient,
+      client: trpcClient,
+    });
+  });
 
 export function getRouter() {
   const queryClient = new QueryClient({
@@ -47,9 +69,16 @@ export function getRouter() {
     ],
   });
 
-  const trpc = createTRPCOptionsProxy<AppRouter>({
-    client: trpcClient,
-    queryClient,
+  const trpc = createAppTrpc(queryClient, trpcClient);
+
+  queryClient.setQueryDefaults(trpc.category.getAll.queryKey(), {
+    staleTime: REFERENCE_DATA_STALE_TIME,
+  });
+  queryClient.setQueryDefaults(trpc.position.getAll.queryKey(), {
+    staleTime: REFERENCE_DATA_STALE_TIME,
+  });
+  queryClient.setQueryDefaults(trpc.season.getPublicContext.queryKey(), {
+    staleTime: PUBLIC_CONTEXT_STALE_TIME,
   });
 
   const router = createRouter({

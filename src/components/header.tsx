@@ -14,7 +14,13 @@ export const Header: React.FC<HeaderProps> = ({ links }) => {
         <div className="relative container mx-auto h-16 w-full px-4">
           <div className="absolute top-2 left-4 z-30">
             <Link to="/">
-              <img src="/icon-no-bg-512.png" alt="Logo" className="h-10" />
+              <img
+                src="/icon-192.png"
+                alt="Logo"
+                width={40}
+                height={40}
+                className="h-10 w-10"
+              />
             </Link>
           </div>
           <NavHeader>

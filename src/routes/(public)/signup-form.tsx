@@ -2,7 +2,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Plus, Trash } from "lucide-react";
 import AvatarUpload from "~/components/avatar-upload";
 import { Button } from "~/components/ui/button";
@@ -37,18 +37,24 @@ export const Route = createFileRoute("/(public)/signup-form")({
   errorComponent: SignupFormError,
   pendingComponent: SignupFormPending,
   loader: async ({ context }) => {
-    const [categories, positions, publicContext] = await Promise.all([
-      context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
-      context.queryClient.fetchQuery(context.trpc.position.getAll.queryOptions()),
-      context.queryClient.fetchQuery(context.trpc.season.getPublicContext.queryOptions()),
+    await Promise.all([
+      context.queryClient.ensureQueryData(context.trpc.category.getAll.queryOptions()),
+      context.queryClient.ensureQueryData(context.trpc.position.getAll.queryOptions()),
+      context.queryClient.ensureQueryData(
+        context.trpc.season.getPublicContext.queryOptions(),
+      ),
     ]);
-    return { season: publicContext.registrationSeason, categories, positions };
   },
 });
 
 function SignupFormPage() {
   const trpc = useTRPC();
-  const { season: currentSeason, categories, positions } = Route.useLoaderData();
+  const { data: categories } = useSuspenseQuery(trpc.category.getAll.queryOptions());
+  const { data: positions } = useSuspenseQuery(trpc.position.getAll.queryOptions());
+  const { data: publicContext } = useSuspenseQuery(
+    trpc.season.getPublicContext.queryOptions(),
+  );
+  const currentSeason = publicContext.registrationSeason;
   const registerMutation = useMutation(trpc.team.register.mutationOptions());
   const navigate = useNavigate();
 

@@ -13,7 +13,14 @@ export function TeamBadge({
     <div className={cn("flex min-w-0 flex-1 items-center gap-1.5", className)}>
       <div className="bg-muted size-6 shrink-0 overflow-hidden rounded">
         {logoUrl ? (
-          <img src={logoUrl} alt={name} className="size-full object-cover" />
+          <img
+            src={logoUrl}
+            alt={name}
+            width={24}
+            height={24}
+            loading="lazy"
+            className="size-full object-cover"
+          />
         ) : (
           <div className="text-muted-foreground flex size-full items-center justify-center text-xs">
             {name[0]}

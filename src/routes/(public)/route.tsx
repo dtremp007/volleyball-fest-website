@@ -2,14 +2,13 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
-import authClient from "~/lib/auth/auth-client";
 
 export const Route = createFileRoute("/(public)")({
   component: PublicLayout,
 });
 
 function PublicLayout() {
-  const { data: session } = authClient.useSession();
+  const { session } = Route.useRouteContext();
 
   return (
     <>

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Trophy } from "lucide-react";
 
@@ -5,71 +6,83 @@ import { EventList } from "~/components/schedule/event-list";
 import { PreviousSeasonsSection, SeasonStandings } from "~/components/standings";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { useTRPC } from "~/trpc/react";
+
+const LANDING_SCHEDULE_LIMIT = 4;
 
 export const Route = createFileRoute("/(public)/")({
-  component: LandingPage,
   loader: async ({ context }) => {
-    const heroContent = {
-      title: "Volleyball Fest",
-      subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
-      ctaText: "Inscribe tu equipo",
-      ctaVisible: false,
-      imageUrl: "/hero.jpeg",
-    };
+    const publicContext = await context.queryClient.ensureQueryData(
+      context.trpc.season.getPublicContext.queryOptions(),
+    );
 
-    const { competitionSeason, registrationSeason, completedSeasons } =
-      await context.queryClient.fetchQuery(
-        context.trpc.season.getPublicContext.queryOptions(),
-      );
-
+    const competitionSeason = publicContext.competitionSeason;
     const isActiveCompetition = competitionSeason?.state === "active";
 
-    const schedule = competitionSeason
-      ? await context.queryClient.fetchQuery(
-          context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
-            seasonId: competitionSeason.id,
-            upcomingOnly: true,
-          }),
-        )
-      : [];
-
-    const standings = isActiveCompetition
-      ? await context.queryClient.fetchQuery(
-          context.trpc.matchup.getStandings.queryOptions({
-            seasonId: competitionSeason.id,
-          }),
-        )
-      : [];
+    // Fetch below-fold data in parallel after context (needed for season ids).
+    await Promise.all([
+      competitionSeason
+        ? context.queryClient.ensureQueryData(
+            context.trpc.matchup.getPublicUnifiedSchedule.queryOptions({
+              seasonId: competitionSeason.id,
+              upcomingOnly: true,
+              limit: LANDING_SCHEDULE_LIMIT,
+            }),
+          )
+        : Promise.resolve(),
+      isActiveCompetition && competitionSeason
+        ? context.queryClient.ensureQueryData(
+            context.trpc.matchup.getStandings.queryOptions({
+              seasonId: competitionSeason.id,
+            }),
+          )
+        : Promise.resolve(),
+    ]);
 
     return {
-      heroContent: { ...heroContent, ctaVisible: Boolean(registrationSeason) },
-      schedule,
-      standings,
+      publicContext,
       activeSeasonId: isActiveCompetition ? competitionSeason.id : null,
-      completedSeasons,
+      showCta: Boolean(publicContext.registrationSeason),
     };
   },
+  head: () => ({
+    links: [{ rel: "preload", as: "image", href: "/hero.jpeg" }],
+  }),
+  pendingComponent: LandingPending,
+  component: LandingPage,
 });
 
-// Default hero content for CMS
 const heroDefaults = {
   title: "Volleyball Fest",
   subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
   ctaText: "Inscribe tu equipo",
-  ctaVisible: false,
   imageUrl: "/hero.jpeg",
 };
 
 function LandingPage() {
-  const { heroContent, schedule, standings, activeSeasonId, completedSeasons } =
-    Route.useLoaderData();
+  const { publicContext, activeSeasonId, showCta } = Route.useLoaderData();
+  const trpc = useTRPC();
+  const competitionSeason = publicContext.competitionSeason;
 
-  const hero = heroContent ?? heroDefaults;
+  const { data: schedule = [] } = useQuery({
+    ...trpc.matchup.getPublicUnifiedSchedule.queryOptions({
+      seasonId: competitionSeason?.id ?? "",
+      upcomingOnly: true,
+      limit: LANDING_SCHEDULE_LIMIT,
+    }),
+    enabled: !!competitionSeason?.id,
+  });
 
-  // Show CTA only if signup is open or signup closed (late signup allowed)
-  const showCta = hero.ctaVisible;
+  const { data: standings = [] } = useQuery({
+    ...trpc.matchup.getStandings.queryOptions({
+      seasonId: competitionSeason?.id ?? "",
+    }),
+    enabled: !!activeSeasonId,
+  });
 
-  const hasStandings = !!standings && standings.length > 0;
+  const hero = heroDefaults;
+  const hasStandings = standings.length > 0;
+  const completedSeasons = publicContext.completedSeasons;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -86,9 +99,12 @@ function LandingPage() {
         {/* Content */}
         <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
           <img
-            src="/icon-no-bg-512.png"
+            src="/icon-192.png"
             alt="Volleyball Fest"
+            width={128}
+            height={128}
             className="mx-auto size-32"
+            fetchPriority="high"
           />
 
           <h1 className="mb-6 text-6xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
@@ -154,7 +170,7 @@ function LandingPage() {
       ) : null}
 
       {/* Schedule Section */}
-      {schedule && schedule.length > 0 ? <EventList schedule={schedule} /> : null}
+      {schedule.length > 0 ? <EventList schedule={schedule} /> : null}
 
       <PreviousSeasonsSection seasons={completedSeasons} />
 
@@ -181,6 +197,31 @@ function LandingPage() {
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+function LandingPending() {
+  return (
+    <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/hero.jpeg')" }}
+      />
+      <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black/80" />
+      <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
+        <img
+          src="/icon-192.png"
+          alt="Volleyball Fest"
+          width={128}
+          height={128}
+          className="mx-auto size-32"
+        />
+        <h1 className="mb-6 text-6xl font-bold tracking-tight text-white md:text-7xl lg:text-8xl">
+          Volleyball
+          <span className="block text-[#C20A12]">Fest</span>
+        </h1>
+      </div>
     </div>
   );
 }

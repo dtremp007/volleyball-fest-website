@@ -1597,6 +1597,85 @@ export async function getEventMatchupsWithScores(db: Database, eventId: string) 
 }
 
 /**
+ * Lightweight public matchups for specific events — no points / availability payload.
+ */
+async function getPublicMatchupsForEventIds(
+  db: Database,
+  seasonId: string,
+  eventIds: string[],
+) {
+  if (eventIds.length === 0) return [];
+
+  const matchups = await db
+    .select({
+      id: schema.matchup.id,
+      eventId: schema.matchup.eventId,
+      courtId: schema.matchup.courtId,
+      slotIndex: schema.matchup.slotIndex,
+      duration: schema.matchup.duration,
+      teamAName: schema.seasonTeam.name,
+      teamALogo: schema.seasonTeam.logoUrl,
+    })
+    .from(schema.matchup)
+    .innerJoin(
+      schema.seasonTeam,
+      and(
+        eq(schema.matchup.teamAId, schema.seasonTeam.teamId),
+        eq(schema.matchup.seasonId, schema.seasonTeam.seasonId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.matchup.seasonId, seasonId),
+        inArray(schema.matchup.eventId, eventIds),
+      ),
+    )
+    .orderBy(asc(schema.matchup.slotIndex));
+
+  const teamBInfo = await db
+    .select({
+      matchupId: schema.matchup.id,
+      teamBName: schema.seasonTeam.name,
+      teamBLogo: schema.seasonTeam.logoUrl,
+      category: schema.category.name,
+    })
+    .from(schema.matchup)
+    .innerJoin(
+      schema.seasonTeam,
+      and(
+        eq(schema.matchup.teamBId, schema.seasonTeam.teamId),
+        eq(schema.matchup.seasonId, schema.seasonTeam.seasonId),
+      ),
+    )
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
+    .where(
+      and(
+        eq(schema.matchup.seasonId, seasonId),
+        inArray(schema.matchup.eventId, eventIds),
+      ),
+    );
+
+  const teamBMap = new Map(teamBInfo.map((row) => [row.matchupId, row]));
+
+  return matchups.map((matchup) => {
+    const teamB = teamBMap.get(matchup.id);
+    return {
+      id: matchup.id,
+      eventId: matchup.eventId,
+      courtId: matchup.courtId,
+      slotIndex: matchup.slotIndex,
+      duration: matchup.duration,
+      category: teamB?.category ?? "",
+      teamA: { name: matchup.teamAName, logoUrl: matchup.teamALogo },
+      teamB: {
+        name: teamB?.teamBName ?? "",
+        logoUrl: teamB?.teamBLogo ?? null,
+      },
+    };
+  });
+}
+
+/**
  * Get public schedule for a season - upcoming events with their matchups
  */
 export async function getPublicSchedule(
@@ -1631,14 +1710,8 @@ export async function getPublicSchedule(
 
   if (events.length === 0) return [];
 
-  // Get all matchups for these events
   const eventIds = events.map((e) => e.id);
-  const matchups = await getMatchupsBySeasonId(db, seasonId);
-
-  // Filter to only scheduled matchups for these events
-  const scheduledMatchups = matchups.filter(
-    (m) => m.eventId && eventIds.includes(m.eventId),
-  );
+  const scheduledMatchups = await getPublicMatchupsForEventIds(db, seasonId, eventIds);
 
   // Group matchups by event
   const matchupsByEvent = new Map<string, typeof scheduledMatchups>();

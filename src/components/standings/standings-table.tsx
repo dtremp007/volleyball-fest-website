@@ -75,6 +75,9 @@ export function StandingsTable({ sections, variant, limit }: StandingsTableProps
                           <img
                             src={team.teamLogoUrl}
                             alt={team.teamName}
+                            width={32}
+                            height={32}
+                            loading="lazy"
                             className="size-full object-cover"
                           />
                         ) : (

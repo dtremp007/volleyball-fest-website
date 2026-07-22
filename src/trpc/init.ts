@@ -20,6 +20,7 @@ export const t = initTRPC.context<typeof createTRPCContext>().create({
 });
 
 export const createTRPCRouter = t.router;
+export const createCallerFactory = t.createCallerFactory;
 
 const enforceUserIsAuthenticated = t.middleware(({ ctx, next }) => {
   if (!ctx.session?.user) {

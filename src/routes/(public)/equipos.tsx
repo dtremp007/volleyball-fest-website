@@ -17,19 +17,30 @@ import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(public)/equipos")({
   component: EquiposPage,
+  pendingComponent: EquiposPending,
+  loader: async ({ context }) => {
+    const publicContext = await context.queryClient.ensureQueryData(
+      context.trpc.season.getPublicContext.queryOptions(),
+    );
+
+    const seasonId = publicContext.competitionSeason?.id;
+    if (seasonId) {
+      await context.queryClient.ensureQueryData(
+        context.trpc.team.listPublic.queryOptions({ seasonId }),
+      );
+    }
+
+    return { publicContext };
+  },
 });
 
 function EquiposPage() {
   const trpc = useTRPC();
+  const { publicContext } = Route.useLoaderData();
   const [search, setSearch] = useState("");
 
-  // Get current season
-  const { data: publicContext, isLoading: seasonLoading } = useQuery(
-    trpc.season.getPublicContext.queryOptions(),
-  );
-  const currentSeason = publicContext?.competitionSeason;
+  const currentSeason = publicContext.competitionSeason;
 
-  // Get teams with players
   const { data: teams, isLoading: teamsLoading } = useQuery(
     trpc.team.listPublic.queryOptions(
       { seasonId: currentSeason?.id ?? "" },
@@ -73,7 +84,7 @@ function EquiposPage() {
   }, [teamsByCategory, search]);
 
   const categories = Object.keys(filteredTeamsByCategory);
-  const isLoading = seasonLoading || teamsLoading;
+  const isLoading = !!currentSeason?.id && teamsLoading;
 
   return (
     <div className="min-h-screen">
@@ -164,6 +175,9 @@ function TeamCard({ team }: { team: Team }) {
               <img
                 src={team.logoUrl}
                 alt={team.name}
+                width={64}
+                height={64}
+                loading="lazy"
                 className="size-full object-cover"
               />
             ) : (
@@ -253,6 +267,30 @@ function TeamsSkeleton() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function EquiposPending() {
+  return (
+    <div className="min-h-screen">
+      <section className="overflow-hidden py-16">
+        <div className="relative mx-auto max-w-6xl px-6">
+          <div className="mt-16 space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+              Equipos
+            </h1>
+            <p className="text-lg text-zinc-400">
+              Conoce a todos los equipos participantes y sus jugadores
+            </p>
+          </div>
+        </div>
+      </section>
+      <section className="py-12">
+        <div className="mx-auto max-w-6xl px-6">
+          <TeamsSkeleton />
+        </div>
+      </section>
     </div>
   );
 }

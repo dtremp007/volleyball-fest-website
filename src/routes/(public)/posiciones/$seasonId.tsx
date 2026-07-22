@@ -15,6 +15,7 @@ import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(public)/posiciones/$seasonId")({
   component: PosicionesSeasonPage,
+  pendingComponent: PosicionesSeasonPending,
   loader: async ({ context, params }) => {
     const publicContext = await context.queryClient.ensureQueryData(
       context.trpc.season.getPublicContext.queryOptions(),
@@ -43,6 +44,25 @@ export const Route = createFileRoute("/(public)/posiciones/$seasonId")({
     return { publicContext };
   },
 });
+
+function PosicionesSeasonPending() {
+  return (
+    <div className="min-h-screen">
+      <section className="mt-10 overflow-hidden">
+        <div className="relative mx-auto max-w-6xl px-6">
+          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+            Posiciones
+          </h1>
+        </div>
+      </section>
+      <section className="py-12">
+        <div className="mx-auto max-w-6xl px-6">
+          <StandingsSkeleton variant="full" />
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function PosicionesSeasonPage() {
   const { seasonId } = Route.useParams();

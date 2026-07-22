@@ -70,7 +70,13 @@ export function AdminHeader({ user }: Props) {
     <header className="bg-background sticky top-0 z-40 border-b">
       <div className="container mx-auto flex h-16 items-center gap-3 px-4">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <img src="/icon-no-bg-512.png" alt="Volleyball Fest" className="size-9" />
+          <img
+            src="/icon-192.png"
+            alt="Volleyball Fest"
+            width={36}
+            height={36}
+            className="size-9"
+          />
           <span className="hidden font-semibold tracking-tight sm:inline">
             Go to Site
           </span>

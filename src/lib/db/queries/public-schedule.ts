@@ -1,10 +1,95 @@
 import { startOfDay, subDays } from "date-fns";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "~/lib/db";
 import {
   getPlayoffScheduleEventsBySeasonId,
   getPlayoffScheduleMatchupsBySeasonId,
 } from "~/lib/db/queries/playoff";
 import { getPublicSchedule } from "~/lib/db/queries/schedule";
+import * as schema from "~/lib/db/schema";
+
+function getUpcomingCutoffDate() {
+  const yesterday = startOfDay(subDays(new Date(), 1));
+  return yesterday.toISOString().split("T")[0] ?? "";
+}
+
+async function getPlayoffScheduleMatchupsForEventIds(
+  db: Database,
+  seasonId: string,
+  eventIds: string[],
+) {
+  if (eventIds.length === 0) return [];
+
+  const matchupRows = await db
+    .select({
+      id: schema.playoffMatchup.id,
+      label: schema.playoffMatchup.label,
+      category: schema.category.name,
+      bestOf: schema.playoffMatchup.bestOf,
+      duration: schema.playoffMatchup.duration,
+      eventId: schema.playoffMatchup.eventId,
+      courtId: schema.playoffMatchup.courtId,
+      slotIndex: schema.playoffMatchup.slotIndex,
+    })
+    .from(schema.playoffMatchup)
+    .innerJoin(schema.category, eq(schema.playoffMatchup.categoryId, schema.category.id))
+    .where(
+      and(
+        eq(schema.playoffMatchup.seasonId, seasonId),
+        inArray(schema.playoffMatchup.eventId, eventIds),
+      ),
+    )
+    .orderBy(
+      sql`(${schema.playoffMatchup.slotIndex} IS NULL) ASC`,
+      asc(schema.playoffMatchup.slotIndex),
+      asc(schema.playoffMatchup.label),
+    );
+
+  const matchupIds = matchupRows.map((matchup) => matchup.id);
+  const teamRows =
+    matchupIds.length > 0
+      ? await db
+          .select({
+            id: schema.playoffMatchupTeam.id,
+            matchupId: schema.playoffMatchupTeam.matchupId,
+            slotIndex: schema.playoffMatchupTeam.slotIndex,
+            teamId: schema.playoffMatchupTeam.teamId,
+            teamName: schema.seasonTeam.name,
+            teamLogoUrl: schema.seasonTeam.logoUrl,
+            label: schema.playoffMatchupTeam.label,
+            dependencyType: schema.playoffMatchupTeam.dependencyType,
+          })
+          .from(schema.playoffMatchupTeam)
+          .innerJoin(
+            schema.playoffMatchup,
+            eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
+          )
+          .leftJoin(
+            schema.seasonTeam,
+            and(
+              eq(schema.playoffMatchupTeam.teamId, schema.seasonTeam.teamId),
+              eq(schema.playoffMatchup.seasonId, schema.seasonTeam.seasonId),
+            ),
+          )
+          .where(inArray(schema.playoffMatchupTeam.matchupId, matchupIds))
+          .orderBy(
+            asc(schema.playoffMatchupTeam.matchupId),
+            asc(schema.playoffMatchupTeam.slotIndex),
+          )
+      : [];
+
+  const teamsByMatchupId = teamRows.reduce((acc, row) => {
+    const existing = acc.get(row.matchupId) ?? [];
+    existing.push(row);
+    acc.set(row.matchupId, existing);
+    return acc;
+  }, new Map<string, typeof teamRows>());
+
+  return matchupRows.map((matchup) => ({
+    ...matchup,
+    teams: teamsByMatchupId.get(matchup.id) ?? [],
+  }));
+}
 
 export async function getPublicUnifiedSchedule(
   db: Database,
@@ -12,10 +97,20 @@ export async function getPublicUnifiedSchedule(
   options?: { upcomingOnly?: boolean; limit?: number },
 ) {
   const { upcomingOnly = false, limit } = options ?? {};
-  const [regularEvents, playoffEvents, playoffMatchups] = await Promise.all([
-    getPublicSchedule(db, seasonId, { upcomingOnly: false }),
-    getPlayoffScheduleEventsBySeasonId(db, seasonId),
-    getPlayoffScheduleMatchupsBySeasonId(db, seasonId),
+  const upcomingCutoff = upcomingOnly ? getUpcomingCutoffDate() : null;
+
+  const allPlayoffEvents = await getPlayoffScheduleEventsBySeasonId(db, seasonId);
+  const playoffEvents = upcomingCutoff
+    ? allPlayoffEvents.filter((event) => event.date >= upcomingCutoff)
+    : allPlayoffEvents;
+  const playoffEventIds = playoffEvents.map((event) => event.id);
+
+  const [regularEvents, playoffMatchups] = await Promise.all([
+    // Limit is applied after merging regular + playoff events.
+    getPublicSchedule(db, seasonId, { upcomingOnly }),
+    upcomingOnly
+      ? getPlayoffScheduleMatchupsForEventIds(db, seasonId, playoffEventIds)
+      : getPlayoffScheduleMatchupsBySeasonId(db, seasonId),
   ]);
 
   const playoffMatchupsByEventId = new Map<string, typeof playoffMatchups>();
@@ -74,15 +169,9 @@ export async function getPublicUnifiedSchedule(
     };
   });
 
-  let unifiedEvents = [...normalizedRegularEvents, ...normalizedPlayoffEvents]
+  const unifiedEvents = [...normalizedRegularEvents, ...normalizedPlayoffEvents]
     .filter((event) => event.matchups.length > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
-
-  if (upcomingOnly) {
-    const yesterday = startOfDay(subDays(new Date(), 1));
-    const yesterdayDate = yesterday.toISOString().split("T")[0] ?? "";
-    unifiedEvents = unifiedEvents.filter((event) => event.date >= yesterdayDate);
-  }
 
   return limit ? unifiedEvents.slice(0, limit) : unifiedEvents;
 }

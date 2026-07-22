@@ -5,6 +5,7 @@ import { selectDefaultPosicionesSeasonId } from "~/lib/public-standings-seasons"
 
 export const Route = createFileRoute("/(public)/posiciones/")({
   component: PosicionesIndexPage,
+  pendingComponent: PosicionesPending,
   loader: async ({ context }) => {
     const publicContext = await context.queryClient.ensureQueryData(
       context.trpc.season.getPublicContext.queryOptions(),
@@ -21,6 +22,20 @@ export const Route = createFileRoute("/(public)/posiciones/")({
     return null;
   },
 });
+
+function PosicionesPending() {
+  return (
+    <div className="min-h-screen">
+      <section className="mt-10 overflow-hidden">
+        <div className="relative mx-auto max-w-6xl px-6">
+          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+            Posiciones
+          </h1>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function PosicionesIndexPage() {
   return (
