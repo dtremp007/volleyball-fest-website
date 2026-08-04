@@ -11,6 +11,7 @@ describe("public season context", () => {
 
     expect(context.competitionSeason?.id).toBe("active");
     expect(context.registrationSeason?.id).toBe("signup");
+    expect(context.teamsSeason?.id).toBe("signup");
     expect(context.completedSeasons.map((season) => season.id)).toEqual(["old"]);
   });
 
@@ -23,10 +24,22 @@ describe("public season context", () => {
 
     expect(context.competitionSeason?.id).toBe("latest");
     expect(context.registrationSeason).toBeNull();
+    expect(context.teamsSeason?.id).toBe("latest");
     expect(context.completedSeasons.map((season) => season.id)).toEqual([
       "latest",
       "older",
     ]);
+  });
+
+  it("shows teams for signup_closed seasons before competition starts", () => {
+    const context = selectPublicSeasonContext([
+      { id: "old", state: "completed" as const, startDate: "2026-01-01" },
+      { id: "upcoming", state: "signup_closed" as const, startDate: "2027-02-01" },
+    ]);
+
+    expect(context.registrationSeason).toBeNull();
+    expect(context.competitionSeason?.id).toBe("old");
+    expect(context.teamsSeason?.id).toBe("upcoming");
   });
 
   it("lists completed seasons newest first and excludes non-completed", () => {
