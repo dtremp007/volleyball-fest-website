@@ -23,10 +23,11 @@ function EquiposPage() {
   const trpc = useTRPC();
   const [search, setSearch] = useState("");
 
+  // Prefer the season open for signup (or closed but not yet active), else competition.
   const { data: publicContext, isLoading: seasonLoading } = useQuery(
     trpc.season.getPublicContext.queryOptions(),
   );
-  const currentSeason = publicContext?.competitionSeason;
+  const currentSeason = publicContext?.teamsSeason;
 
   const { data: teams, isLoading: teamsLoading } = useQuery(
     trpc.team.listPublic.queryOptions(

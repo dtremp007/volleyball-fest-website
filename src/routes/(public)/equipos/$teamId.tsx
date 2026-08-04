@@ -14,7 +14,7 @@ export const Route = createFileRoute("/(public)/equipos/$teamId")({
       context.trpc.season.getPublicContext.queryOptions(),
     );
 
-    const seasonId = publicContext.competitionSeason?.id;
+    const seasonId = publicContext.teamsSeason?.id;
     if (seasonId) {
       await context.queryClient.ensureQueryData(
         context.trpc.team.getPublicById.queryOptions({
@@ -32,7 +32,7 @@ function EquipoDetailPage() {
   const { teamId } = Route.useParams();
   const { publicContext } = Route.useLoaderData();
   const trpc = useTRPC();
-  const seasonId = publicContext.competitionSeason?.id ?? "";
+  const seasonId = publicContext.teamsSeason?.id ?? "";
 
   const { data: team, isLoading } = useQuery(
     trpc.team.getPublicById.queryOptions(
