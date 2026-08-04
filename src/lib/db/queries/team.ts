@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
@@ -274,6 +274,15 @@ const publicTeamColumns = {
   categoryId: schema.seasonTeam.categoryId,
 };
 
+export type PublicTeamSummary = {
+  id: string;
+  name: string;
+  logoUrl: string;
+  category: string;
+  categoryId: string | null;
+  playerCount: number;
+};
+
 export type PublicTeam = {
   id: string;
   name: string;
@@ -291,7 +300,7 @@ export type PublicTeam = {
 export const getPublicTeamsBySeasonId = async (
   db: Database,
   seasonId: string,
-): Promise<PublicTeam[]> => {
+): Promise<PublicTeamSummary[]> => {
   const teams = await db
     .select(publicTeamColumns)
     .from(schema.team)
@@ -301,31 +310,57 @@ export const getPublicTeamsBySeasonId = async (
 
   if (!teams.length) return [];
   const teamIds = teams.map((team) => team.id);
+  const playerCounts = await db
+    .select({
+      teamId: schema.player.teamId,
+      playerCount: count(),
+    })
+    .from(schema.player)
+    .where(
+      and(eq(schema.player.seasonId, seasonId), inArray(schema.player.teamId, teamIds)),
+    )
+    .groupBy(schema.player.teamId);
+
+  const countByTeamId = new Map(
+    playerCounts.map((row) => [row.teamId, row.playerCount]),
+  );
+
+  return teams.map((team) => ({
+    ...team,
+    playerCount: countByTeamId.get(team.id) ?? 0,
+  }));
+};
+
+export const getPublicTeamById = async (
+  db: Database,
+  seasonId: string,
+  teamId: string,
+): Promise<PublicTeam | null> => {
+  const [team] = await db
+    .select(publicTeamColumns)
+    .from(schema.team)
+    .innerJoin(schema.seasonTeam, eq(schema.team.id, schema.seasonTeam.teamId))
+    .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
+    .where(and(eq(schema.seasonTeam.seasonId, seasonId), eq(schema.team.id, teamId)))
+    .limit(1);
+
+  if (!team) return null;
+
   const players = await db
     .select({
       id: schema.player.id,
       name: schema.player.name,
       jerseyNumber: schema.player.jerseyNumber,
       position: schema.position.name,
-      teamId: schema.player.teamId,
     })
     .from(schema.player)
     .leftJoin(schema.position, eq(schema.player.positionId, schema.position.id))
-    .where(
-      and(eq(schema.player.seasonId, seasonId), inArray(schema.player.teamId, teamIds)),
-    );
+    .where(and(eq(schema.player.seasonId, seasonId), eq(schema.player.teamId, teamId)));
 
-  return teams.map((team) => ({
+  return {
     ...team,
-    players: players
-      .filter((player) => player.teamId === team.id)
-      .map(({ id, name, jerseyNumber, position }) => ({
-        id,
-        name,
-        jerseyNumber,
-        position,
-      })),
-  }));
+    players,
+  };
 };
 
 export const removeTeamFromSeason = async (

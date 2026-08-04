@@ -6,6 +6,7 @@ import { getPublicSeasonContext } from "~/lib/db/queries/season";
 import {
   copyTeamsToSeason,
   createTeamRegistration,
+  getPublicTeamById,
   getPublicTeamsBySeasonId,
   getTeamForSeason,
   getTeamsBySeasonId,
@@ -41,6 +42,12 @@ export const teamRouter = {
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await getPublicTeamsBySeasonId(db, input.seasonId);
+    }),
+
+  getPublicById: publicProcedure
+    .input(z.object({ seasonId: z.string(), teamId: z.string() }))
+    .query(async ({ input }) => {
+      return await getPublicTeamById(db, input.seasonId, input.teamId);
     }),
 
   getForSeason: protectedProcedure

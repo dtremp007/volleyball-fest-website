@@ -19,17 +19,18 @@ import { Route as ApiPlayoffEventPdfRouteImport } from './routes/api/playoff-eve
 import { Route as ApiEventPdfRouteImport } from './routes/api/event-pdf'
 import { Route as publicSignupSuccessRouteImport } from './routes/(public)/signup-success'
 import { Route as publicSignupFormRouteImport } from './routes/(public)/signup-form'
-import { Route as publicEquiposRouteImport } from './routes/(public)/equipos'
 import { Route as authenticatedAdminRouteImport } from './routes/(authenticated)/admin'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
 import { Route as authPagesLoginRouteImport } from './routes/(auth-pages)/login'
 import { Route as authenticatedDashboardRouteRouteImport } from './routes/(authenticated)/dashboard/route'
 import { Route as publicPosicionesIndexRouteImport } from './routes/(public)/posiciones/index'
+import { Route as publicEquiposIndexRouteImport } from './routes/(public)/equipos/index'
 import { Route as authenticatedSeasonsIndexRouteImport } from './routes/(authenticated)/seasons/index'
 import { Route as authenticatedDashboardIndexRouteImport } from './routes/(authenticated)/dashboard/index'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 import { Route as publicPosicionesSeasonIdRouteImport } from './routes/(public)/posiciones/$seasonId'
+import { Route as publicEquiposTeamIdRouteImport } from './routes/(public)/equipos/$teamId'
 import { Route as authenticatedSeasonsNewRouteImport } from './routes/(authenticated)/seasons/new'
 import { Route as authenticatedSeasonsSeasonIdRouteRouteImport } from './routes/(authenticated)/seasons/$seasonId/route'
 import { Route as authenticatedSeasonsSeasonIdIndexRouteImport } from './routes/(authenticated)/seasons/$seasonId/index'
@@ -90,11 +91,6 @@ const publicSignupFormRoute = publicSignupFormRouteImport.update({
   path: '/signup-form',
   getParentRoute: () => publicRouteRoute,
 } as any)
-const publicEquiposRoute = publicEquiposRouteImport.update({
-  id: '/equipos',
-  path: '/equipos',
-  getParentRoute: () => publicRouteRoute,
-} as any)
 const authenticatedAdminRoute = authenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -119,6 +115,11 @@ const authenticatedDashboardRouteRoute =
 const publicPosicionesIndexRoute = publicPosicionesIndexRouteImport.update({
   id: '/posiciones/',
   path: '/posiciones/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicEquiposIndexRoute = publicEquiposIndexRouteImport.update({
+  id: '/equipos/',
+  path: '/equipos/',
   getParentRoute: () => publicRouteRoute,
 } as any)
 const authenticatedSeasonsIndexRoute =
@@ -149,6 +150,11 @@ const publicPosicionesSeasonIdRoute =
     path: '/posiciones/$seasonId',
     getParentRoute: () => publicRouteRoute,
   } as any)
+const publicEquiposTeamIdRoute = publicEquiposTeamIdRouteImport.update({
+  id: '/equipos/$teamId',
+  path: '/equipos/$teamId',
+  getParentRoute: () => publicRouteRoute,
+} as any)
 const authenticatedSeasonsNewRoute = authenticatedSeasonsNewRouteImport.update({
   id: '/seasons/new',
   path: '/seasons/new',
@@ -226,7 +232,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/admin': typeof authenticatedAdminRoute
-  '/equipos': typeof publicEquiposRoute
   '/signup-form': typeof publicSignupFormRoute
   '/signup-success': typeof publicSignupSuccessRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
@@ -236,11 +241,13 @@ export interface FileRoutesByFullPath {
   '/': typeof publicIndexRoute
   '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdRouteRouteWithChildren
   '/seasons/new': typeof authenticatedSeasonsNewRoute
+  '/equipos/$teamId': typeof publicEquiposTeamIdRoute
   '/posiciones/$seasonId': typeof publicPosicionesSeasonIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard/': typeof authenticatedDashboardIndexRoute
   '/seasons/': typeof authenticatedSeasonsIndexRoute
+  '/equipos/': typeof publicEquiposIndexRoute
   '/posiciones/': typeof publicPosicionesIndexRoute
   '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
@@ -257,7 +264,6 @@ export interface FileRoutesByTo {
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/admin': typeof authenticatedAdminRoute
-  '/equipos': typeof publicEquiposRoute
   '/signup-form': typeof publicSignupFormRoute
   '/signup-success': typeof publicSignupSuccessRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
@@ -266,11 +272,13 @@ export interface FileRoutesByTo {
   '/api/upload-image': typeof ApiUploadImageRoute
   '/': typeof publicIndexRoute
   '/seasons/new': typeof authenticatedSeasonsNewRoute
+  '/equipos/$teamId': typeof publicEquiposTeamIdRoute
   '/posiciones/$seasonId': typeof publicPosicionesSeasonIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/dashboard': typeof authenticatedDashboardIndexRoute
   '/seasons': typeof authenticatedSeasonsIndexRoute
+  '/equipos': typeof publicEquiposIndexRoute
   '/posiciones': typeof publicPosicionesIndexRoute
   '/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
@@ -292,7 +300,6 @@ export interface FileRoutesById {
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
   '/(authenticated)/admin': typeof authenticatedAdminRoute
-  '/(public)/equipos': typeof publicEquiposRoute
   '/(public)/signup-form': typeof publicSignupFormRoute
   '/(public)/signup-success': typeof publicSignupSuccessRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
@@ -302,11 +309,13 @@ export interface FileRoutesById {
   '/(public)/': typeof publicIndexRoute
   '/(authenticated)/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdRouteRouteWithChildren
   '/(authenticated)/seasons/new': typeof authenticatedSeasonsNewRoute
+  '/(public)/equipos/$teamId': typeof publicEquiposTeamIdRoute
   '/(public)/posiciones/$seasonId': typeof publicPosicionesSeasonIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/(authenticated)/dashboard/': typeof authenticatedDashboardIndexRoute
   '/(authenticated)/seasons/': typeof authenticatedSeasonsIndexRoute
+  '/(public)/equipos/': typeof publicEquiposIndexRoute
   '/(public)/posiciones/': typeof publicPosicionesIndexRoute
   '/(authenticated)/seasons/$seasonId/build': typeof authenticatedSeasonsSeasonIdBuildRoute
   '/(authenticated)/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureRoute
@@ -326,7 +335,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/admin'
-    | '/equipos'
     | '/signup-form'
     | '/signup-success'
     | '/api/event-pdf'
@@ -336,11 +344,13 @@ export interface FileRouteTypes {
     | '/'
     | '/seasons/$seasonId'
     | '/seasons/new'
+    | '/equipos/$teamId'
     | '/posiciones/$seasonId'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard/'
     | '/seasons/'
+    | '/equipos/'
     | '/posiciones/'
     | '/seasons/$seasonId/build'
     | '/seasons/$seasonId/configure'
@@ -357,7 +367,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/admin'
-    | '/equipos'
     | '/signup-form'
     | '/signup-success'
     | '/api/event-pdf'
@@ -366,11 +375,13 @@ export interface FileRouteTypes {
     | '/api/upload-image'
     | '/'
     | '/seasons/new'
+    | '/equipos/$teamId'
     | '/posiciones/$seasonId'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/dashboard'
     | '/seasons'
+    | '/equipos'
     | '/posiciones'
     | '/seasons/$seasonId/build'
     | '/seasons/$seasonId/configure'
@@ -391,7 +402,6 @@ export interface FileRouteTypes {
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
     | '/(authenticated)/admin'
-    | '/(public)/equipos'
     | '/(public)/signup-form'
     | '/(public)/signup-success'
     | '/api/event-pdf'
@@ -401,11 +411,13 @@ export interface FileRouteTypes {
     | '/(public)/'
     | '/(authenticated)/seasons/$seasonId'
     | '/(authenticated)/seasons/new'
+    | '/(public)/equipos/$teamId'
     | '/(public)/posiciones/$seasonId'
     | '/api/auth/$'
     | '/api/trpc/$'
     | '/(authenticated)/dashboard/'
     | '/(authenticated)/seasons/'
+    | '/(public)/equipos/'
     | '/(public)/posiciones/'
     | '/(authenticated)/seasons/$seasonId/build'
     | '/(authenticated)/seasons/$seasonId/configure'
@@ -503,13 +515,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicSignupFormRouteImport
       parentRoute: typeof publicRouteRoute
     }
-    '/(public)/equipos': {
-      id: '/(public)/equipos'
-      path: '/equipos'
-      fullPath: '/equipos'
-      preLoaderRoute: typeof publicEquiposRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
     '/(authenticated)/admin': {
       id: '/(authenticated)/admin'
       path: '/admin'
@@ -545,6 +550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicPosicionesIndexRouteImport
       parentRoute: typeof publicRouteRoute
     }
+    '/(public)/equipos/': {
+      id: '/(public)/equipos/'
+      path: '/equipos'
+      fullPath: '/equipos/'
+      preLoaderRoute: typeof publicEquiposIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
     '/(authenticated)/seasons/': {
       id: '/(authenticated)/seasons/'
       path: '/seasons'
@@ -578,6 +590,13 @@ declare module '@tanstack/react-router' {
       path: '/posiciones/$seasonId'
       fullPath: '/posiciones/$seasonId'
       preLoaderRoute: typeof publicPosicionesSeasonIdRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/equipos/$teamId': {
+      id: '/(public)/equipos/$teamId'
+      path: '/equipos/$teamId'
+      fullPath: '/equipos/$teamId'
+      preLoaderRoute: typeof publicEquiposTeamIdRouteImport
       parentRoute: typeof publicRouteRoute
     }
     '/(authenticated)/seasons/new': {
@@ -759,20 +778,22 @@ const authenticatedRouteRouteWithChildren =
   authenticatedRouteRoute._addFileChildren(authenticatedRouteRouteChildren)
 
 interface publicRouteRouteChildren {
-  publicEquiposRoute: typeof publicEquiposRoute
   publicSignupFormRoute: typeof publicSignupFormRoute
   publicSignupSuccessRoute: typeof publicSignupSuccessRoute
   publicIndexRoute: typeof publicIndexRoute
+  publicEquiposTeamIdRoute: typeof publicEquiposTeamIdRoute
   publicPosicionesSeasonIdRoute: typeof publicPosicionesSeasonIdRoute
+  publicEquiposIndexRoute: typeof publicEquiposIndexRoute
   publicPosicionesIndexRoute: typeof publicPosicionesIndexRoute
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
-  publicEquiposRoute: publicEquiposRoute,
   publicSignupFormRoute: publicSignupFormRoute,
   publicSignupSuccessRoute: publicSignupSuccessRoute,
   publicIndexRoute: publicIndexRoute,
+  publicEquiposTeamIdRoute: publicEquiposTeamIdRoute,
   publicPosicionesSeasonIdRoute: publicPosicionesSeasonIdRoute,
+  publicEquiposIndexRoute: publicEquiposIndexRoute,
   publicPosicionesIndexRoute: publicPosicionesIndexRoute,
 }
 
