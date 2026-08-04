@@ -29,12 +29,18 @@ export const selectPublicSeasonContext = <
   seasons: T[],
 ) => {
   const sorted = [...seasons].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const competitionSeason =
+    sorted.find((season) => season.state === "active") ??
+    sorted.find((season) => season.state === "completed") ??
+    null;
   return {
-    competitionSeason:
-      sorted.find((season) => season.state === "active") ??
-      sorted.find((season) => season.state === "completed") ??
-      null,
+    competitionSeason,
     registrationSeason: sorted.find((season) => season.state === "signup_open") ?? null,
+    // Public team directory: show teams once signup opens, through the season.
+    teamsSeason:
+      sorted.find((season) => season.state === "signup_open") ??
+      sorted.find((season) => season.state === "signup_closed") ??
+      competitionSeason,
     completedSeasons: sorted.filter((season) => season.state === "completed"),
   };
 };
