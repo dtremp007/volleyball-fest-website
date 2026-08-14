@@ -1,5 +1,5 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { FileText, Loader2, Sparkles } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -79,6 +79,11 @@ function BuildPage() {
           <p className="text-muted-foreground mt-2">
             Please configure teams and generate matchups first.
           </p>
+          <Button asChild className="mt-4">
+            <Link to="/seasons/$seasonId/configure" params={{ seasonId }}>
+              Configure Groups
+            </Link>
+          </Button>
         </div>
       </div>
     );
