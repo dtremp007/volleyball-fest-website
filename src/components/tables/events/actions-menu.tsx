@@ -25,14 +25,21 @@ export function ActionsMenu({ event }: Props) {
 
   const handleDownloadImage = async () => {
     try {
-      const eventData = await queryClient.fetchQuery(
-        trpc.matchup.getEventById.queryOptions({ eventId: event.id }),
-      );
+      const [eventData, categories] = await Promise.all([
+        queryClient.fetchQuery(
+          trpc.matchup.getEventById.queryOptions({ eventId: event.id }),
+        ),
+        queryClient.fetchQuery(trpc.category.getAll.queryOptions()),
+      ]);
       if (!eventData) {
         toast.error("Event not found");
         return;
       }
-      const blob = await generateEventScheduleImage(eventData, window.location.origin);
+      const blob = await generateEventScheduleImage(
+        eventData,
+        window.location.origin,
+        categories,
+      );
       downloadScheduleImage(blob, eventData.name);
       toast.success("Image downloaded");
     } catch (err) {

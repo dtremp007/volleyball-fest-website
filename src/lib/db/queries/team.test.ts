@@ -41,7 +41,7 @@ beforeEach(async () => {
   await client.executeMultiple(`
     PRAGMA foreign_keys=ON;
     CREATE TABLE season (id text PRIMARY KEY, name text NOT NULL, start_date text NOT NULL, end_date text NOT NULL, state text DEFAULT 'draft');
-    CREATE TABLE category (id text PRIMARY KEY, name text NOT NULL, description text NOT NULL, playoff_format text DEFAULT 'top-4' NOT NULL);
+    CREATE TABLE category (id text PRIMARY KEY, name text NOT NULL, description text NOT NULL, playoff_format text DEFAULT 'top-4' NOT NULL, color text DEFAULT '#374151' NOT NULL);
     CREATE TABLE position (id text PRIMARY KEY, name text NOT NULL);
     CREATE TABLE team_group (id text PRIMARY KEY, name text NOT NULL, season_id text NOT NULL, category_id text NOT NULL);
     CREATE TABLE team (id text PRIMARY KEY);
@@ -53,7 +53,7 @@ beforeEach(async () => {
     CREATE TABLE playoff_matchup_team (id text PRIMARY KEY, matchup_id text NOT NULL, slot_index integer NOT NULL, team_id text, label text NOT NULL, depends_on text, dependency_type text DEFAULT 'winner' NOT NULL);
     INSERT INTO season VALUES ('source', 'Source', '2026-01-01', '2026-06-01', 'completed');
     INSERT INTO season VALUES ('target', 'Target', '2027-01-01', '2027-06-01', 'draft');
-    INSERT INTO category VALUES ('category', 'Mixed', 'Mixed league', 'top-4');
+    INSERT INTO category VALUES ('category', 'Mixed', 'Mixed league', 'top-4', '#374151');
     INSERT INTO position VALUES ('setter', 'Setter');
   `);
   db = drizzle({ client, schema, casing: "snake_case" }) as unknown as Database;

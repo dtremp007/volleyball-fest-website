@@ -18,6 +18,7 @@ export const getCategoryById = async (db: Database, id: string) => {
 type CreateCategoryParams = {
   name: string;
   description: string;
+  color: string;
 };
 
 export const createCategory = async (db: Database, params: CreateCategoryParams) => {
@@ -34,6 +35,7 @@ export const createCategory = async (db: Database, params: CreateCategoryParams)
 type UpdateCategoryParams = {
   name?: string;
   description?: string;
+  color?: string;
 };
 
 export const updateCategory = async (
