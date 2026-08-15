@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AlgorithmTuningPanel } from "~/components/schedule/algorithm-tuning-panel";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
@@ -17,11 +18,15 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { useTRPC } from "~/trpc/react";
+import {
+  DEFAULT_SCHEDULING_WEIGHTS,
+  type SchedulingWeights,
+} from "~/validators/scheduling.validators";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/generate")({
   component: GeneratePage,
   loader: async ({ params, context }) => {
-    const [matchupsData, scheduleConfig, season] = await Promise.all([
+    const [matchupsData, scheduleConfig, season, presets] = await Promise.all([
       context.queryClient.fetchQuery(
         context.trpc.matchup.getBySeasonId.queryOptions(
           { seasonId: params.seasonId },
@@ -34,17 +39,26 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/generat
       context.queryClient.fetchQuery(
         context.trpc.season.getById.queryOptions({ id: params.seasonId }),
       ),
+      context.queryClient.fetchQuery(
+        context.trpc.scheduleConfig.listPresets.queryOptions({
+          seasonId: params.seasonId,
+        }),
+      ),
     ]);
 
-    return { matchupsData, scheduleConfig, season };
+    return { matchupsData, scheduleConfig, season, presets };
   },
 });
 
 function GeneratePage() {
   const { seasonId } = Route.useParams();
-  const { matchupsData, scheduleConfig, season } = Route.useLoaderData();
+  const { matchupsData, scheduleConfig, season, presets } = Route.useLoaderData();
   const navigate = useNavigate();
   const trpc = useTRPC();
+
+  const activePreset = scheduleConfig?.activePresetId
+    ? presets.find((preset) => preset.id === scheduleConfig.activePresetId)
+    : undefined;
 
   // Get total matchups count
   const totalMatchups = matchupsData.matchups.length;
@@ -56,6 +70,12 @@ function GeneratePage() {
   const [startTime, setStartTime] = useState(scheduleConfig?.defaultStartTime || "16:15");
   const [gamesPerEvening, setGamesPerEvening] = useState(
     scheduleConfig?.gamesPerEvening || 7,
+  );
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
+    activePreset?.id ?? null,
+  );
+  const [weights, setWeights] = useState<SchedulingWeights>(
+    activePreset?.weights ?? DEFAULT_SCHEDULING_WEIGHTS,
   );
 
   const generateScheduleMutation = useMutation(
@@ -93,6 +113,8 @@ function GeneratePage() {
         dates: dateStrings,
         defaultStartTime: startTime,
         gamesPerEvening,
+        weights,
+        ...(selectedPresetId ? { presetId: selectedPresetId } : {}),
       });
 
       if (result.unscheduledCount > 0) {
@@ -185,6 +207,14 @@ function GeneratePage() {
               </div>
             </CardContent>
           </Card>
+
+          <AlgorithmTuningPanel
+            seasonId={seasonId}
+            weights={weights}
+            selectedPresetId={selectedPresetId}
+            onWeightsChange={setWeights}
+            onSelectedPresetIdChange={setSelectedPresetId}
+          />
         </div>
 
         {/* Right column - Summary */}
