@@ -71,6 +71,9 @@ export const deleteSchedulePreset = async (db: Database, id: string) => {
   return preset;
 };
 
+const DEFAULT_START_TIME = "16:15";
+const DEFAULT_GAMES_PER_EVENING = 7;
+
 export const setActiveSchedulePreset = async (
   db: Database,
   seasonId: string,
@@ -83,9 +86,17 @@ export const setActiveSchedulePreset = async (
     .limit(1);
 
   if (!config) {
-    throw new Error(
-      `Schedule config not found for season "${seasonId}". Create schedule config before setting an active preset.`,
-    );
+    const [created] = await db
+      .insert(schema.scheduleConfig)
+      .values({
+        id: uuidv4(),
+        seasonId,
+        defaultStartTime: DEFAULT_START_TIME,
+        gamesPerEvening: DEFAULT_GAMES_PER_EVENING,
+        activePresetId: presetId,
+      })
+      .returning();
+    return created;
   }
 
   const [updated] = await db

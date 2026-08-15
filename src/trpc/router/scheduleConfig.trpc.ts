@@ -32,9 +32,7 @@ function mapActivePresetError(error: unknown): never {
   throw new TRPCError({
     code: "BAD_REQUEST",
     message:
-      error instanceof Error
-        ? error.message
-        : "Could not set the active schedule preset. Create schedule config first.",
+      error instanceof Error ? error.message : "Could not set the active schedule preset.",
   });
 }
 
