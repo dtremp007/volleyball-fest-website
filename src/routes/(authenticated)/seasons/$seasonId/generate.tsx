@@ -1,9 +1,10 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Loader2, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlgorithmTuningPanel } from "~/components/schedule/algorithm-tuning-panel";
+import { CandidateCompare } from "~/components/schedule/candidate-compare";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
@@ -17,60 +18,97 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { useTRPC } from "~/trpc/react";
 import {
   DEFAULT_SCHEDULING_WEIGHTS,
   type SchedulingWeights,
 } from "~/validators/scheduling.validators";
 
+type CandidateEffort = "low" | "medium" | "high";
+
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/generate")({
   component: GeneratePage,
   loader: async ({ params, context }) => {
-    const [matchupsData, scheduleConfig, season, presets] = await Promise.all([
-      context.queryClient.fetchQuery(
-        context.trpc.matchup.getBySeasonId.queryOptions(
-          { seasonId: params.seasonId },
-          { staleTime: 0 },
+    const [matchupsData, scheduleConfig, season, presets, drafts, categories] =
+      await Promise.all([
+        context.queryClient.fetchQuery(
+          context.trpc.matchup.getBySeasonId.queryOptions(
+            { seasonId: params.seasonId },
+            { staleTime: 0 },
+          ),
         ),
-      ),
-      context.queryClient.fetchQuery(
-        context.trpc.scheduleConfig.get.queryOptions({ seasonId: params.seasonId }),
-      ),
-      context.queryClient.fetchQuery(
-        context.trpc.season.getById.queryOptions({ id: params.seasonId }),
-      ),
-      context.queryClient.fetchQuery(
-        context.trpc.scheduleConfig.listPresets.queryOptions({
-          seasonId: params.seasonId,
-        }),
-      ),
-    ]);
+        context.queryClient.fetchQuery(
+          context.trpc.scheduleConfig.get.queryOptions({ seasonId: params.seasonId }),
+        ),
+        context.queryClient.fetchQuery(
+          context.trpc.season.getById.queryOptions({ id: params.seasonId }),
+        ),
+        context.queryClient.fetchQuery(
+          context.trpc.scheduleConfig.listPresets.queryOptions({
+            seasonId: params.seasonId,
+          }),
+        ),
+        context.queryClient.fetchQuery(
+          context.trpc.scheduleDraft.list.queryOptions({ seasonId: params.seasonId }),
+        ),
+        context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
+      ]);
 
-    return { matchupsData, scheduleConfig, season, presets };
+    return { matchupsData, scheduleConfig, season, presets, drafts, categories };
   },
 });
+
+function toDateStrings(dates: Date[]) {
+  return [
+    ...new Set(
+      dates.map((date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }),
+    ),
+  ];
+}
 
 function GeneratePage() {
   const { seasonId } = Route.useParams();
   const { matchupsData, scheduleConfig, season, presets } = Route.useLoaderData();
   const navigate = useNavigate();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const candidatesSectionRef = useRef<HTMLDivElement>(null);
+
+  const { data: liveMatchups } = useQuery(
+    trpc.matchup.getBySeasonId.queryOptions({ seasonId }),
+  );
+  const { data: drafts = [] } = useQuery(
+    trpc.scheduleDraft.list.queryOptions({ seasonId }),
+  );
+  const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
+
+  const events = useMemo(() => {
+    const list = liveMatchups?.events ?? matchupsData.events;
+    return [...list].sort((a, b) => {
+      const byDate = a.date.localeCompare(b.date);
+      return byDate !== 0 ? byDate : a.name.localeCompare(b.name);
+    });
+  }, [liveMatchups?.events, matchupsData.events]);
 
   const activePreset = scheduleConfig?.activePresetId
     ? presets.find((preset) => preset.id === scheduleConfig.activePresetId)
     : undefined;
 
-  // Get total matchups count
-  const totalMatchups = matchupsData.matchups.length;
+  const totalMatchups = (liveMatchups?.matchups ?? matchupsData.matchups).length;
 
-  // State for selected dates
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-
-  // State for schedule config
   const [startTime, setStartTime] = useState(scheduleConfig?.defaultStartTime || "16:15");
   const [gamesPerEvening, setGamesPerEvening] = useState(
     scheduleConfig?.gamesPerEvening || 7,
   );
+  const [candidateCount, setCandidateCount] = useState(3);
+  const [effort, setEffort] = useState<CandidateEffort>("medium");
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
     activePreset?.id ?? null,
   );
@@ -81,13 +119,25 @@ function GeneratePage() {
   const generateScheduleMutation = useMutation(
     trpc.matchup.generateSchedule.mutationOptions(),
   );
+  const generateCandidatesMutation = useMutation(
+    trpc.scheduleDraft.generateCandidates.mutationOptions(),
+  );
 
-  // Calculate capacity
   const selectedDatesCount = selectedDates.length;
-  const courtsPerEvent = 2; // Court A and Court B
+  const courtsPerEvent = 2;
   const totalCapacity = selectedDatesCount * gamesPerEvening * courtsPerEvent;
   const hasEnoughCapacity = totalCapacity >= totalMatchups;
   const capacityStatus = hasEnoughCapacity ? "sufficient" : "insufficient";
+  const isGenerating =
+    generateScheduleMutation.isPending || generateCandidatesMutation.isPending;
+
+  const schedulePayload = () => ({
+    seasonId,
+    dates: toDateStrings(selectedDates),
+    defaultStartTime: startTime,
+    gamesPerEvening,
+    weights,
+  });
 
   const handleGenerateSchedule = async () => {
     if (selectedDates.length === 0) {
@@ -96,24 +146,8 @@ function GeneratePage() {
     }
 
     try {
-      // Convert dates to YYYY-MM-DD format and dedupe
-      const dateStrings = [
-        ...new Set(
-          selectedDates.map((date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            return `${year}-${month}-${day}`;
-          }),
-        ),
-      ];
-
       const result = await generateScheduleMutation.mutateAsync({
-        seasonId,
-        dates: dateStrings,
-        defaultStartTime: startTime,
-        gamesPerEvening,
-        weights,
+        ...schedulePayload(),
         ...(selectedPresetId ? { presetId: selectedPresetId } : {}),
       });
 
@@ -135,6 +169,48 @@ function GeneratePage() {
     }
   };
 
+  const handleGenerateCandidates = async () => {
+    if (selectedDates.length === 0) {
+      toast.error("Please select at least one date");
+      return;
+    }
+
+    const toastId = toast.loading(`Generating ${candidateCount} candidate schedules...`);
+
+    try {
+      const result = await generateCandidatesMutation.mutateAsync({
+        ...schedulePayload(),
+        count: candidateCount,
+        effort,
+        ...(selectedPresetId ? { presetIds: [selectedPresetId] } : {}),
+      });
+
+      queryClient.setQueryData(trpc.scheduleDraft.list.queryKey({ seasonId }), result);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.scheduleDraft.list.queryKey({ seasonId }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.matchup.getBySeasonId.queryKey({ seasonId }),
+        }),
+      ]);
+
+      toast.success(
+        `Generated ${result.length} candidates. Lower quality score is better.`,
+        { id: toastId },
+      );
+      candidatesSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate candidates",
+        { id: toastId },
+      );
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -145,9 +221,7 @@ function GeneratePage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left column - Calendar and inputs */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Calendar */}
           <Card>
             <CardHeader>
               <CardTitle>Select Game Dates</CardTitle>
@@ -172,7 +246,6 @@ function GeneratePage() {
             </CardContent>
           </Card>
 
-          {/* Schedule Configuration */}
           <Card>
             <CardHeader>
               <CardTitle>Schedule Configuration</CardTitle>
@@ -217,7 +290,6 @@ function GeneratePage() {
           />
         </div>
 
-        {/* Right column - Summary */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -285,28 +357,89 @@ function GeneratePage() {
                 </div>
               )}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col items-stretch gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="candidate-count" className="text-sm font-medium">
+                  Number of candidates
+                </Label>
+                <Input
+                  id="candidate-count"
+                  type="number"
+                  min={2}
+                  max={5}
+                  value={candidateCount}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    if (Number.isNaN(next)) {
+                      return;
+                    }
+                    setCandidateCount(Math.min(5, Math.max(2, next)));
+                  }}
+                  className="h-8 w-16"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="solver-effort" className="text-sm font-medium">
+                  Search effort
+                </Label>
+                <NativeSelect
+                  id="solver-effort"
+                  value={effort}
+                  onChange={(event) => setEffort(event.target.value as CandidateEffort)}
+                  className="h-8 w-28"
+                >
+                  <NativeSelectOption value="low">Low</NativeSelectOption>
+                  <NativeSelectOption value="medium">Medium</NativeSelectOption>
+                  <NativeSelectOption value="high">High</NativeSelectOption>
+                </NativeSelect>
+              </div>
               <Button
-                onClick={handleGenerateSchedule}
-                disabled={selectedDatesCount === 0 || generateScheduleMutation.isPending}
+                onClick={handleGenerateCandidates}
+                disabled={selectedDatesCount === 0 || isGenerating}
                 className="w-full"
                 size="lg"
               >
-                {generateScheduleMutation.isPending ? (
+                {generateCandidatesMutation.isPending ? (
                   <>
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    Generating...
+                    <Loader2 className="size-4 animate-spin" />
+                    Generating candidates...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 size-4" />
-                    Generate Schedule
+                    <Sparkles className="size-4" />
+                    Generate candidates
                   </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateSchedule}
+                disabled={selectedDatesCount === 0 || isGenerating}
+                className="w-full"
+              >
+                {generateScheduleMutation.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Schedule"
                 )}
               </Button>
             </CardFooter>
           </Card>
         </div>
+      </div>
+
+      <div ref={candidatesSectionRef}>
+        <CandidateCompare
+          seasonId={seasonId}
+          candidates={drafts}
+          events={events}
+          categories={categories}
+          gamesPerEvening={gamesPerEvening}
+        />
       </div>
     </div>
   );
