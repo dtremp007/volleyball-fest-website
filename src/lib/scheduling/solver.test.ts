@@ -342,4 +342,57 @@ describe("solveSchedule", () => {
     );
     expect(splitCategories.length).toBeLessThanOrEqual(1);
   });
+
+  it("does not place weekday events past 4 slots when Saturday events have 7", () => {
+    const weekdayEventId = "weekday";
+    const saturdayEventId = "saturday";
+    const matchups: SolveScheduleMatchup[] = [];
+    const teamIds: string[] = [];
+
+    for (let i = 0; i < 20; i++) {
+      const teamAId = `t${i * 2}`;
+      const teamBId = `t${i * 2 + 1}`;
+      teamIds.push(teamAId, teamBId);
+      matchups.push(
+        matchup(`m-${i}`, teamAId, teamBId, i % 2 === 0 ? CAT_EARLY : CAT_LATE),
+      );
+    }
+
+    const input: SolveScheduleInput = {
+      matchups,
+      orderedEventIds: [weekdayEventId, saturdayEventId],
+      orderedCategoryIds: ORDERED_CATEGORY_IDS,
+      gamesPerEvening: 7,
+      gamesPerEveningByEventId: {
+        [weekdayEventId]: 4,
+        [saturdayEventId]: 7,
+      },
+      validationContext: {
+        eventDateById: new Map([
+          [weekdayEventId, "2026-08-14"],
+          [saturdayEventId, "2026-08-15"],
+        ]),
+        teamUnavailableDatesById: new Map(teamIds.map((teamId) => [teamId, ""])),
+        maxGamesPerTeamId: new Map(teamIds.map((teamId) => [teamId, 2])),
+        farAwayTeamIds: new Set(),
+      },
+      weights: DEFAULT_SCHEDULING_WEIGHTS,
+      effort: "greedy",
+    };
+
+    const result = solveSchedule(input);
+    const weekdayPlacements = result.placements.filter(
+      (placement) => placement.eventId === weekdayEventId,
+    );
+    const saturdayPlacements = result.placements.filter(
+      (placement) => placement.eventId === saturdayEventId,
+    );
+
+    expect(weekdayPlacements.length).toBeGreaterThan(0);
+    expect(saturdayPlacements.length).toBeGreaterThan(0);
+    for (const placement of weekdayPlacements) {
+      expect(placement.slotIndex).toBeLessThan(4);
+    }
+    expect(saturdayPlacements.some((placement) => placement.slotIndex >= 4)).toBe(true);
+  });
 });

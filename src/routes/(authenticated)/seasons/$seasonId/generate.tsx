@@ -20,6 +20,11 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { formatEventDateForDisplay, getDatePart } from "~/lib/schedule/slot-times";
+import {
+  SATURDAY_SCHEDULE_TEMPLATE,
+  WEEKDAY_SCHEDULE_TEMPLATE,
+  getScheduleTemplateForDate,
+} from "~/lib/schedule/weekday-templates";
 import { useTRPC } from "~/trpc/react";
 import {
   DEFAULT_SCHEDULING_WEIGHTS,
@@ -123,10 +128,6 @@ function GeneratePage() {
   const [selectedDates, setSelectedDates] = useState<Date[]>(() =>
     datesFromEvents(matchupsData.events),
   );
-  const [startTime, setStartTime] = useState(scheduleConfig?.defaultStartTime || "16:15");
-  const [gamesPerEvening, setGamesPerEvening] = useState(
-    scheduleConfig?.gamesPerEvening || 7,
-  );
   const [candidateCount, setCandidateCount] = useState(3);
   const [effort, setEffort] = useState<CandidateEffort>("medium");
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
@@ -143,9 +144,24 @@ function GeneratePage() {
     trpc.scheduleDraft.generateCandidates.mutationOptions(),
   );
 
+  const selectedDateStrings = toDateStrings(selectedDates);
   const selectedDatesCount = selectedDates.length;
+  const weekdayDateCount = selectedDateStrings.filter(
+    (date) =>
+      getScheduleTemplateForDate(date).gamesPerEvening ===
+      WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
+  ).length;
+  const saturdayDateCount = selectedDateStrings.filter(
+    (date) =>
+      getScheduleTemplateForDate(date).gamesPerEvening ===
+      SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
+  ).length;
   const courtsPerEvent = 2;
-  const totalCapacity = selectedDatesCount * gamesPerEvening * courtsPerEvent;
+  const totalCapacity = selectedDateStrings.reduce(
+    (sum, date) =>
+      sum + getScheduleTemplateForDate(date).gamesPerEvening * courtsPerEvent,
+    0,
+  );
   const hasEnoughCapacity = totalCapacity >= totalMatchups;
   const capacityStatus = hasEnoughCapacity ? "sufficient" : "insufficient";
   const isGenerating =
@@ -153,9 +169,7 @@ function GeneratePage() {
 
   const schedulePayload = () => ({
     seasonId,
-    dates: toDateStrings(selectedDates),
-    defaultStartTime: startTime,
-    gamesPerEvening,
+    dates: selectedDateStrings,
     weights,
   });
 
@@ -268,34 +282,30 @@ function GeneratePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Schedule Configuration</CardTitle>
+              <CardTitle>Game Night Rules</CardTitle>
               <CardDescription>
-                Set the default start time and number of games per evening.
+                Start times and slot counts are fixed by day of week.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="start-time">Default Start Time</Label>
-                <Input
-                  id="start-time"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                />
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium">Weekdays</p>
+                  <p className="text-muted-foreground">Monday–Friday</p>
+                </div>
+                <p className="text-right">
+                  7:00 PM
+                  <span className="text-muted-foreground"> · 4 slots</span>
+                </p>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="games-per-evening">Games per Evening</Label>
-                <Input
-                  id="games-per-evening"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={gamesPerEvening}
-                  onChange={(e) => setGamesPerEvening(Number(e.target.value))}
-                />
-                <p className="text-muted-foreground text-sm">
-                  Number of time slots per court per evening
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium">Saturdays</p>
+                  <p className="text-muted-foreground">Full evening</p>
+                </div>
+                <p className="text-right">
+                  4:15 PM
+                  <span className="text-muted-foreground"> · 7 slots</span>
                 </p>
               </div>
             </CardContent>
@@ -328,8 +338,13 @@ function GeneratePage() {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Games per Evening</span>
-                <Badge variant="secondary">{gamesPerEvening}</Badge>
+                <span className="text-sm font-medium">Weekday Dates</span>
+                <Badge variant="secondary">{weekdayDateCount}</Badge>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Saturday Dates</span>
+                <Badge variant="secondary">{saturdayDateCount}</Badge>
               </div>
 
               <div className="flex items-center justify-between">
@@ -347,8 +362,9 @@ function GeneratePage() {
                   </Badge>
                 </div>
                 <p className="text-muted-foreground text-xs">
-                  {totalCapacity} slots available ({selectedDatesCount} dates ×{" "}
-                  {gamesPerEvening} games × {courtsPerEvent} courts)
+                  {weekdayDateCount > 0 || saturdayDateCount > 0
+                    ? `${weekdayDateCount} weekday${weekdayDateCount === 1 ? "" : "s"} × ${WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening} games + ${saturdayDateCount} Saturday${saturdayDateCount === 1 ? "" : "s"} × ${SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening} games, on ${courtsPerEvent} courts`
+                    : "Select dates to see available slots"}
                 </p>
               </div>
 
@@ -458,7 +474,7 @@ function GeneratePage() {
           candidates={drafts}
           events={events}
           categories={categories}
-          gamesPerEvening={gamesPerEvening}
+          gamesPerEvening={SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening}
         />
       </div>
     </div>

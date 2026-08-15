@@ -450,6 +450,14 @@ export function getEventLoadBalanceScore(
 // SECTION 5: COMBINED SCORING
 // =============================================================================
 
+function resolveMaxSlotIndex(
+  eventId: string,
+  maxSlotIndex: number,
+  maxSlotIndexByEventId?: Record<string, number>,
+): number {
+  return maxSlotIndexByEventId?.[eventId] ?? maxSlotIndex;
+}
+
 /** Parameters for computing placement preference score */
 export type PlacementPreferenceParams = {
   placement: ScheduledMatchupPlacement;
@@ -458,6 +466,8 @@ export type PlacementPreferenceParams = {
   existingPlacementsWithCategory: PlacementWithCategory[];
   orderedEventIds: string[];
   maxSlotIndex: number;
+  /** When set, category time-of-night scoring uses this event's last slot. */
+  maxSlotIndexByEventId?: Record<string, number>;
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
@@ -497,6 +507,7 @@ export function getPlacementPreferenceBreakdown(
     existingPlacementsWithCategory,
     orderedEventIds,
     maxSlotIndex,
+    maxSlotIndexByEventId,
     totalMatchups,
     categoryBalanceContext,
     farAwayTeamIds,
@@ -523,7 +534,7 @@ export function getPlacementPreferenceBreakdown(
   const categoryTimePreference = getCategoryTimePreferenceScore(
     placement,
     categoryId,
-    maxSlotIndex,
+    resolveMaxSlotIndex(placement.eventId, maxSlotIndex, maxSlotIndexByEventId),
     categoryRankById,
     weights,
   );
@@ -597,6 +608,7 @@ export type ScheduleQualityParams = {
   placementsWithCategory: PlacementWithCategory[];
   orderedEventIds: string[];
   maxSlotIndex: number;
+  maxSlotIndexByEventId?: Record<string, number>;
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
@@ -613,6 +625,7 @@ export function getScheduleQualityScore(params: ScheduleQualityParams): number {
     placementsWithCategory,
     orderedEventIds,
     maxSlotIndex,
+    maxSlotIndexByEventId,
     totalMatchups,
     categoryBalanceContext,
     farAwayTeamIds,
@@ -642,6 +655,7 @@ export function getScheduleQualityScore(params: ScheduleQualityParams): number {
       existingPlacementsWithCategory,
       orderedEventIds,
       maxSlotIndex,
+      maxSlotIndexByEventId,
       totalMatchups,
       categoryBalanceContext,
       farAwayTeamIds,
@@ -671,6 +685,7 @@ export function evaluatePlacementSwap(
   params: {
     orderedEventIds: string[];
     maxSlotIndex: number;
+    maxSlotIndexByEventId?: Record<string, number>;
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
@@ -729,6 +744,7 @@ export function evaluatePlacementSwap(
     placementsWithCategory: allPlacementsWithCategory,
     orderedEventIds: params.orderedEventIds,
     maxSlotIndex: params.maxSlotIndex,
+    maxSlotIndexByEventId: params.maxSlotIndexByEventId,
     totalMatchups: params.totalMatchups,
     categoryBalanceContext: params.categoryBalanceContext,
     farAwayTeamIds: params.farAwayTeamIds,
@@ -739,6 +755,7 @@ export function evaluatePlacementSwap(
     placementsWithCategory: placementsAfter,
     orderedEventIds: params.orderedEventIds,
     maxSlotIndex: params.maxSlotIndex,
+    maxSlotIndexByEventId: params.maxSlotIndexByEventId,
     totalMatchups: params.totalMatchups,
     categoryBalanceContext: params.categoryBalanceContext,
     farAwayTeamIds: params.farAwayTeamIds,

@@ -8,7 +8,6 @@ import {
   deleteEvent,
   generateMatchupsForSeason,
   getEventsBySeasonId,
-  getScheduleConfig,
   hasMatchupsForSeason,
   loadSolveScheduleContext,
 } from "~/lib/db/queries/schedule";
@@ -19,6 +18,7 @@ import {
 } from "~/lib/db/queries/schedule-preset";
 import * as schema from "~/lib/db/schema";
 import { combineDateAndTime } from "~/lib/schedule/slot-times";
+import { getScheduleTemplateForDate } from "~/lib/schedule/weekday-templates";
 import {
   solveSchedule,
   type SchedulingMetrics,
@@ -148,11 +148,6 @@ export async function generateScheduleCandidates(
     ? [...new Set(params.dates.map((date) => date.trim()).filter(Boolean))]
     : [];
 
-  const scheduleConfig = await getScheduleConfig(db, seasonId);
-  const gamesPerEvening = params.gamesPerEvening ?? scheduleConfig?.gamesPerEvening ?? 7;
-  const defaultStartTime =
-    params.defaultStartTime ?? scheduleConfig?.defaultStartTime ?? "4:15 PM";
-
   if (dates.length > 0) {
     const hasMatchups = await hasMatchupsForSeason(db, seasonId);
     if (!hasMatchups) {
@@ -165,10 +160,11 @@ export async function generateScheduleCandidates(
     }
 
     for (const date of dates) {
+      const template = getScheduleTemplateForDate(date);
       await createEvent(db, {
         seasonId,
         name: format(new Date(`${date}T12:00:00`), "MMM d, yyyy"),
-        date: combineDateAndTime(date, defaultStartTime),
+        date: combineDateAndTime(date, template.startTime),
       });
     }
   } else {
@@ -247,7 +243,6 @@ export async function generateScheduleCandidates(
     const result = input
       ? solveSchedule({
           ...input,
-          gamesPerEvening,
           weights,
           seed,
           effort: params.effort ?? "medium",

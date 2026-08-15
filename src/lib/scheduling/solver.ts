@@ -72,6 +72,8 @@ export type SolveScheduleInput = {
   /** Categories ordered earliest-to-latest for time-of-night preference. */
   orderedCategoryIds: string[];
   gamesPerEvening: number;
+  /** When set, each event uses this slot count instead of `gamesPerEvening`. */
+  gamesPerEveningByEventId?: Record<string, number>;
   validationContext: ConstraintValidationContext;
   weights: SchedulingWeights;
   /** When set, shuffles matchup order within far-away/local groups so candidate runs can differ. Omitted for identical regenerate. */
@@ -124,6 +126,7 @@ export type EvaluateMoveResult = {
 type SolverScoreParams = {
   orderedEventIds: string[];
   maxSlotIndex: number;
+  maxSlotIndexByEventId?: Record<string, number>;
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
@@ -136,6 +139,43 @@ type EmptySlot = {
   courtId: "A" | "B";
   slotIndex: number;
 };
+
+function slotCountForEvent(
+  eventId: string,
+  gamesPerEvening: number,
+  gamesPerEveningByEventId?: Record<string, number>,
+): number {
+  return gamesPerEveningByEventId?.[eventId] ?? gamesPerEvening;
+}
+
+function maxSlotCount(
+  orderedEventIds: string[],
+  gamesPerEvening: number,
+  gamesPerEveningByEventId?: Record<string, number>,
+): number {
+  let max = gamesPerEvening;
+  if (!gamesPerEveningByEventId) {
+    return max;
+  }
+  for (const eventId of orderedEventIds) {
+    max = Math.max(max, gamesPerEveningByEventId[eventId] ?? 0);
+  }
+  return max;
+}
+
+function maxSlotIndexByEventIdFromCounts(
+  gamesPerEveningByEventId?: Record<string, number>,
+): Record<string, number> | undefined {
+  if (!gamesPerEveningByEventId) {
+    return undefined;
+  }
+  return Object.fromEntries(
+    Object.entries(gamesPerEveningByEventId).map(([eventId, count]) => [
+      eventId,
+      Math.max(0, count - 1),
+    ]),
+  );
+}
 
 function buildCategoryBalanceContext(
   matchups: SolveScheduleMatchup[],
@@ -290,6 +330,7 @@ function buildSchedulingMetrics(
       placementsWithCategory: placements,
       orderedEventIds: params.orderedEventIds,
       maxSlotIndex: params.maxSlotIndex,
+      maxSlotIndexByEventId: params.maxSlotIndexByEventId,
       totalMatchups: params.totalMatchups,
       categoryBalanceContext: params.categoryBalanceContext,
       farAwayTeamIds: params.farAwayTeamIds,
@@ -311,6 +352,7 @@ function runInitialPlacementPass(
   matchupOrder: SolveScheduleMatchup[],
   params: {
     gamesPerEvening: number;
+    gamesPerEveningByEventId?: Record<string, number>;
     orderedEventIds: string[];
     validationContext: ConstraintValidationContext;
     categoryBalanceContext: CategoryBalanceContext | null;
@@ -318,6 +360,7 @@ function runInitialPlacementPass(
     categoryRankById: Map<string, number>;
     weights: SchedulingWeights;
     maxSlotIndex: number;
+    maxSlotIndexByEventId?: Record<string, number>;
   },
 ): PlacementWithCategory[] {
   const acceptedPlacements: ScheduledMatchupPlacement[] = [];
@@ -326,10 +369,25 @@ function runInitialPlacementPass(
   const matchupCategoryById = new Map(
     matchupOrder.map((matchup) => [matchup.id, matchup.categoryId]),
   );
+  const slotLimit = maxSlotCount(
+    params.orderedEventIds,
+    params.gamesPerEvening,
+    params.gamesPerEveningByEventId,
+  );
 
-  for (let slotIndex = 0; slotIndex < params.gamesPerEvening; slotIndex++) {
+  for (let slotIndex = 0; slotIndex < slotLimit; slotIndex++) {
     for (const courtId of COURTS) {
       for (const eventId of params.orderedEventIds) {
+        if (
+          slotIndex >=
+          slotCountForEvent(
+            eventId,
+            params.gamesPerEvening,
+            params.gamesPerEveningByEventId,
+          )
+        ) {
+          continue;
+        }
         let selectedPlacement: ScheduledMatchupPlacement | null = null;
         let selectedPlacementScore = Number.POSITIVE_INFINITY;
 
@@ -361,6 +419,7 @@ function runInitialPlacementPass(
               existingPlacementsWithCategory: acceptedPlacementsWithCategory,
               orderedEventIds: params.orderedEventIds,
               maxSlotIndex: params.maxSlotIndex,
+              maxSlotIndexByEventId: params.maxSlotIndexByEventId,
               totalMatchups: matchupOrder.length,
               categoryBalanceContext: params.categoryBalanceContext,
               farAwayTeamIds: params.farAwayTeamIds,
@@ -401,6 +460,7 @@ function listEmptySlots(
   orderedEventIds: string[],
   gamesPerEvening: number,
   placements: PlacementWithCategory[],
+  gamesPerEveningByEventId?: Record<string, number>,
 ): EmptySlot[] {
   const occupied = new Set(
     placements.map((placement) =>
@@ -409,8 +469,13 @@ function listEmptySlots(
   );
   const empty: EmptySlot[] = [];
   for (const eventId of orderedEventIds) {
+    const slotCount = slotCountForEvent(
+      eventId,
+      gamesPerEvening,
+      gamesPerEveningByEventId,
+    );
     for (const courtId of COURTS) {
-      for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
+      for (let slotIndex = 0; slotIndex < slotCount; slotIndex++) {
         if (!occupied.has(slotKey(eventId, courtId, slotIndex))) {
           empty.push({ eventId, courtId, slotIndex });
         }
@@ -502,6 +567,7 @@ export function scorePlacementsOnEvents(
       existingPlacementsWithCategory,
       orderedEventIds: params.orderedEventIds,
       maxSlotIndex: params.maxSlotIndex,
+      maxSlotIndexByEventId: params.maxSlotIndexByEventId,
       totalMatchups: params.totalMatchups,
       categoryBalanceContext: params.categoryBalanceContext,
       farAwayTeamIds: params.farAwayTeamIds,
@@ -619,12 +685,18 @@ function applyRelocateMove(
   placementId: string,
   destination: EmptySlot,
   gamesPerEvening: number,
+  gamesPerEveningByEventId?: Record<string, number>,
 ): {
   nextPlacements: PlacementWithCategory[];
   changedPlacements: PlacementWithCategory[];
   touchedEventIds: string[];
 } | null {
-  if (destination.slotIndex < 0 || destination.slotIndex >= gamesPerEvening) {
+  const destinationSlotCount = slotCountForEvent(
+    destination.eventId,
+    gamesPerEvening,
+    gamesPerEveningByEventId,
+  );
+  if (destination.slotIndex < 0 || destination.slotIndex >= destinationSlotCount) {
     return null;
   }
   if (destination.courtId !== "A" && destination.courtId !== "B") {
@@ -711,6 +783,7 @@ function evaluateMoveWithParams(
   validationContext: ConstraintValidationContext,
   gamesPerEvening: number,
   params: SolverScoreParams,
+  gamesPerEveningByEventId?: Record<string, number>,
 ): EvaluateMoveResult {
   const currentUnscheduled = unscheduledIdsFromPlacements(matchups, placements);
   let applied: {
@@ -731,6 +804,7 @@ function evaluateMoveWithParams(
         slotIndex: move.slotIndex,
       },
       gamesPerEvening,
+      gamesPerEveningByEventId,
     );
   } else {
     applied = applyPoolSwapMove(
@@ -770,6 +844,7 @@ export function evaluateMove(
     | "orderedEventIds"
     | "orderedCategoryIds"
     | "gamesPerEvening"
+    | "gamesPerEveningByEventId"
     | "validationContext"
     | "weights"
   >,
@@ -777,6 +852,9 @@ export function evaluateMove(
   const params: SolverScoreParams = {
     orderedEventIds: input.orderedEventIds,
     maxSlotIndex: input.gamesPerEvening - 1,
+    maxSlotIndexByEventId: maxSlotIndexByEventIdFromCounts(
+      input.gamesPerEveningByEventId,
+    ),
     totalMatchups: input.matchups.length,
     categoryBalanceContext: buildCategoryBalanceContext(
       input.matchups,
@@ -795,6 +873,7 @@ export function evaluateMove(
     input.validationContext,
     input.gamesPerEvening,
     params,
+    input.gamesPerEveningByEventId,
   );
   if (!result.valid) {
     return {
@@ -811,8 +890,14 @@ function proposeMove(
   orderedEventIds: string[],
   gamesPerEvening: number,
   random: () => number,
+  gamesPerEveningByEventId?: Record<string, number>,
 ): SolverMove | null {
-  const emptySlots = listEmptySlots(orderedEventIds, gamesPerEvening, placements);
+  const emptySlots = listEmptySlots(
+    orderedEventIds,
+    gamesPerEvening,
+    placements,
+    gamesPerEveningByEventId,
+  );
   const types: Array<SolverMove["type"]> = [];
   if (placements.length >= 2) types.push("swap");
   if (placements.length >= 1 && emptySlots.length >= 1) types.push("relocate");
@@ -864,6 +949,7 @@ function estimateInitialTemperature(
   gamesPerEvening: number,
   params: SolverScoreParams,
   random: () => number,
+  gamesPerEveningByEventId?: Record<string, number>,
 ): number {
   const unscheduledIds = unscheduledIdsFromPlacements(matchups, placements);
   const samples: number[] = [];
@@ -874,6 +960,7 @@ function estimateInitialTemperature(
       params.orderedEventIds,
       gamesPerEvening,
       random,
+      gamesPerEveningByEventId,
     );
     if (!move) continue;
     const evaluated = evaluateMoveWithParams(
@@ -884,6 +971,7 @@ function estimateInitialTemperature(
       validationContext,
       gamesPerEvening,
       params,
+      gamesPerEveningByEventId,
     );
     if (!evaluated.valid) continue;
     samples.push(Math.abs(evaluated.scoreDelta));
@@ -902,6 +990,7 @@ function runSimulatedAnnealing(
   params: SolverScoreParams,
   effort: Exclude<SolverEffort, "greedy">,
   random: () => number,
+  gamesPerEveningByEventId?: Record<string, number>,
 ): PlacementWithCategory[] {
   const limits = EFFORT_LIMITS[effort];
   const matchupsById = new Map(matchups.map((matchup) => [matchup.id, matchup]));
@@ -920,6 +1009,7 @@ function runSimulatedAnnealing(
     gamesPerEvening,
     params,
     random,
+    gamesPerEveningByEventId,
   );
 
   let steps = 0;
@@ -940,6 +1030,7 @@ function runSimulatedAnnealing(
       params.orderedEventIds,
       gamesPerEvening,
       random,
+      gamesPerEveningByEventId,
     );
     if (!move) continue;
 
@@ -951,6 +1042,7 @@ function runSimulatedAnnealing(
       validationContext,
       gamesPerEvening,
       params,
+      gamesPerEveningByEventId,
     );
     if (!evaluated.valid) continue;
 
@@ -978,6 +1070,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
     orderedEventIds,
     orderedCategoryIds,
     gamesPerEvening,
+    gamesPerEveningByEventId,
     validationContext,
     weights,
     seed,
@@ -985,8 +1078,13 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
   } = input;
 
   const categoryRankById = buildCategoryRankById(orderedCategoryIds);
+  const slotLimit = maxSlotCount(
+    orderedEventIds,
+    gamesPerEvening,
+    gamesPerEveningByEventId,
+  );
 
-  if (matchups.length === 0 || orderedEventIds.length === 0 || gamesPerEvening <= 0) {
+  if (matchups.length === 0 || orderedEventIds.length === 0 || slotLimit <= 0) {
     return {
       placements: [],
       unscheduledMatchupIds: matchups.map((matchup) => matchup.id),
@@ -1012,10 +1110,12 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
 
   const categoryBalanceContext = buildCategoryBalanceContext(matchups, orderedEventIds);
   const maxSlotIndex = gamesPerEvening - 1;
+  const maxSlotIndexByEventId = maxSlotIndexByEventIdFromCounts(gamesPerEveningByEventId);
   const { farAwayTeamIds } = validationContext;
   const scoreParams: SolverScoreParams = {
     orderedEventIds,
     maxSlotIndex,
+    maxSlotIndexByEventId,
     totalMatchups: matchups.length,
     categoryBalanceContext,
     farAwayTeamIds,
@@ -1050,6 +1150,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
 
   let finalPlacements = runInitialPlacementPass(sortedMatchups, {
     gamesPerEvening,
+    gamesPerEveningByEventId,
     orderedEventIds,
     validationContext,
     categoryBalanceContext,
@@ -1057,6 +1158,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
     categoryRankById,
     weights,
     maxSlotIndex,
+    maxSlotIndexByEventId,
   });
 
   if (effort !== "greedy") {
@@ -1069,6 +1171,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
       scoreParams,
       effort,
       annealingRandom,
+      gamesPerEveningByEventId,
     );
   }
 

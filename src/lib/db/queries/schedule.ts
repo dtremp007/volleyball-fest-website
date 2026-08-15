@@ -5,6 +5,7 @@ import type { Database } from "~/lib/db";
 import { getCategories } from "~/lib/db/queries/category";
 import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
+import { buildGamesPerEveningByEventId } from "~/lib/schedule/weekday-templates";
 import { solveSchedule, type SolveScheduleInput } from "~/lib/scheduling/solver";
 import {
   contributionFromFirstTwoSets,
@@ -586,12 +587,19 @@ export async function loadSolveScheduleContext(
 
   const scheduleConfig = await getScheduleConfig(db, seasonId);
   const categories = await getCategories(db);
+  const gamesPerEveningByEventId = buildGamesPerEveningByEventId(eventDates);
+  const slotCounts = Object.values(gamesPerEveningByEventId);
+  const gamesPerEvening =
+    slotCounts.length > 0
+      ? Math.max(...slotCounts)
+      : (scheduleConfig?.gamesPerEvening ?? 7);
 
   return {
     matchups,
     orderedEventIds,
     orderedCategoryIds: categories.map((category) => category.id),
-    gamesPerEvening: scheduleConfig?.gamesPerEvening ?? 7,
+    gamesPerEvening,
+    gamesPerEveningByEventId,
     validationContext,
     weights: resolvedWeights,
   };
@@ -605,7 +613,6 @@ export async function autoScheduleMatchups(
   db: Database,
   seasonId: string,
   eventIds: string[],
-  gamesPerEvening: number,
   weights?: Partial<SchedulingWeights> | SchedulingWeights,
 ) {
   const input = await loadSolveScheduleContext(db, seasonId, eventIds, weights);
@@ -618,10 +625,7 @@ export async function autoScheduleMatchups(
     return { scheduledCount: 0, unscheduledCount: remaining.length };
   }
 
-  const result = solveSchedule({
-    ...input,
-    gamesPerEvening,
-  });
+  const result = solveSchedule(input);
 
   await db
     .update(schema.matchup)

@@ -16,7 +16,6 @@ import {
   getEventsBySeasonId,
   getMatchupsBySeasonId,
   getPublicSchedule,
-  getScheduleConfig,
   getStandingsBySeasonId,
   hasMatchupsForSeason,
   saveMatchupScorecard,
@@ -29,6 +28,7 @@ import {
 } from "~/lib/db/queries/schedule-preset";
 import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state";
 import { combineDateAndTime } from "~/lib/schedule/slot-times";
+import { getScheduleTemplateForDate } from "~/lib/schedule/weekday-templates";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
 import { partialSchedulingWeightsSchema } from "~/validators/scheduling.validators";
 
@@ -221,9 +221,8 @@ export const matchupRouter = {
       }),
     )
     .mutation(async ({ input }) => {
-      const [events, scheduleConfig, weights] = await Promise.all([
+      const [events, weights] = await Promise.all([
         getEventsBySeasonId(db, input.seasonId),
-        getScheduleConfig(db, input.seasonId),
         resolveScheduleWeightsForSeason(db, input.seasonId, {
           presetId: input.presetId,
           weights: input.weights,
@@ -235,7 +234,6 @@ export const matchupRouter = {
         db,
         input.seasonId,
         events.map((event) => event.id),
-        scheduleConfig?.gamesPerEvening ?? 7,
         weights,
       );
     }),
@@ -284,14 +282,14 @@ export const matchupRouter = {
         dates: z
           .array(z.string().min(1, "Date cannot be empty"))
           .min(1, "At least one date is required"),
-        defaultStartTime: z.string(),
-        gamesPerEvening: z.number().int().positive(),
+        defaultStartTime: z.string().optional(),
+        gamesPerEvening: z.number().int().positive().optional(),
         presetId: z.string().optional(),
         weights: partialSchedulingWeightsSchema.optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { seasonId, gamesPerEvening } = input;
+      const { seasonId } = input;
       // Normalize: trim, filter empty, dedupe
       const dates = [...new Set(input.dates.map((d) => d.trim()).filter(Boolean))];
       if (dates.length === 0) {
@@ -323,25 +321,20 @@ export const matchupRouter = {
         await deleteEvent(db, event.id);
       }
 
-      // Create events from dates
+      // Create events from dates using weekday/Saturday start times
       const eventIds: string[] = [];
       for (const date of dates) {
+        const template = getScheduleTemplateForDate(date);
         const event = await createEvent(db, {
           seasonId,
           name: format(new Date(`${date}T12:00:00`), "MMM d, yyyy"),
-          date: combineDateAndTime(date, input.defaultStartTime),
+          date: combineDateAndTime(date, template.startTime),
         });
         eventIds.push(event.id);
       }
 
       // Auto-schedule matchups across events
-      const scheduleResult = await autoScheduleMatchups(
-        db,
-        seasonId,
-        eventIds,
-        gamesPerEvening,
-        weights,
-      );
+      const scheduleResult = await autoScheduleMatchups(db, seasonId, eventIds, weights);
 
       return {
         success: true,
