@@ -51,7 +51,6 @@ export const Route = createFileRoute("/(public)/")({
   },
 });
 
-// Default hero content for CMS
 const heroDefaults = {
   title: "Volleyball Fest",
   subtitle: "La liga de voleibol más emocionante de Cuauhtémoc",
@@ -81,7 +80,7 @@ function LandingPage() {
           style={{ backgroundImage: `url('${hero.imageUrl}')` }}
         />
         {/* Overlay */}
-        <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-black/80" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/30 to-black/40" />
 
         {/* Content */}
         <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
@@ -104,7 +103,7 @@ function LandingPage() {
             )}
           </h1>
 
-          <p className="mx-auto mb-4 max-w-2xl text-lg text-zinc-300 md:text-xl">
+          <p className="mx-auto mb-4 max-w-2xl text-lg font-medium text-zinc-300 md:text-2xl">
             {hero.subtitle}
           </p>
 
