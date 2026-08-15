@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CAT_FEMENIL,
-  CAT_SEGUNDA_FUERZA,
-  CAT_VARONIL_LIBRE,
+  buildCategoryRankById,
   DEFAULT_SCHEDULING_WEIGHTS,
   getPlacementViolationReason,
   getScheduleQualityScore,
@@ -14,11 +12,15 @@ import {
 import {
   evaluateMove,
   solveSchedule,
+  type SolverMove,
   type SolveScheduleInput,
   type SolveScheduleMatchup,
-  type SolverMove,
 } from "~/lib/scheduling/solver";
 
+const CAT_EARLY = "cat-early";
+const CAT_MID = "cat-mid";
+const CAT_LATE = "cat-late";
+const ORDERED_CATEGORY_IDS = [CAT_EARLY, CAT_MID, CAT_LATE];
 const ORDERED_EVENT_IDS = ["e1", "e2", "e3"];
 const GAMES_PER_EVENING = 2;
 
@@ -33,27 +35,27 @@ function matchup(
 
 function buildFixture(): SolveScheduleInput {
   const matchups: SolveScheduleMatchup[] = [
-    matchup("m-fem-1", "fem-a", "fem-b", CAT_FEMENIL),
-    matchup("m-fem-2", "fem-c", "fem-d", CAT_FEMENIL),
-    matchup("m-fem-3", "fem-a", "fem-c", CAT_FEMENIL),
-    matchup("m-var-1", "var-a", "var-b", CAT_VARONIL_LIBRE),
-    matchup("m-var-2", "var-c", "var-d", CAT_VARONIL_LIBRE),
-    matchup("m-seg-1", "seg-a", "seg-b", CAT_SEGUNDA_FUERZA),
-    matchup("m-far-1", "far-a", "far-b", CAT_SEGUNDA_FUERZA),
-    matchup("m-far-2", "far-a", "seg-a", CAT_SEGUNDA_FUERZA),
+    matchup("m-early-1", "early-a", "early-b", CAT_EARLY),
+    matchup("m-early-2", "early-c", "early-d", CAT_EARLY),
+    matchup("m-early-3", "early-a", "early-c", CAT_EARLY),
+    matchup("m-late-1", "late-a", "late-b", CAT_LATE),
+    matchup("m-late-2", "late-c", "late-d", CAT_LATE),
+    matchup("m-mid-1", "mid-a", "mid-b", CAT_MID),
+    matchup("m-far-1", "far-a", "far-b", CAT_MID),
+    matchup("m-far-2", "far-a", "mid-a", CAT_MID),
   ];
 
   const teamIds = [
-    "fem-a",
-    "fem-b",
-    "fem-c",
-    "fem-d",
-    "var-a",
-    "var-b",
-    "var-c",
-    "var-d",
-    "seg-a",
-    "seg-b",
+    "early-a",
+    "early-b",
+    "early-c",
+    "early-d",
+    "late-a",
+    "late-b",
+    "late-c",
+    "late-d",
+    "mid-a",
+    "mid-b",
     "far-a",
     "far-b",
   ];
@@ -64,8 +66,8 @@ function buildFixture(): SolveScheduleInput {
     ["e3", "2026-03-15"],
   ]);
   const teamUnavailableDatesById = new Map(teamIds.map((teamId) => [teamId, ""]));
-  // m-seg-1 cannot play e1 because seg-b is unavailable that date.
-  teamUnavailableDatesById.set("seg-b", "2026-03-01");
+  // m-mid-1 cannot play e1 because mid-b is unavailable that date.
+  teamUnavailableDatesById.set("mid-b", "2026-03-01");
 
   const maxGamesPerTeamId = new Map(teamIds.map((teamId) => [teamId, 2]));
   const farAwayTeamIds = new Set(["far-a", "far-b"]);
@@ -80,6 +82,7 @@ function buildFixture(): SolveScheduleInput {
   return {
     matchups,
     orderedEventIds: ORDERED_EVENT_IDS,
+    orderedCategoryIds: ORDERED_CATEGORY_IDS,
     gamesPerEvening: GAMES_PER_EVENING,
     validationContext,
     weights: DEFAULT_SCHEDULING_WEIGHTS,
@@ -98,6 +101,11 @@ function serializeResult(
     placements: placements.map(placementTuple).sort(),
     unscheduled: [...unscheduledMatchupIds].sort(),
   };
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function assertHardConstraints(
@@ -141,7 +149,7 @@ function qualityParams(input: SolveScheduleInput, placements: PlacementWithCateg
     maxSlotIndex: input.gamesPerEvening - 1,
     totalMatchups: input.matchups.length,
     categoryBalanceContext: {
-      categoryIds: [CAT_FEMENIL, CAT_SEGUNDA_FUERZA, CAT_VARONIL_LIBRE].sort(),
+      categoryIds: [...ORDERED_CATEGORY_IDS].sort(),
       eventCategoryTargetByEventId: new Map(
         input.orderedEventIds.map((eventId) => {
           const totals = new Map<string, number>();
@@ -161,6 +169,7 @@ function qualityParams(input: SolveScheduleInput, placements: PlacementWithCateg
       ),
     },
     farAwayTeamIds: input.validationContext.farAwayTeamIds,
+    categoryRankById: buildCategoryRankById(input.orderedCategoryIds),
     weights: input.weights,
   };
 }
@@ -219,6 +228,7 @@ describe("solveSchedule", () => {
       const result = solveSchedule({ ...input, effort, seed: 11 });
       expect(result.placements.length).toBeGreaterThan(0);
       assertHardConstraints(result.placements, input);
+      expect(result.metrics.hardConflictCount).toBe(0);
       const scheduledIds = new Set(result.placements.map((placement) => placement.id));
       for (const id of result.unscheduledMatchupIds) {
         expect(scheduledIds.has(id)).toBe(false);
@@ -288,9 +298,48 @@ describe("solveSchedule", () => {
   it("does not schedule a matchup on an unavailable event", () => {
     const input = buildFixture();
     const result = solveSchedule({ ...input, effort: "greedy", seed: 9 });
-    const blocked = result.placements.find((placement) => placement.id === "m-seg-1");
+    const blocked = result.placements.find((placement) => placement.id === "m-mid-1");
     if (blocked) {
       expect(blocked.eventId).not.toBe("e1");
     }
+  });
+
+  it("schedules earlier-ordered categories in earlier slots than later-ordered ones", () => {
+    const input = buildFixture();
+    const result = solveSchedule({ ...input, effort: "low", seed: 5 });
+    const earlySlots = result.placements
+      .filter((placement) => placement.categoryId === CAT_EARLY)
+      .map((placement) => placement.slotIndex);
+    const lateSlots = result.placements
+      .filter((placement) => placement.categoryId === CAT_LATE)
+      .map((placement) => placement.slotIndex);
+
+    expect(earlySlots.length).toBeGreaterThan(0);
+    expect(lateSlots.length).toBeGreaterThan(0);
+    expect(average(earlySlots)).toBeLessThanOrEqual(average(lateSlots));
+  });
+
+  it("clusters a category onto one court within an event when clustering is strong", () => {
+    const input = buildFixture();
+    input.weights = {
+      ...input.weights,
+      categoryCourtClustering: 40,
+      categoryDistributionRun: 0,
+    };
+    const result = solveSchedule({ ...input, effort: "low", seed: 13 });
+
+    const courtsByEventAndCategory = new Map<string, Set<string>>();
+    for (const placement of result.placements) {
+      if (!placement.categoryId) continue;
+      const key = `${placement.eventId}:${placement.categoryId}`;
+      const courts = courtsByEventAndCategory.get(key) ?? new Set<string>();
+      courts.add(placement.courtId);
+      courtsByEventAndCategory.set(key, courts);
+    }
+
+    const splitCategories = [...courtsByEventAndCategory.values()].filter(
+      (courts) => courts.size > 1,
+    );
+    expect(splitCategories.length).toBeLessThanOrEqual(1);
   });
 });

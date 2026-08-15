@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -37,17 +37,18 @@ const WEIGHT_CONTROLS: {
   step: number;
 }[] = [
   {
-    key: "femenilEarlyPerSlot",
-    label: "Push femenil early",
-    description: "Schedule femenil matchups in earlier time slots.",
+    key: "categoryTimePreference",
+    label: "Push earlier categories early",
+    description:
+      "First-ordered categories prefer earlier slots; later ones prefer later.",
     min: 0,
     max: 40,
     step: 1,
   },
   {
-    key: "femenilCourtClustering",
-    label: "Cluster femenil on the same court",
-    description: "Keep femenil games together on one court.",
+    key: "categoryCourtClustering",
+    label: "Keep each category on one court",
+    description: "Cluster a category's games together on the same court in an evening.",
     min: 0,
     max: 40,
     step: 1,
@@ -93,14 +94,6 @@ const WEIGHT_CONTROLS: {
     step: 1,
   },
   {
-    key: "varonilLatePerSlot",
-    label: "Prefer varonil libre later",
-    description: "Push varonil libre toward later slots.",
-    min: 0,
-    max: 40,
-    step: 1,
-  },
-  {
     key: "maxGamesPerEvent",
     label: "Max games per team per night",
     description: "Hard cap on games a team can play in one event.",
@@ -117,9 +110,9 @@ const WEIGHT_CONTROLS: {
     step: 1,
   },
   {
-    key: "femenilEarlyCurveExponent",
-    label: "How sharply to push femenil early",
-    description: "Steeper curves concentrate femenil even earlier.",
+    key: "categoryTimeCurveExponent",
+    label: "Time-preference curve",
+    description: "Steeper curves concentrate earlier categories even earlier.",
     min: 1,
     max: 4,
     step: 0.5,
@@ -153,6 +146,7 @@ export function AlgorithmTuningPanel({
 
   const listPresetsQuery = trpc.scheduleConfig.listPresets.queryOptions({ seasonId });
   const { data: presets = [] } = useQuery(listPresetsQuery);
+  const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
 
   const savePresetMutation = useMutation(
     trpc.scheduleConfig.savePreset.mutationOptions(),
@@ -160,6 +154,7 @@ export function AlgorithmTuningPanel({
   const deletePresetMutation = useMutation(
     trpc.scheduleConfig.deletePreset.mutationOptions(),
   );
+  const reorderCategoriesMutation = useMutation(trpc.category.reorder.mutationOptions());
 
   const invalidatePresets = async () => {
     await Promise.all([
@@ -239,6 +234,34 @@ export function AlgorithmTuningPanel({
     }
   };
 
+  const handleMoveCategory = async (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= categories.length) {
+      return;
+    }
+
+    const orderedIds = categories.map((category) => category.id);
+    const currentId = orderedIds[index];
+    const swapId = orderedIds[nextIndex];
+    if (!currentId || !swapId) {
+      return;
+    }
+
+    orderedIds[index] = swapId;
+    orderedIds[nextIndex] = currentId;
+
+    try {
+      await reorderCategoriesMutation.mutateAsync({ orderedIds });
+      await queryClient.invalidateQueries({
+        queryKey: trpc.category.getAll.queryKey(),
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reorder categories",
+      );
+    }
+  };
+
   return (
     <Card>
       <Accordion type="single" collapsible>
@@ -311,6 +334,60 @@ export function AlgorithmTuningPanel({
                 >
                   {savePresetMutation.isPending ? "Saving..." : "Save"}
                 </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>Category time order</Label>
+                  <p className="text-muted-foreground text-xs">
+                    First plays earliest, last plays latest. This order is shared across
+                    all seasons.
+                  </p>
+                </div>
+                <ul className="space-y-1">
+                  {categories.map((category, index) => (
+                    <li
+                      key={category.id}
+                      className="flex items-center gap-2 rounded-md border px-2 py-1.5"
+                    >
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: category.color }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        {category.name}
+                      </span>
+                      <div className="flex shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          aria-label={`Move ${category.name} earlier`}
+                          disabled={index === 0 || reorderCategoriesMutation.isPending}
+                          onClick={() => void handleMoveCategory(index, -1)}
+                        >
+                          <ChevronUp className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          aria-label={`Move ${category.name} later`}
+                          disabled={
+                            index === categories.length - 1 ||
+                            reorderCategoriesMutation.isPending
+                          }
+                          onClick={() => void handleMoveCategory(index, 1)}
+                        >
+                          <ChevronDown className="size-4" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div className="space-y-5">

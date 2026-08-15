@@ -2,6 +2,7 @@ import { startOfDay, subDays } from "date-fns";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
+import { getCategories } from "~/lib/db/queries/category";
 import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
 import { solveSchedule, type SolveScheduleInput } from "~/lib/scheduling/solver";
@@ -584,10 +585,12 @@ export async function loadSolveScheduleContext(
   }));
 
   const scheduleConfig = await getScheduleConfig(db, seasonId);
+  const categories = await getCategories(db);
 
   return {
     matchups,
     orderedEventIds,
+    orderedCategoryIds: categories.map((category) => category.id),
     gamesPerEvening: scheduleConfig?.gamesPerEvening ?? 7,
     validationContext,
     weights: resolvedWeights,

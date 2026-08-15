@@ -53,11 +53,21 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function MetricRow({ label, value }: { label: string; value: string }) {
+function MetricRow({
+  label,
+  value,
+  warn = false,
+}: {
+  label: string;
+  value: string;
+  warn?: boolean;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium tabular-nums">{value}</span>
+      <span className={cn("font-medium tabular-nums", warn && "text-destructive")}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -177,12 +187,17 @@ export function CandidateCompare({
                     value={String(candidate.metrics.unscheduledCount)}
                   />
                   <MetricRow
+                    label="Conflicts"
+                    value={String(candidate.metrics.hardConflictCount)}
+                    warn={candidate.metrics.hardConflictCount > 0}
+                  />
+                  <MetricRow
                     label="Category deviation"
                     value={formatScore(candidate.metrics.totalCategoryDeviation)}
                   />
                   <MetricRow
-                    label="Femenil net switches"
-                    value={formatScore(candidate.metrics.estimatedFemenilNetSwitches)}
+                    label="Court category switches"
+                    value={formatScore(candidate.metrics.courtCategorySwitches)}
                   />
                   <MetricRow
                     label="Games-per-event spread"

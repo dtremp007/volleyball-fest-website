@@ -4,7 +4,9 @@
  */
 
 import {
-  getEstimatedFemenilNetSwitchCount,
+  buildCategoryRankById,
+  countHardConflicts,
+  getCourtCategorySwitchCount,
   getPlacementPreferenceScore,
   getPlacementViolationReason,
   getScheduleQualityScore,
@@ -67,6 +69,8 @@ export type SolveScheduleMatchup = {
 export type SolveScheduleInput = {
   matchups: SolveScheduleMatchup[];
   orderedEventIds: string[];
+  /** Categories ordered earliest-to-latest for time-of-night preference. */
+  orderedCategoryIds: string[];
   gamesPerEvening: number;
   validationContext: ConstraintValidationContext;
   weights: SchedulingWeights;
@@ -82,7 +86,8 @@ export type SolveScheduleInput = {
 export type SchedulingMetrics = {
   qualityScore: number;
   totalCategoryDeviation: number;
-  estimatedFemenilNetSwitches: number;
+  courtCategorySwitches: number;
+  hardConflictCount: number;
   categoryCountsByEventId: Record<string, Record<string, number>>;
   /** Mean of (max − min) games-per-event counts per team, across events that team appeared in. 0 if no team played. */
   gamesPerEventSpread: number;
@@ -122,6 +127,7 @@ type SolverScoreParams = {
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
+  categoryRankById: Map<string, number>;
   weights: SchedulingWeights;
 };
 
@@ -253,6 +259,7 @@ function buildSchedulingMetrics(
   placements: PlacementWithCategory[],
   matchups: SolveScheduleMatchup[],
   params: SolverScoreParams,
+  validationContext: ConstraintValidationContext,
 ): SchedulingMetrics {
   const categoryCountsByEventId: Record<string, Record<string, number>> = {};
   for (const eventId of params.orderedEventIds) {
@@ -277,7 +284,8 @@ function buildSchedulingMetrics(
       placements,
       params.categoryBalanceContext,
     ),
-    estimatedFemenilNetSwitches: getEstimatedFemenilNetSwitchCount(placements),
+    courtCategorySwitches: getCourtCategorySwitchCount(placements),
+    hardConflictCount: countHardConflicts(placements, validationContext),
     qualityScore: getScheduleQualityScore({
       placementsWithCategory: placements,
       orderedEventIds: params.orderedEventIds,
@@ -285,6 +293,7 @@ function buildSchedulingMetrics(
       totalMatchups: params.totalMatchups,
       categoryBalanceContext: params.categoryBalanceContext,
       farAwayTeamIds: params.farAwayTeamIds,
+      categoryRankById: params.categoryRankById,
       weights: params.weights,
     }),
     gamesPerEventSpread: getGamesPerEventSpread(placements),
@@ -306,6 +315,7 @@ function runInitialPlacementPass(
     validationContext: ConstraintValidationContext;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
+    categoryRankById: Map<string, number>;
     weights: SchedulingWeights;
     maxSlotIndex: number;
   },
@@ -354,6 +364,7 @@ function runInitialPlacementPass(
               totalMatchups: matchupOrder.length,
               categoryBalanceContext: params.categoryBalanceContext,
               farAwayTeamIds: params.farAwayTeamIds,
+              categoryRankById: params.categoryRankById,
               weights: params.weights,
             });
             if (preferenceScore < selectedPlacementScore) {
@@ -494,6 +505,7 @@ export function scorePlacementsOnEvents(
       totalMatchups: params.totalMatchups,
       categoryBalanceContext: params.categoryBalanceContext,
       farAwayTeamIds: params.farAwayTeamIds,
+      categoryRankById: params.categoryRankById,
       weights: params.weights,
     });
   }
@@ -754,7 +766,12 @@ export function evaluateMove(
   unscheduledMatchupIds: string[],
   input: Pick<
     SolveScheduleInput,
-    "matchups" | "orderedEventIds" | "gamesPerEvening" | "validationContext" | "weights"
+    | "matchups"
+    | "orderedEventIds"
+    | "orderedCategoryIds"
+    | "gamesPerEvening"
+    | "validationContext"
+    | "weights"
   >,
 ): EvaluateMoveResult {
   const params: SolverScoreParams = {
@@ -766,6 +783,7 @@ export function evaluateMove(
       input.orderedEventIds,
     ),
     farAwayTeamIds: input.validationContext.farAwayTeamIds,
+    categoryRankById: buildCategoryRankById(input.orderedCategoryIds),
     weights: input.weights,
   };
   const matchupsById = new Map(input.matchups.map((matchup) => [matchup.id, matchup]));
@@ -958,12 +976,15 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
   const {
     matchups,
     orderedEventIds,
+    orderedCategoryIds,
     gamesPerEvening,
     validationContext,
     weights,
     seed,
     effort = "medium",
   } = input;
+
+  const categoryRankById = buildCategoryRankById(orderedCategoryIds);
 
   if (matchups.length === 0 || orderedEventIds.length === 0 || gamesPerEvening <= 0) {
     return {
@@ -972,7 +993,8 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
       metrics: {
         qualityScore: 0,
         totalCategoryDeviation: 0,
-        estimatedFemenilNetSwitches: 0,
+        courtCategorySwitches: 0,
+        hardConflictCount: 0,
         categoryCountsByEventId: Object.fromEntries(
           orderedEventIds.map((eventId) => [eventId, {}]),
         ),
@@ -997,6 +1019,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
     totalMatchups: matchups.length,
     categoryBalanceContext,
     farAwayTeamIds,
+    categoryRankById,
     weights,
   };
 
@@ -1031,6 +1054,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
     validationContext,
     categoryBalanceContext,
     farAwayTeamIds,
+    categoryRankById,
     weights,
     maxSlotIndex,
   });
@@ -1052,7 +1076,12 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
 
   return {
     placements: finalPlacements,
-    metrics: buildSchedulingMetrics(finalPlacements, matchups, scoreParams),
+    metrics: buildSchedulingMetrics(
+      finalPlacements,
+      matchups,
+      scoreParams,
+      validationContext,
+    ),
     unscheduledMatchupIds,
   };
 }

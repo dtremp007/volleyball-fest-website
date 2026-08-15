@@ -6,6 +6,7 @@ import {
   deleteCategory,
   getCategories,
   getCategoryById,
+  reorderCategories,
   updateCategory,
 } from "~/lib/db/queries/category";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
@@ -39,5 +40,11 @@ export const categoryRouter = {
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await deleteCategory(db, input.id);
+    }),
+
+  reorder: protectedProcedure
+    .input(z.object({ orderedIds: z.array(z.string()).min(1) }))
+    .mutation(async ({ input }) => {
+      return await reorderCategories(db, input.orderedIds);
     }),
 } satisfies TRPCRouterRecord;

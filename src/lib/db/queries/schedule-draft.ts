@@ -36,7 +36,8 @@ import {
 const EMPTY_METRICS: SchedulingMetrics = {
   qualityScore: 0,
   totalCategoryDeviation: 0,
-  estimatedFemenilNetSwitches: 0,
+  courtCategorySwitches: 0,
+  hardConflictCount: 0,
   categoryCountsByEventId: {},
   gamesPerEventSpread: 0,
   farAwayTwoGamesHitRate: 0,

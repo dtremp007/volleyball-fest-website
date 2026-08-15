@@ -71,6 +71,13 @@
       "when": 1786815018281,
       "tag": "0009_schedule_draft",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1786817629703,
+      "tag": "0010_perfect_shockwave",
+      "breakpoints": true
     }
   ]
 }

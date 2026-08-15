@@ -5,13 +5,12 @@ export const schedulingWeightsSchema = z.object({
   eventLoadBalance: z.number(),
   farAwaySchedulingPriority: z.number(),
   teamRestAdjacentEvent: z.number(),
-  femenilEarlyPerSlot: z.number(),
-  femenilCourtClustering: z.number(),
+  categoryTimePreference: z.number(),
+  categoryCourtClustering: z.number(),
   categoryDistributionRun: z.number(),
-  varonilLatePerSlot: z.number(),
   maxGamesPerEvent: z.number().int().positive(),
   farAwayMaxGamesPerEvent: z.number().int().positive(),
-  femenilEarlyCurveExponent: z.number().positive(),
+  categoryTimeCurveExponent: z.number().positive(),
 });
 
 export type SchedulingWeights = z.infer<typeof schedulingWeightsSchema>;
@@ -21,13 +20,12 @@ export const DEFAULT_SCHEDULING_WEIGHTS: SchedulingWeights = {
   eventLoadBalance: 15,
   farAwaySchedulingPriority: 12,
   teamRestAdjacentEvent: 10,
-  femenilEarlyPerSlot: 10,
-  femenilCourtClustering: 8,
+  categoryTimePreference: 10,
+  categoryCourtClustering: 8,
   categoryDistributionRun: 3,
-  varonilLatePerSlot: 1,
   maxGamesPerEvent: 2,
   farAwayMaxGamesPerEvent: 2,
-  femenilEarlyCurveExponent: 2,
+  categoryTimeCurveExponent: 2,
 };
 
 export const partialSchedulingWeightsSchema = schedulingWeightsSchema.partial();
@@ -41,6 +39,32 @@ export function resolveSchedulingWeights(
   };
 }
 
+const LEGACY_WEIGHT_KEYS: Record<string, keyof SchedulingWeights> = {
+  femenilEarlyPerSlot: "categoryTimePreference",
+  femenilCourtClustering: "categoryCourtClustering",
+  femenilEarlyCurveExponent: "categoryTimeCurveExponent",
+};
+
+export function migrateLegacySchedulingWeights(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const source = value as Record<string, unknown>;
+  const migrated: Record<string, unknown> = { ...source };
+
+  for (const [legacyKey, nextKey] of Object.entries(LEGACY_WEIGHT_KEYS)) {
+    if (migrated[nextKey] === undefined && migrated[legacyKey] !== undefined) {
+      migrated[nextKey] = migrated[legacyKey];
+    }
+    delete migrated[legacyKey];
+  }
+
+  delete migrated.varonilLatePerSlot;
+
+  return migrated;
+}
+
 export function parseSchedulePresetWeights(weightsJson: string): SchedulingWeights {
   let parsed: unknown;
   try {
@@ -49,7 +73,11 @@ export function parseSchedulePresetWeights(weightsJson: string): SchedulingWeigh
     throw new Error("Invalid schedule preset weights JSON");
   }
 
-  const result = schedulingWeightsSchema.safeParse(parsed);
+  const result = schedulingWeightsSchema.safeParse(
+    resolveSchedulingWeights(
+      migrateLegacySchedulingWeights(parsed) as Partial<SchedulingWeights>,
+    ),
+  );
   if (!result.success) {
     throw new Error("Invalid schedule preset weights");
   }
@@ -79,7 +107,8 @@ export const scheduleDraftPlacementSchema = z.object({
 export const schedulingMetricsSchema = z.object({
   qualityScore: z.number(),
   totalCategoryDeviation: z.number(),
-  estimatedFemenilNetSwitches: z.number(),
+  courtCategorySwitches: z.number().default(0),
+  hardConflictCount: z.number().default(0),
   categoryCountsByEventId: z.record(z.string(), z.record(z.string(), z.number())),
   gamesPerEventSpread: z.number(),
   farAwayTwoGamesHitRate: z.number(),
@@ -128,7 +157,17 @@ export function parseScheduleDraftMetrics(metricsJson: string) {
     throw new Error("Invalid schedule draft metrics JSON");
   }
 
-  const result = schedulingMetricsSchema.safeParse(parsed);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Invalid schedule draft metrics");
+  }
+
+  const source = parsed as Record<string, unknown>;
+  const result = schedulingMetricsSchema.safeParse({
+    ...source,
+    courtCategorySwitches:
+      source.courtCategorySwitches ?? source.estimatedFemenilNetSwitches ?? 0,
+    hardConflictCount: source.hardConflictCount ?? 0,
+  });
   if (!result.success) {
     throw new Error("Invalid schedule draft metrics");
   }

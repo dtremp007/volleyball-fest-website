@@ -61,14 +61,6 @@ const PLAYOFF_ROUND_EVENT_INDEX: Record<string, number> = {
   "third-place": 2,
   final: 2,
 };
-const CAT_FEMENIL = "cat-femenil";
-const CAT_SEGUNDA_FUERZA = "cat-segunda-fuerza";
-const CAT_VARONIL_LIBRE = "cat-varonil-libre";
-const PLAYOFF_LAST_DAY_CATEGORY_ORDER = [
-  CAT_FEMENIL,
-  CAT_SEGUNDA_FUERZA,
-  CAT_VARONIL_LIBRE,
-];
 
 export function getPlayoffQualifierCount(format: PlayoffFormat | null | undefined) {
   return format === "top-5" ? 5 : 4;
@@ -292,7 +284,7 @@ export async function savePlayoffSchedule(db: Database, data: PlayoffScheduleDat
 }
 
 export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string) {
-  const [events, matchups, dependencyRows] = await Promise.all([
+  const [events, matchups, dependencyRows, categories] = await Promise.all([
     getPlayoffScheduleEventsBySeasonId(db, seasonId),
     db
       .select({
@@ -314,9 +306,11 @@ export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string
         eq(schema.playoffMatchupTeam.matchupId, schema.playoffMatchup.id),
       )
       .where(eq(schema.playoffMatchup.seasonId, seasonId)),
+    getCategories(db),
   ]);
 
   const orderedEvents = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const orderedCategoryIds = categories.map((category) => category.id);
   if (orderedEvents.length === 0 || matchups.length === 0) {
     return {
       scheduledCount: 0,
@@ -339,10 +333,12 @@ export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string
   const lastEventIndex = orderedEvents.length - 1;
   const lastEvent = orderedEvents[lastEventIndex];
 
-  const lastDayMatchups = [...matchups].sort(comparePlayoffLastDayMatchups);
+  const lastDayMatchups = [...matchups].sort((a, b) =>
+    comparePlayoffLastDayMatchups(a, b, orderedCategoryIds),
+  );
   if (lastEvent) {
     for (const matchup of lastDayMatchups) {
-      if (!isLastDayPlayoffMatchup(matchup)) continue;
+      if (!isLastDayPlayoffMatchup(matchup, orderedCategoryIds)) continue;
 
       const countKey = `${lastEvent.id}:B`;
       const slotIndex = courtSlotCounts.get(countKey) ?? 0;
@@ -384,7 +380,9 @@ export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string
       dependencyEventIndexes.length > 0 ? Math.max(...dependencyEventIndexes) : 0;
     const preferredEventIndex = PLAYOFF_ROUND_EVENT_INDEX[matchup.round] ?? 0;
     const latestEventIndex =
-      lastEvent && !isLastDayPlayoffMatchup(matchup) && orderedEvents.length > 1
+      lastEvent &&
+      !isLastDayPlayoffMatchup(matchup, orderedCategoryIds) &&
+      orderedEvents.length > 1
         ? orderedEvents.length - 2
         : orderedEvents.length - 1;
     const eventIndex = Math.min(
@@ -419,34 +417,48 @@ export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string
   };
 }
 
-function isLastDayPlayoffMatchup(matchup: { categoryId: string; round: string }) {
+function isLastDayPlayoffMatchup(
+  matchup: { categoryId: string; round: string },
+  orderedCategoryIds: string[],
+) {
   if (matchup.round === "final") {
-    return PLAYOFF_LAST_DAY_CATEGORY_ORDER.includes(matchup.categoryId);
+    return orderedCategoryIds.includes(matchup.categoryId);
   }
 
-  return matchup.categoryId === CAT_VARONIL_LIBRE && matchup.round === "third-place";
+  const lastCategoryId = orderedCategoryIds[orderedCategoryIds.length - 1];
+  return matchup.round === "third-place" && matchup.categoryId === lastCategoryId;
 }
 
 function comparePlayoffLastDayMatchups(
   a: { categoryId: string; round: string; label: string },
   b: { categoryId: string; round: string; label: string },
+  orderedCategoryIds: string[],
 ) {
-  const rankA = getPlayoffLastDayRank(a);
-  const rankB = getPlayoffLastDayRank(b);
+  const rankA = getPlayoffLastDayRank(a, orderedCategoryIds);
+  const rankB = getPlayoffLastDayRank(b, orderedCategoryIds);
 
   if (rankA !== rankB) return rankA - rankB;
   return a.label.localeCompare(b.label, undefined, { numeric: true });
 }
 
-function getPlayoffLastDayRank(matchup: { categoryId: string; round: string }) {
-  if (matchup.categoryId === CAT_FEMENIL && matchup.round === "final") return 0;
-  if (matchup.categoryId === CAT_SEGUNDA_FUERZA && matchup.round === "final") {
-    return 1;
+function getPlayoffLastDayRank(
+  matchup: { categoryId: string; round: string },
+  orderedCategoryIds: string[],
+) {
+  const lastIndex = orderedCategoryIds.length - 1;
+  const lastCategoryId = lastIndex >= 0 ? orderedCategoryIds[lastIndex] : undefined;
+  const categoryIndex = orderedCategoryIds.indexOf(matchup.categoryId);
+
+  if (matchup.round === "final") {
+    if (categoryIndex === -1) return 99;
+    if (categoryIndex === lastIndex) return lastIndex + 1;
+    return categoryIndex;
   }
-  if (matchup.categoryId === CAT_VARONIL_LIBRE && matchup.round === "third-place") {
-    return 2;
+
+  if (matchup.round === "third-place" && matchup.categoryId === lastCategoryId) {
+    return lastIndex;
   }
-  if (matchup.categoryId === CAT_VARONIL_LIBRE && matchup.round === "final") return 3;
+
   return 99;
 }
 
