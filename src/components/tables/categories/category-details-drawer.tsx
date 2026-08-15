@@ -17,7 +17,7 @@ import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Textarea } from "~/components/ui/textarea";
-import { DEFAULT_CATEGORY_COLOR } from "~/lib/category-color";
+import { DEFAULT_CATEGORY_COLOR, normalizeCategoryColor } from "~/lib/category-color";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId/settings";
 import { useTRPC } from "~/trpc/react";
 import { createCategorySchema } from "~/validators/category.validators";
@@ -46,16 +46,8 @@ function draftFromCategory(category: {
   return {
     name: category.name,
     description: category.description,
-    color: category.color,
+    color: normalizeCategoryColor(category.color) ?? DEFAULT_CATEGORY_COLOR,
   };
-}
-
-function normalizeHexColor(value: string) {
-  const trimmed = value.trim();
-  if (/^[0-9A-Fa-f]{6}$/.test(trimmed)) {
-    return `#${trimmed}`;
-  }
-  return trimmed;
 }
 
 export function CategoryDetailsDrawer() {
@@ -216,10 +208,14 @@ function CategoryFormDrawer({
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
+  const setColor = (value: string) => {
+    setField("color", normalizeCategoryColor(value) ?? value);
+  };
+
   const save = () => {
     const parsed = createCategorySchema.safeParse({
       ...draft,
-      color: normalizeHexColor(draft.color),
+      color: normalizeCategoryColor(draft.color) ?? draft.color,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Complete the category fields.");
@@ -256,7 +252,12 @@ function CategoryFormDrawer({
       }
     >
       <div className="space-y-6 p-4 sm:p-6">
-        <CategoryForm draft={draft} disabled={isPending} setField={setField} />
+        <CategoryForm
+          draft={draft}
+          disabled={isPending}
+          setField={setField}
+          setColor={setColor}
+        />
       </div>
     </CategoryDrawerShell>
   );
@@ -266,10 +267,12 @@ function CategoryForm({
   draft,
   disabled,
   setField,
+  setColor,
 }: {
   draft: CategoryDraft;
   disabled: boolean;
   setField: <K extends keyof CategoryDraft>(key: K, value: CategoryDraft[K]) => void;
+  setColor: (value: string) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -300,19 +303,17 @@ function CategoryForm({
           <input
             id="category-color"
             type="color"
-            value={
-              /^#[0-9A-Fa-f]{6}$/.test(draft.color) ? draft.color : DEFAULT_CATEGORY_COLOR
-            }
-            onChange={(event) => setField("color", event.target.value)}
+            value={normalizeCategoryColor(draft.color) ?? DEFAULT_CATEGORY_COLOR}
+            onChange={(event) => setColor(event.target.value)}
             disabled={disabled}
             className="border-input size-10 cursor-pointer rounded-md border bg-transparent p-1"
           />
           <Input
             aria-label="Hex color"
             value={draft.color}
-            onChange={(event) => setField("color", normalizeHexColor(event.target.value))}
+            onChange={(event) => setColor(event.target.value)}
             placeholder="#000000"
-            className="font-mono uppercase"
+            className="font-mono"
             disabled={disabled}
           />
         </div>
