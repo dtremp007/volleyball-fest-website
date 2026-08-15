@@ -73,8 +73,8 @@ function MatchupContent({ matchup }: { matchup: Matchup }) {
   const colors = getCategoryColor(matchup.category);
 
   return (
-    <div className="flex min-h-14 flex-col justify-center pr-20">
-      <div className="absolute top-2 right-2 max-w-20 truncate text-[10px] leading-none font-semibold text-slate-500 uppercase dark:text-slate-400">
+    <div className="flex min-h-14 flex-col justify-center">
+      <div className="mb-1 text-right text-[10px] leading-tight font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
         {matchup.category}
       </div>
 

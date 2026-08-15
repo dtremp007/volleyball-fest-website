@@ -183,11 +183,12 @@ export async function generateEventScheduleImage(
   ctx.fillText(format(formatEventDateForDisplay(event.date), "MMM d, yyyy"), W / 2, y);
   y += 40;
 
-  // Legend — divide the row evenly, like justify-between
+  // Legend — measure text widths and distribute with even gaps
   ctx.font = "bold 18px system-ui, sans-serif";
   const legendItems = categories.map((category) => ({
     text: category.name.toUpperCase(),
     color: category.color,
+    width: ctx.measureText(category.name.toUpperCase()).width,
   }));
   const legendCount = legendItems.length;
   if (legendCount === 1) {
@@ -197,11 +198,16 @@ export async function generateEventScheduleImage(
   } else if (legendCount > 1) {
     const legendLeft = PADDING;
     const legendWidth = W - PADDING * 2;
-    legendItems.forEach((item, i) => {
-      const x = legendLeft + (i / (legendCount - 1)) * legendWidth;
-      ctx.textAlign = i === 0 ? "left" : i === legendCount - 1 ? "right" : "center";
+    const totalTextWidth = legendItems.reduce((sum, item) => sum + item.width, 0);
+    const totalGap = legendWidth - totalTextWidth;
+    const gap = totalGap / (legendCount - 1);
+
+    let cursorX = legendLeft;
+    legendItems.forEach((item) => {
+      ctx.textAlign = "left";
       ctx.fillStyle = item.color;
-      ctx.fillText(item.text, x, y);
+      ctx.fillText(item.text, cursorX, y);
+      cursorX += item.width + gap;
     });
   }
   if (legendCount > 0) {
