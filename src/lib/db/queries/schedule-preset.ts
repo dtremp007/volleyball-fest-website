@@ -2,6 +2,12 @@ import { desc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
+import {
+  DEFAULT_SCHEDULING_WEIGHTS,
+  parseSchedulePresetWeights,
+  resolveSchedulingWeights,
+  type SchedulingWeights,
+} from "~/validators/scheduling.validators";
 
 export const getSchedulePresets = async (db: Database, seasonId: string) => {
   return await db
@@ -104,4 +110,27 @@ export const getActiveSchedulePreset = async (db: Database, seasonId: string) =>
     .limit(1);
 
   return row?.preset ?? null;
+};
+
+export const resolveScheduleWeightsForSeason = async (
+  db: Database,
+  seasonId: string,
+  options?: { presetId?: string; weights?: Partial<SchedulingWeights> },
+): Promise<SchedulingWeights> => {
+  let base: SchedulingWeights = DEFAULT_SCHEDULING_WEIGHTS;
+
+  if (options?.presetId) {
+    const preset = await getSchedulePresetById(db, options.presetId);
+    if (!preset || preset.seasonId !== seasonId) {
+      throw new Error("Schedule preset not found for this season");
+    }
+    base = parseSchedulePresetWeights(preset.weightsJson);
+  } else {
+    const activePreset = await getActiveSchedulePreset(db, seasonId);
+    if (activePreset) {
+      base = parseSchedulePresetWeights(activePreset.weightsJson);
+    }
+  }
+
+  return resolveSchedulingWeights({ ...base, ...options?.weights });
 };

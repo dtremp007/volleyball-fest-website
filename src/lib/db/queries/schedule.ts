@@ -44,6 +44,7 @@ export async function getScheduleConfig(db: Database, seasonId: string) {
       seasonId: schema.scheduleConfig.seasonId,
       defaultStartTime: schema.scheduleConfig.defaultStartTime,
       gamesPerEvening: schema.scheduleConfig.gamesPerEvening,
+      activePresetId: schema.scheduleConfig.activePresetId,
     })
     .from(schema.scheduleConfig)
     .where(eq(schema.scheduleConfig.seasonId, seasonId))

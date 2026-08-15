@@ -23,9 +23,14 @@ import {
   saveSchedule,
   saveSetScore,
 } from "~/lib/db/queries/schedule";
+import {
+  resolveScheduleWeightsForSeason,
+  setActiveSchedulePreset,
+} from "~/lib/db/queries/schedule-preset";
 import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state";
 import { combineDateAndTime } from "~/lib/schedule/slot-times";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { partialSchedulingWeightsSchema } from "~/validators/scheduling.validators";
 
 export const matchupRouter = {
   getStandings: publicProcedure
@@ -208,11 +213,21 @@ export const matchupRouter = {
    * Regenerate schedule placements using existing events
    */
   regenerateSchedule: protectedProcedure
-    .input(z.object({ seasonId: z.string() }))
+    .input(
+      z.object({
+        seasonId: z.string(),
+        presetId: z.string().optional(),
+        weights: partialSchedulingWeightsSchema.optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
-      const [events, scheduleConfig] = await Promise.all([
+      const [events, scheduleConfig, weights] = await Promise.all([
         getEventsBySeasonId(db, input.seasonId),
         getScheduleConfig(db, input.seasonId),
+        resolveScheduleWeightsForSeason(db, input.seasonId, {
+          presetId: input.presetId,
+          weights: input.weights,
+        }),
       ]);
       await clearMatchupPlacementsForSeason(db, input.seasonId);
 
@@ -221,6 +236,7 @@ export const matchupRouter = {
         input.seasonId,
         events.map((event) => event.id),
         scheduleConfig?.gamesPerEvening ?? 7,
+        weights,
       );
     }),
 
@@ -270,6 +286,8 @@ export const matchupRouter = {
           .min(1, "At least one date is required"),
         defaultStartTime: z.string(),
         gamesPerEvening: z.number().int().positive(),
+        presetId: z.string().optional(),
+        weights: partialSchedulingWeightsSchema.optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -278,6 +296,19 @@ export const matchupRouter = {
       const dates = [...new Set(input.dates.map((d) => d.trim()).filter(Boolean))];
       if (dates.length === 0) {
         throw new Error("At least one valid date is required");
+      }
+
+      const weights = await resolveScheduleWeightsForSeason(db, seasonId, {
+        presetId: input.presetId,
+        weights: input.weights,
+      });
+
+      if (input.presetId) {
+        try {
+          await setActiveSchedulePreset(db, seasonId, input.presetId);
+        } catch {
+          // Generate can run before schedule config exists.
+        }
       }
 
       // Generate matchups if they don't exist
@@ -309,6 +340,7 @@ export const matchupRouter = {
         seasonId,
         eventIds,
         gamesPerEvening,
+        weights,
       );
 
       return {

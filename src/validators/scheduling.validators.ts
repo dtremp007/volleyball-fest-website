@@ -40,3 +40,28 @@ export function resolveSchedulingWeights(
     ...partial,
   };
 }
+
+export function parseSchedulePresetWeights(weightsJson: string): SchedulingWeights {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(weightsJson);
+  } catch {
+    throw new Error("Invalid schedule preset weights JSON");
+  }
+
+  const result = schedulingWeightsSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error("Invalid schedule preset weights");
+  }
+
+  return result.data;
+}
+
+export const saveSchedulePresetSchema = z.object({
+  seasonId: z.string(),
+  name: z.string().min(1),
+  weights: schedulingWeightsSchema,
+  setActive: z.boolean().optional(),
+});
+
+export type SaveSchedulePresetValues = z.infer<typeof saveSchedulePresetSchema>;
