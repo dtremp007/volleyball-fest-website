@@ -2,18 +2,9 @@ import { startOfDay, subDays } from "date-fns";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
-import {
-  evaluatePlacementSwap,
-  getEstimatedFemenilNetSwitchCount,
-  getPlacementPreferenceScore,
-  getPlacementViolationReason,
-  getScheduleQualityScore,
-  type CategoryBalanceContext,
-  type ConstraintValidationContext,
-  type PlacementWithCategory,
-  type ScheduledMatchupPlacement,
-} from "~/lib/db/queries/schedule-algorithm";
+import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
+import { solveSchedule } from "~/lib/scheduling/solver";
 import {
   contributionFromFirstTwoSets,
   sortStandingsTeams,
@@ -29,11 +20,6 @@ import {
 function getPlayoffQualifierCount(format: schema.PlayoffFormat | null | undefined) {
   return format === "top-5" ? 5 : 4;
 }
-
-const CATEGORY_BALANCE_MAX_PASSES = 6;
-const FEMENIL_CLUSTERING_MAX_PASSES = 6;
-const GENERAL_SWAP_MAX_PASSES = 15;
-const MAX_SWAP_EVALUATIONS_PER_PASS = 1200;
 
 // ============== Schedule Config ==============
 
@@ -527,343 +513,9 @@ async function buildConstraintValidationContext(
   };
 }
 
-function buildCategoryBalanceContext(
-  matchupOrder: Array<{ id: string }>,
-  matchupCategoryById: Map<string, string | null>,
-  orderedEventIds: string[],
-): CategoryBalanceContext | null {
-  if (orderedEventIds.length === 0) return null;
-
-  const totalByCategoryId = new Map<string, number>();
-  for (const matchup of matchupOrder) {
-    const categoryId = matchupCategoryById.get(matchup.id);
-    if (!categoryId) continue;
-    totalByCategoryId.set(categoryId, (totalByCategoryId.get(categoryId) ?? 0) + 1);
-  }
-
-  const categoryIds = Array.from(totalByCategoryId.keys()).sort();
-  if (categoryIds.length === 0) return null;
-
-  const eventCategoryTargetByEventId = new Map<string, Map<string, number>>();
-  for (const eventId of orderedEventIds) {
-    const targetsByCategory = new Map<string, number>();
-    for (const categoryId of categoryIds) {
-      const totalForCategory = totalByCategoryId.get(categoryId) ?? 0;
-      targetsByCategory.set(categoryId, totalForCategory / orderedEventIds.length);
-    }
-    eventCategoryTargetByEventId.set(eventId, targetsByCategory);
-  }
-
-  return {
-    categoryIds,
-    eventCategoryTargetByEventId,
-  };
-}
-
-function applySwapToPlacements(
-  placements: PlacementWithCategory[],
-  swappedA: PlacementWithCategory,
-  swappedB: PlacementWithCategory,
-): PlacementWithCategory[] {
-  return placements.map((placement) => {
-    if (placement.id === swappedA.id) return swappedA;
-    if (placement.id === swappedB.id) return swappedB;
-    return placement;
-  });
-}
-
-function getTotalCategoryDeviationFromTargets(
-  placements: PlacementWithCategory[],
-  categoryBalanceContext: CategoryBalanceContext | null,
-): number {
-  if (!categoryBalanceContext || categoryBalanceContext.categoryIds.length === 0) {
-    return 0;
-  }
-
-  const countsByEventId = new Map<string, Map<string, number>>();
-  for (const placement of placements) {
-    if (!placement.categoryId) continue;
-    const eventCounts =
-      countsByEventId.get(placement.eventId) ?? new Map<string, number>();
-    eventCounts.set(
-      placement.categoryId,
-      (eventCounts.get(placement.categoryId) ?? 0) + 1,
-    );
-    countsByEventId.set(placement.eventId, eventCounts);
-  }
-
-  let totalDeviation = 0;
-  for (const [
-    eventId,
-    targetsByCategory,
-  ] of categoryBalanceContext.eventCategoryTargetByEventId) {
-    const eventCounts = countsByEventId.get(eventId);
-    for (const categoryId of categoryBalanceContext.categoryIds) {
-      const count = eventCounts?.get(categoryId) ?? 0;
-      const target = targetsByCategory.get(categoryId) ?? 0;
-      totalDeviation += Math.abs(count - target);
-    }
-  }
-
-  return totalDeviation;
-}
-
-function improveEventCategoryBalance(
-  placements: PlacementWithCategory[],
-  validationContext: ConstraintValidationContext,
-  params: {
-    orderedEventIds: string[];
-    maxSlotIndex: number;
-    totalMatchups: number;
-    categoryBalanceContext: CategoryBalanceContext | null;
-    farAwayTeamIds: Set<string>;
-    weights: SchedulingWeights;
-  },
-): PlacementWithCategory[] {
-  if (placements.length < 2 || !params.categoryBalanceContext) {
-    return placements;
-  }
-
-  let improvedPlacements = [...placements];
-
-  for (let pass = 0; pass < CATEGORY_BALANCE_MAX_PASSES; pass++) {
-    const currentDeviation = getTotalCategoryDeviationFromTargets(
-      improvedPlacements,
-      params.categoryBalanceContext,
-    );
-    let improvementFound = false;
-    let evaluations = 0;
-
-    for (let i = 0; i < improvedPlacements.length; i++) {
-      for (let j = i + 1; j < improvedPlacements.length; j++) {
-        evaluations++;
-        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-          break;
-        }
-
-        if (improvedPlacements[i]?.eventId === improvedPlacements[j]?.eventId) {
-          continue;
-        }
-
-        const result = evaluatePlacementSwap(
-          improvedPlacements[i],
-          improvedPlacements[j],
-          improvedPlacements,
-          validationContext,
-          params,
-        );
-        if (!result.valid) continue;
-
-        const [swappedA, swappedB] = result.swappedPlacements;
-        const placementsAfterSwap = applySwapToPlacements(
-          improvedPlacements,
-          swappedA,
-          swappedB,
-        );
-        const deviationAfter = getTotalCategoryDeviationFromTargets(
-          placementsAfterSwap,
-          params.categoryBalanceContext,
-        );
-        const deviationImprovement = currentDeviation - deviationAfter;
-        if (deviationImprovement > 0) {
-          improvedPlacements = placementsAfterSwap;
-          improvementFound = true;
-          break;
-        }
-      }
-      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-        break;
-      }
-    }
-
-    if (!improvementFound) {
-      break;
-    }
-  }
-
-  return improvedPlacements;
-}
-
-function improveFemenilNetChangeClustering(
-  placements: PlacementWithCategory[],
-  validationContext: ConstraintValidationContext,
-  params: {
-    orderedEventIds: string[];
-    maxSlotIndex: number;
-    totalMatchups: number;
-    categoryBalanceContext: CategoryBalanceContext | null;
-    farAwayTeamIds: Set<string>;
-    weights: SchedulingWeights;
-  },
-): PlacementWithCategory[] {
-  if (placements.length < 2) {
-    return placements;
-  }
-
-  let improvedPlacements = [...placements];
-
-  for (let pass = 0; pass < FEMENIL_CLUSTERING_MAX_PASSES; pass++) {
-    const currentNetSwitches = getEstimatedFemenilNetSwitchCount(improvedPlacements);
-    const currentDeviation = getTotalCategoryDeviationFromTargets(
-      improvedPlacements,
-      params.categoryBalanceContext,
-    );
-    let improvementFound = false;
-    let evaluations = 0;
-
-    for (let i = 0; i < improvedPlacements.length; i++) {
-      for (let j = i + 1; j < improvedPlacements.length; j++) {
-        evaluations++;
-        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-          break;
-        }
-
-        const result = evaluatePlacementSwap(
-          improvedPlacements[i],
-          improvedPlacements[j],
-          improvedPlacements,
-          validationContext,
-          params,
-        );
-        if (!result.valid) continue;
-
-        const [swappedA, swappedB] = result.swappedPlacements;
-        const placementsAfterSwap = applySwapToPlacements(
-          improvedPlacements,
-          swappedA,
-          swappedB,
-        );
-        const netSwitchesAfter = getEstimatedFemenilNetSwitchCount(placementsAfterSwap);
-        const netSwitchImprovement = currentNetSwitches - netSwitchesAfter;
-        if (netSwitchImprovement <= 0) continue;
-
-        const deviationAfter = getTotalCategoryDeviationFromTargets(
-          placementsAfterSwap,
-          params.categoryBalanceContext,
-        );
-        if (deviationAfter > currentDeviation) continue;
-
-        improvedPlacements = placementsAfterSwap;
-        improvementFound = true;
-        break;
-      }
-      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-        break;
-      }
-    }
-
-    if (!improvementFound) {
-      break;
-    }
-  }
-
-  return improvedPlacements;
-}
-
-function improveByGeneralSwaps(
-  placements: PlacementWithCategory[],
-  validationContext: ConstraintValidationContext,
-  params: {
-    orderedEventIds: string[];
-    maxSlotIndex: number;
-    totalMatchups: number;
-    categoryBalanceContext: CategoryBalanceContext | null;
-    farAwayTeamIds: Set<string>;
-    weights: SchedulingWeights;
-  },
-): PlacementWithCategory[] {
-  if (placements.length < 2) {
-    return placements;
-  }
-
-  let improvedPlacements = [...placements];
-
-  for (let pass = 0; pass < GENERAL_SWAP_MAX_PASSES; pass++) {
-    let improvementFound = false;
-    let evaluations = 0;
-
-    for (let i = 0; i < improvedPlacements.length; i++) {
-      for (let j = i + 1; j < improvedPlacements.length; j++) {
-        evaluations++;
-        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-          break;
-        }
-
-        const result = evaluatePlacementSwap(
-          improvedPlacements[i],
-          improvedPlacements[j],
-          improvedPlacements,
-          validationContext,
-          params,
-        );
-
-        if (result.valid && result.scoreImprovement > 0) {
-          const [swappedA, swappedB] = result.swappedPlacements;
-          improvedPlacements = applySwapToPlacements(
-            improvedPlacements,
-            swappedA,
-            swappedB,
-          );
-          improvementFound = true;
-          break;
-        }
-      }
-      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) break;
-    }
-
-    if (!improvementFound) break;
-  }
-
-  return improvedPlacements;
-}
-
-function buildSchedulingMetrics(
-  placements: PlacementWithCategory[],
-  params: {
-    orderedEventIds: string[];
-    maxSlotIndex: number;
-    totalMatchups: number;
-    categoryBalanceContext: CategoryBalanceContext | null;
-    farAwayTeamIds: Set<string>;
-    weights: SchedulingWeights;
-  },
-) {
-  const categoryCountsByEventId: Record<string, Record<string, number>> = {};
-  for (const eventId of params.orderedEventIds) {
-    categoryCountsByEventId[eventId] = {};
-  }
-  for (const placement of placements) {
-    if (!placement.categoryId) continue;
-    if (!categoryCountsByEventId[placement.eventId]) {
-      categoryCountsByEventId[placement.eventId] = {};
-    }
-    const existing =
-      categoryCountsByEventId[placement.eventId][placement.categoryId] ?? 0;
-    categoryCountsByEventId[placement.eventId][placement.categoryId] = existing + 1;
-  }
-
-  return {
-    categoryCountsByEventId,
-    totalCategoryDeviation: getTotalCategoryDeviationFromTargets(
-      placements,
-      params.categoryBalanceContext,
-    ),
-    estimatedFemenilNetSwitches: getEstimatedFemenilNetSwitchCount(placements),
-    qualityScore: getScheduleQualityScore({
-      placementsWithCategory: placements,
-      orderedEventIds: params.orderedEventIds,
-      maxSlotIndex: params.maxSlotIndex,
-      totalMatchups: params.totalMatchups,
-      categoryBalanceContext: params.categoryBalanceContext,
-      farAwayTeamIds: params.farAwayTeamIds,
-      weights: params.weights,
-    }),
-  };
-}
-
 /**
- * Auto-schedule matchups across events and courts
- * Distributes matchups evenly across events, alternating between courts A and B
+ * Auto-schedule matchups across events and courts.
+ * Loads season data, runs the pure solver, then persists placements.
  */
 export async function autoScheduleMatchups(
   db: Database,
@@ -878,24 +530,14 @@ export async function autoScheduleMatchups(
       id: schema.matchup.id,
       teamAId: schema.matchup.teamAId,
       teamBId: schema.matchup.teamBId,
-      eventId: schema.matchup.eventId,
-      courtId: schema.matchup.courtId,
-      slotIndex: schema.matchup.slotIndex,
     })
     .from(schema.matchup)
     .where(eq(schema.matchup.seasonId, seasonId));
 
-  const candidateMatchups = allSeasonMatchups.map((matchup) => ({
-    id: matchup.id,
-    teamAId: matchup.teamAId,
-    teamBId: matchup.teamBId,
-  }));
-
-  if (candidateMatchups.length === 0 || eventIds.length === 0) {
-    return { scheduledCount: 0, unscheduledCount: candidateMatchups.length };
+  if (allSeasonMatchups.length === 0 || eventIds.length === 0) {
+    return { scheduledCount: 0, unscheduledCount: allSeasonMatchups.length };
   }
 
-  const courts: ("A" | "B")[] = ["A", "B"];
   const events = await db
     .select({
       id: schema.scheduleEvent.id,
@@ -919,7 +561,6 @@ export async function autoScheduleMatchups(
     weights: resolvedWeights,
   });
 
-  // Build matchup category map (both teams in a matchup have same category)
   const teamRows = await db
     .select({
       id: schema.seasonTeam.teamId,
@@ -932,129 +573,25 @@ export async function autoScheduleMatchups(
         inArray(schema.seasonTeam.teamId, teamIds),
       ),
     );
-  const teamCategoryById = new Map(teamRows.map((r) => [r.id, r.categoryId]));
-  const matchupCategoryById = new Map(
-    allSeasonMatchups.map((m) => [
-      m.id,
-      teamCategoryById.get(m.teamAId) ?? teamCategoryById.get(m.teamBId) ?? null,
-    ]),
-  );
+  const teamCategoryById = new Map(teamRows.map((row) => [row.id, row.categoryId]));
+  const matchups = allSeasonMatchups.map((matchup) => ({
+    id: matchup.id,
+    teamAId: matchup.teamAId,
+    teamBId: matchup.teamBId,
+    categoryId:
+      teamCategoryById.get(matchup.teamAId) ??
+      teamCategoryById.get(matchup.teamBId) ??
+      null,
+  }));
 
-  const categoryBalanceContext = buildCategoryBalanceContext(
-    candidateMatchups,
-    matchupCategoryById,
+  const result = solveSchedule({
+    matchups,
     orderedEventIds,
-  );
-  const maxSlotIndex = gamesPerEvening - 1;
-  const runInitialPlacementPass = (
-    matchupOrder: typeof candidateMatchups,
-  ): PlacementWithCategory[] => {
-    const acceptedPlacements: ScheduledMatchupPlacement[] = [];
-    const acceptedPlacementsWithCategory: PlacementWithCategory[] = [];
-    const acceptedMatchupIds = new Set<string>();
-
-    for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
-      for (const courtId of courts) {
-        for (const eventId of orderedEventIds) {
-          let selectedPlacement: ScheduledMatchupPlacement | null = null;
-          let selectedPlacementScore = Number.POSITIVE_INFINITY;
-
-          for (const matchup of matchupOrder) {
-            if (acceptedMatchupIds.has(matchup.id)) {
-              continue;
-            }
-
-            const candidatePlacement: ScheduledMatchupPlacement = {
-              id: matchup.id,
-              teamAId: matchup.teamAId,
-              teamBId: matchup.teamBId,
-              eventId,
-              courtId: courtId as "A" | "B",
-              slotIndex,
-            };
-
-            const violationReason = getPlacementViolationReason(
-              candidatePlacement,
-              acceptedPlacements,
-              validationContext,
-            );
-            if (!violationReason) {
-              const categoryId = matchupCategoryById.get(matchup.id) ?? null;
-              const preferenceScore = getPlacementPreferenceScore({
-                placement: candidatePlacement,
-                categoryId,
-                existingPlacements: acceptedPlacements,
-                existingPlacementsWithCategory: acceptedPlacementsWithCategory,
-                orderedEventIds,
-                maxSlotIndex,
-                totalMatchups: matchupOrder.length,
-                categoryBalanceContext,
-                farAwayTeamIds,
-                weights: resolvedWeights,
-              });
-              if (preferenceScore < selectedPlacementScore) {
-                selectedPlacementScore = preferenceScore;
-                selectedPlacement = candidatePlacement;
-              }
-              if (selectedPlacementScore === 0) {
-                break;
-              }
-            }
-          }
-
-          if (!selectedPlacement) {
-            continue;
-          }
-
-          acceptedPlacements.push(selectedPlacement);
-          acceptedPlacementsWithCategory.push({
-            ...selectedPlacement,
-            categoryId: matchupCategoryById.get(selectedPlacement.id) ?? null,
-          });
-          acceptedMatchupIds.add(selectedPlacement.id);
-        }
-      }
-    }
-    return acceptedPlacementsWithCategory;
-  };
-  const { farAwayTeamIds } = validationContext;
-  const improvementParams = {
-    orderedEventIds,
-    maxSlotIndex,
-    totalMatchups: candidateMatchups.length,
-    categoryBalanceContext,
-    farAwayTeamIds,
+    gamesPerEvening,
+    validationContext,
     weights: resolvedWeights,
-  };
-
-  const sortedMatchups = [...candidateMatchups].sort((a, b) => {
-    const aHasFarAway =
-      farAwayTeamIds.has(a.teamAId) || farAwayTeamIds.has(a.teamBId) ? 0 : 1;
-    const bHasFarAway =
-      farAwayTeamIds.has(b.teamAId) || farAwayTeamIds.has(b.teamBId) ? 0 : 1;
-    return aHasFarAway - bHasFarAway;
   });
 
-  let finalPlacements = runInitialPlacementPass(sortedMatchups);
-  finalPlacements = improveEventCategoryBalance(
-    finalPlacements,
-    validationContext,
-    improvementParams,
-  );
-  finalPlacements = improveFemenilNetChangeClustering(
-    finalPlacements,
-    validationContext,
-    improvementParams,
-  );
-  finalPlacements = improveByGeneralSwaps(
-    finalPlacements,
-    validationContext,
-    improvementParams,
-  );
-  const schedulingMetrics = buildSchedulingMetrics(finalPlacements, improvementParams);
-  const scheduledCount = finalPlacements.length;
-
-  // Always rebuild from scratch: clear current placements first.
   await db
     .update(schema.matchup)
     .set({
@@ -1064,7 +601,7 @@ export async function autoScheduleMatchups(
     })
     .where(eq(schema.matchup.seasonId, seasonId));
 
-  for (const placement of finalPlacements) {
+  for (const placement of result.placements) {
     await db
       .update(schema.matchup)
       .set({
@@ -1076,9 +613,9 @@ export async function autoScheduleMatchups(
   }
 
   return {
-    scheduledCount,
-    unscheduledCount: candidateMatchups.length - scheduledCount,
-    metrics: schedulingMetrics,
+    scheduledCount: result.placements.length,
+    unscheduledCount: result.unscheduledMatchupIds.length,
+    metrics: result.metrics,
   };
 }
 
