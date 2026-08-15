@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { flexRender, getCoreRowModel, type Row, useReactTable } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type Row,
+} from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -48,6 +53,7 @@ function CategoryRow({ row }: { row: Row<Category> }) {
 }
 
 export function CategoriesDataTable() {
+  "use no memo";
   const trpc = useTRPC();
   const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
 

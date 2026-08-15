@@ -53,7 +53,7 @@ beforeEach(async () => {
     CREATE TABLE playoff_matchup_team (id text PRIMARY KEY, matchup_id text NOT NULL, slot_index integer NOT NULL, team_id text, label text NOT NULL, depends_on text, dependency_type text DEFAULT 'winner' NOT NULL);
     INSERT INTO season VALUES ('source', 'Source', '2026-01-01', '2026-06-01', 'completed');
     INSERT INTO season VALUES ('target', 'Target', '2027-01-01', '2027-06-01', 'draft');
-    INSERT INTO category VALUES ('category', 'Mixed', 'Mixed league', 'top-4');
+    INSERT INTO category VALUES ('category', 'Mixed', 'Mixed league', 'top-4', '#374151');
     INSERT INTO position VALUES ('setter', 'Setter');
   `);
   db = drizzle({ client, schema, casing: "snake_case" }) as unknown as Database;

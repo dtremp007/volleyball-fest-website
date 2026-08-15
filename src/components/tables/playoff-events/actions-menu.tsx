@@ -26,7 +26,9 @@ export function ActionsMenu({ event }: Props) {
   const handleDownloadImage = async () => {
     try {
       const [eventData, categories] = await Promise.all([
-        queryClient.fetchQuery(trpc.playoff.getEventById.queryOptions({ eventId: event.id })),
+        queryClient.fetchQuery(
+          trpc.playoff.getEventById.queryOptions({ eventId: event.id }),
+        ),
         queryClient.fetchQuery(trpc.category.getAll.queryOptions()),
       ]);
       if (!eventData) {

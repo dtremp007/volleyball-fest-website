@@ -5,10 +5,7 @@ export type CategoryColor = {
   color: string;
 };
 
-export function colorForCategory(
-  categoryName: string,
-  categories: CategoryColor[],
-) {
+export function colorForCategory(categoryName: string, categories: CategoryColor[]) {
   return (
     categories.find((category) => category.name === categoryName)?.color ??
     DEFAULT_CATEGORY_COLOR
