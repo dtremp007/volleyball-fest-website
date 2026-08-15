@@ -1,6 +1,18 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { season, team } from "./team.schema";
+
+export const schedulePreset = sqliteTable("schedule_preset", {
+  id: text("id").primaryKey(),
+  seasonId: text("season_id")
+    .notNull()
+    .references(() => season.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  weightsJson: text("weights_json").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+});
 
 export const scheduleConfig = sqliteTable("schedule_config", {
   id: text("id").primaryKey(),
@@ -10,6 +22,9 @@ export const scheduleConfig = sqliteTable("schedule_config", {
     .unique(),
   defaultStartTime: text("default_start_time").notNull(), // e.g., "4:15 PM"
   gamesPerEvening: integer("games_per_evening").notNull().default(4),
+  activePresetId: text("active_preset_id").references(() => schedulePreset.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const scheduleEvent = sqliteTable("schedule_event", {
@@ -41,10 +56,22 @@ export const matchup = sqliteTable("matchup", {
 });
 
 // Relations
+export const schedulePresetRelations = relations(schedulePreset, ({ one, many }) => ({
+  season: one(season, {
+    fields: [schedulePreset.seasonId],
+    references: [season.id],
+  }),
+  activeConfigs: many(scheduleConfig),
+}));
+
 export const scheduleConfigRelations = relations(scheduleConfig, ({ one }) => ({
   season: one(season, {
     fields: [scheduleConfig.seasonId],
     references: [season.id],
+  }),
+  activePreset: one(schedulePreset, {
+    fields: [scheduleConfig.activePresetId],
+    references: [schedulePreset.id],
   }),
 }));
 

@@ -3,8 +3,6 @@ import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import {
-  DEFAULT_MAX_GAMES_PER_EVENT,
-  FAR_AWAY_MAX_GAMES_PER_EVENT,
   evaluatePlacementSwap,
   getEstimatedFemenilNetSwitchCount,
   getPlacementPreferenceScore,
@@ -23,6 +21,10 @@ import {
   type ProcessedStandingsMatch,
 } from "~/lib/standings/ranking";
 import { normalizeDateOnly } from "~/lib/unavailable-dates";
+import {
+  resolveSchedulingWeights,
+  type SchedulingWeights,
+} from "~/validators/scheduling.validators";
 
 function getPlayoffQualifierCount(format: schema.PlayoffFormat | null | undefined) {
   return format === "top-5" ? 5 : 4;
@@ -476,8 +478,10 @@ async function buildConstraintValidationContext(
     seasonId: string;
     eventDates: Array<{ id: string; date: string }>;
     teamIds: string[];
+    weights?: SchedulingWeights;
   },
 ): Promise<ConstraintValidationContext> {
+  const weights = resolveSchedulingWeights(params.weights);
   if (params.teamIds.length === 0) {
     return {
       eventDateById: new Map(params.eventDates.map((event) => [event.id, event.date])),
@@ -507,7 +511,7 @@ async function buildConstraintValidationContext(
   const maxGamesPerTeamId = new Map(
     teamRows.map((row) => [
       row.id,
-      row.isFarAway ? FAR_AWAY_MAX_GAMES_PER_EVENT : DEFAULT_MAX_GAMES_PER_EVENT,
+      row.isFarAway ? weights.farAwayMaxGamesPerEvent : weights.maxGamesPerEvent,
     ]),
   );
   const farAwayTeamIds = new Set(
@@ -612,6 +616,7 @@ function improveEventCategoryBalance(
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
+    weights: SchedulingWeights;
   },
 ): PlacementWithCategory[] {
   if (placements.length < 2 || !params.categoryBalanceContext) {
@@ -644,13 +649,7 @@ function improveEventCategoryBalance(
           improvedPlacements[j],
           improvedPlacements,
           validationContext,
-          {
-            orderedEventIds: params.orderedEventIds,
-            maxSlotIndex: params.maxSlotIndex,
-            totalMatchups: params.totalMatchups,
-            categoryBalanceContext: params.categoryBalanceContext,
-            farAwayTeamIds: params.farAwayTeamIds,
-          },
+          params,
         );
         if (!result.valid) continue;
 
@@ -693,6 +692,7 @@ function improveFemenilNetChangeClustering(
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
+    weights: SchedulingWeights;
   },
 ): PlacementWithCategory[] {
   if (placements.length < 2) {
@@ -722,13 +722,7 @@ function improveFemenilNetChangeClustering(
           improvedPlacements[j],
           improvedPlacements,
           validationContext,
-          {
-            orderedEventIds: params.orderedEventIds,
-            maxSlotIndex: params.maxSlotIndex,
-            totalMatchups: params.totalMatchups,
-            categoryBalanceContext: params.categoryBalanceContext,
-            farAwayTeamIds: params.farAwayTeamIds,
-          },
+          params,
         );
         if (!result.valid) continue;
 
@@ -774,6 +768,7 @@ function improveByGeneralSwaps(
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
+    weights: SchedulingWeights;
   },
 ): PlacementWithCategory[] {
   if (placements.length < 2) {
@@ -798,13 +793,7 @@ function improveByGeneralSwaps(
           improvedPlacements[j],
           improvedPlacements,
           validationContext,
-          {
-            orderedEventIds: params.orderedEventIds,
-            maxSlotIndex: params.maxSlotIndex,
-            totalMatchups: params.totalMatchups,
-            categoryBalanceContext: params.categoryBalanceContext,
-            farAwayTeamIds: params.farAwayTeamIds,
-          },
+          params,
         );
 
         if (result.valid && result.scoreImprovement > 0) {
@@ -835,6 +824,7 @@ function buildSchedulingMetrics(
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
+    weights: SchedulingWeights;
   },
 ) {
   const categoryCountsByEventId: Record<string, Record<string, number>> = {};
@@ -865,6 +855,7 @@ function buildSchedulingMetrics(
       totalMatchups: params.totalMatchups,
       categoryBalanceContext: params.categoryBalanceContext,
       farAwayTeamIds: params.farAwayTeamIds,
+      weights: params.weights,
     }),
   };
 }
@@ -878,7 +869,9 @@ export async function autoScheduleMatchups(
   seasonId: string,
   eventIds: string[],
   gamesPerEvening: number,
+  weights?: Partial<SchedulingWeights> | SchedulingWeights,
 ) {
+  const resolvedWeights = resolveSchedulingWeights(weights);
   const allSeasonMatchups = await db
     .select({
       id: schema.matchup.id,
@@ -922,6 +915,7 @@ export async function autoScheduleMatchups(
     seasonId,
     eventDates: events,
     teamIds,
+    weights: resolvedWeights,
   });
 
   // Build matchup category map (both teams in a matchup have same category)
@@ -995,6 +989,7 @@ export async function autoScheduleMatchups(
                 totalMatchups: matchupOrder.length,
                 categoryBalanceContext,
                 farAwayTeamIds,
+                weights: resolvedWeights,
               });
               if (preferenceScore < selectedPlacementScore) {
                 selectedPlacementScore = preferenceScore;
@@ -1028,6 +1023,7 @@ export async function autoScheduleMatchups(
     totalMatchups: candidateMatchups.length,
     categoryBalanceContext,
     farAwayTeamIds,
+    weights: resolvedWeights,
   };
 
   const sortedMatchups = [...candidateMatchups].sort((a, b) => {

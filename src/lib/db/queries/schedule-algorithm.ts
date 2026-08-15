@@ -12,6 +12,14 @@
  */
 
 import { isDateUnavailable } from "~/lib/unavailable-dates";
+import {
+  DEFAULT_SCHEDULING_WEIGHTS,
+  type SchedulingWeights,
+} from "~/validators/scheduling.validators";
+
+export { DEFAULT_SCHEDULING_WEIGHTS };
+export const SCHEDULING_WEIGHTS = DEFAULT_SCHEDULING_WEIGHTS;
+export type { SchedulingWeights };
 
 // =============================================================================
 // SECTION 1: CONSTANTS
@@ -23,22 +31,11 @@ export const CAT_VARONIL_LIBRE = "cat-varonil-libre";
 export const CAT_SEGUNDA_FUERZA = "cat-segunda-fuerza";
 
 /** Default max games per team per event (non-far-away teams) */
-export const DEFAULT_MAX_GAMES_PER_EVENT = 2;
+export const DEFAULT_MAX_GAMES_PER_EVENT = DEFAULT_SCHEDULING_WEIGHTS.maxGamesPerEvent;
 
 /** Max games per event for far-away teams (same hard cap as default; they get scheduling priority via scoring bonus) */
-export const FAR_AWAY_MAX_GAMES_PER_EVENT = 2;
-
-/** Centralized weights for all soft scheduling preferences. Higher means "more important". */
-export const SCHEDULING_WEIGHTS = {
-  eventCategoryBalance: 20,
-  eventLoadBalance: 15,
-  farAwaySchedulingPriority: 12,
-  teamRestAdjacentEvent: 10,
-  femenilEarlyPerSlot: 10,
-  femenilCourtClustering: 8,
-  categoryDistributionRun: 3,
-  varonilLatePerSlot: 1,
-} as const;
+export const FAR_AWAY_MAX_GAMES_PER_EVENT =
+  DEFAULT_SCHEDULING_WEIGHTS.farAwayMaxGamesPerEvent;
 
 /** Max iterations for swap-based optimization pass */
 export const OPTIMIZATION_MAX_PASSES = 15;
@@ -351,9 +348,10 @@ export function getFemenilEarlyPreferenceScore(
   placement: ScheduledMatchupPlacement,
   categoryId: string | null,
   maxSlotIndex: number,
+  weights: SchedulingWeights = DEFAULT_SCHEDULING_WEIGHTS,
 ): number {
   if (categoryId === CAT_FEMENIL) {
-    return placement.slotIndex ** 2;
+    return placement.slotIndex ** weights.femenilEarlyCurveExponent;
   }
 
   return Math.max(0, maxSlotIndex - placement.slotIndex);
@@ -474,6 +472,7 @@ export type PlacementPreferenceParams = {
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
+  weights: SchedulingWeights;
 };
 
 export type PlacementPreferenceBreakdown = {
@@ -513,6 +512,7 @@ export function getPlacementPreferenceBreakdown(
     totalMatchups,
     categoryBalanceContext,
     farAwayTeamIds,
+    weights,
   } = params;
 
   const restPenalty = getAdjacentEventRestPenaltyScore(
@@ -540,6 +540,7 @@ export function getPlacementPreferenceBreakdown(
     placement,
     categoryId,
     maxSlotIndex,
+    weights,
   );
   const eventCategoryBalance = getEventCategoryBalanceScore(
     placement,
@@ -560,15 +561,14 @@ export function getPlacementPreferenceBreakdown(
   );
 
   const weighted = {
-    restPenalty: restPenalty * SCHEDULING_WEIGHTS.teamRestAdjacentEvent,
-    femenilClustering: femenilClustering * SCHEDULING_WEIGHTS.femenilCourtClustering,
-    categoryDistribution:
-      categoryDistribution * SCHEDULING_WEIGHTS.categoryDistributionRun,
-    varonilLate: varonilLate * SCHEDULING_WEIGHTS.varonilLatePerSlot,
-    femenilEarly: femenilEarly * SCHEDULING_WEIGHTS.femenilEarlyPerSlot,
-    eventCategoryBalance: eventCategoryBalance * SCHEDULING_WEIGHTS.eventCategoryBalance,
-    eventLoadBalance: eventLoadBalance * SCHEDULING_WEIGHTS.eventLoadBalance,
-    farAwayPriority: farAwayPriority * SCHEDULING_WEIGHTS.farAwaySchedulingPriority,
+    restPenalty: restPenalty * weights.teamRestAdjacentEvent,
+    femenilClustering: femenilClustering * weights.femenilCourtClustering,
+    categoryDistribution: categoryDistribution * weights.categoryDistributionRun,
+    varonilLate: varonilLate * weights.varonilLatePerSlot,
+    femenilEarly: femenilEarly * weights.femenilEarlyPerSlot,
+    eventCategoryBalance: eventCategoryBalance * weights.eventCategoryBalance,
+    eventLoadBalance: eventLoadBalance * weights.eventLoadBalance,
+    farAwayPriority: farAwayPriority * weights.farAwaySchedulingPriority,
   };
 
   const total =
@@ -618,6 +618,7 @@ export type ScheduleQualityParams = {
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
+  weights: SchedulingWeights;
 };
 
 /**
@@ -632,6 +633,7 @@ export function getScheduleQualityScore(params: ScheduleQualityParams): number {
     totalMatchups,
     categoryBalanceContext,
     farAwayTeamIds,
+    weights,
   } = params;
 
   let total = 0;
@@ -659,6 +661,7 @@ export function getScheduleQualityScore(params: ScheduleQualityParams): number {
       totalMatchups,
       categoryBalanceContext,
       farAwayTeamIds,
+      weights,
     });
   }
   return total;
@@ -686,6 +689,7 @@ export function evaluatePlacementSwap(
     totalMatchups: number;
     categoryBalanceContext: CategoryBalanceContext | null;
     farAwayTeamIds: Set<string>;
+    weights: SchedulingWeights;
   },
 ): SwapEvaluationResult {
   const swappedA: PlacementWithCategory = {
@@ -742,6 +746,7 @@ export function evaluatePlacementSwap(
     totalMatchups: params.totalMatchups,
     categoryBalanceContext: params.categoryBalanceContext,
     farAwayTeamIds: params.farAwayTeamIds,
+    weights: params.weights,
   });
   const scoreAfter = getScheduleQualityScore({
     placementsWithCategory: placementsAfter,
@@ -750,6 +755,7 @@ export function evaluatePlacementSwap(
     totalMatchups: params.totalMatchups,
     categoryBalanceContext: params.categoryBalanceContext,
     farAwayTeamIds: params.farAwayTeamIds,
+    weights: params.weights,
   });
 
   return {
