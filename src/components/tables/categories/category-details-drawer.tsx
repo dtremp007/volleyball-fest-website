@@ -12,7 +12,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "~/components/ui/drawer";
-import { Field, FieldLabel } from "~/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -28,6 +28,7 @@ type CategoryDraft = {
   name: string;
   description: string;
   color: string;
+  sortOrder: number | "";
 };
 
 function emptyDraft(): CategoryDraft {
@@ -35,6 +36,7 @@ function emptyDraft(): CategoryDraft {
     name: "",
     description: "",
     color: DEFAULT_CATEGORY_COLOR,
+    sortOrder: "",
   };
 }
 
@@ -42,11 +44,13 @@ function draftFromCategory(category: {
   name: string;
   description: string;
   color: string;
+  sortOrder: number;
 }): CategoryDraft {
   return {
     name: category.name,
     description: category.description,
     color: normalizeCategoryColor(category.color) ?? DEFAULT_CATEGORY_COLOR,
+    sortOrder: category.sortOrder,
   };
 }
 
@@ -214,8 +218,10 @@ function CategoryFormDrawer({
 
   const save = () => {
     const parsed = createCategorySchema.safeParse({
-      ...draft,
+      name: draft.name,
+      description: draft.description,
       color: normalizeCategoryColor(draft.color) ?? draft.color,
+      ...(typeof draft.sortOrder === "number" ? { sortOrder: draft.sortOrder } : {}),
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Complete the category fields.");
@@ -317,6 +323,32 @@ function CategoryForm({
             disabled={disabled}
           />
         </div>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="category-sort-order">Sort order</FieldLabel>
+        <Input
+          id="category-sort-order"
+          type="number"
+          min={0}
+          step={1}
+          value={draft.sortOrder}
+          onChange={(event) => {
+            const raw = event.target.value;
+            if (raw === "") {
+              setField("sortOrder", "");
+              return;
+            }
+            const next = Number(raw);
+            if (Number.isInteger(next) && next >= 0) {
+              setField("sortOrder", next);
+            }
+          }}
+          placeholder="Auto"
+          disabled={disabled}
+        />
+        <FieldDescription>
+          Lower numbers play earlier in the evening. This order is global across seasons.
+        </FieldDescription>
       </Field>
     </div>
   );

@@ -1,6 +1,6 @@
 ---
 name: Schedule Lab Improvements
-overview: "Turn the auto-scheduler into a tunable \"schedule lab\": DB-stored weight presets with a configurator UI, multi-candidate schedule generation with a compare-and-pick workflow, and a stronger optimizer core (seeded simulated annealing with fast delta scoring)."
+overview: 'Turn the auto-scheduler into a tunable "schedule lab": DB-stored weight presets with a configurator UI, multi-candidate schedule generation with a compare-and-pick workflow, and a stronger optimizer core (seeded simulated annealing with fast delta scoring).'
 todos:
   - id: p1-schema
     content: "Phase 1: add schedule_preset table + activePresetId on schedule_config, migrate"
@@ -60,7 +60,7 @@ Make the scoring weights data instead of code, with named, reusable presets.
 - `listPresets`, `savePreset`, `deletePreset`, `setActivePreset` (all `protectedProcedure`).
 - `generateSchedule` / `regenerateSchedule` in [src/trpc/router/matchup.trpc.ts](src/trpc/router/matchup.trpc.ts) accept an optional `presetId` or inline weights.
 
-**UI** ([src/routes/(authenticated)/seasons/$seasonId/generate.tsx](src/routes/(authenticated)/seasons/$seasonId/generate.tsx))
+**UI** ([src/routes/(authenticated)/seasons/$seasonId/generate.tsx](<src/routes/(authenticated)/seasons/$seasonId/generate.tsx>))
 
 - Collapsible "Algorithm tuning" panel: one slider/number input per weight with plain-English labels (e.g. "Push femenil early"), preset select + save-as. English copy (admin surface).
 

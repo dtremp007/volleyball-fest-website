@@ -321,9 +321,7 @@ export const getPublicTeamsBySeasonId = async (
     )
     .groupBy(schema.player.teamId);
 
-  const countByTeamId = new Map(
-    playerCounts.map((row) => [row.teamId, row.playerCount]),
-  );
+  const countByTeamId = new Map(playerCounts.map((row) => [row.teamId, row.playerCount]));
 
   return teams.map((team) => ({
     ...team,

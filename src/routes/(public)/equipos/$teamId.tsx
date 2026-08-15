@@ -35,10 +35,7 @@ function EquipoDetailPage() {
   const seasonId = publicContext.teamsSeason?.id ?? "";
 
   const { data: team, isLoading } = useQuery(
-    trpc.team.getPublicById.queryOptions(
-      { seasonId, teamId },
-      { enabled: !!seasonId },
-    ),
+    trpc.team.getPublicById.queryOptions({ seasonId, teamId }, { enabled: !!seasonId }),
   );
 
   if (isLoading) {

@@ -22,20 +22,25 @@ type CreateCategoryParams = {
   name: string;
   description: string;
   color: string;
+  sortOrder?: number;
 };
 
 export const createCategory = async (db: Database, params: CreateCategoryParams) => {
-  const [maxRow] = await db
-    .select({ maxSortOrder: sql<number>`max(${schema.category.sortOrder})` })
-    .from(schema.category);
-  const sortOrder = (maxRow?.maxSortOrder ?? -1) + 1;
+  const { sortOrder: requestedSortOrder, ...rest } = params;
+  let sortOrder = requestedSortOrder;
+  if (sortOrder === undefined) {
+    const [maxRow] = await db
+      .select({ maxSortOrder: sql<number>`max(${schema.category.sortOrder})` })
+      .from(schema.category);
+    sortOrder = (maxRow?.maxSortOrder ?? -1) + 1;
+  }
 
   const [category] = await db
     .insert(schema.category)
     .values({
       id: uuidv4(),
       sortOrder,
-      ...params,
+      ...rest,
     })
     .returning();
   return category;
@@ -45,6 +50,7 @@ type UpdateCategoryParams = {
   name?: string;
   description?: string;
   color?: string;
+  sortOrder?: number;
 };
 
 export const updateCategory = async (

@@ -19,6 +19,14 @@ export const columns: ColumnDef<Category>[] = [
     cell: ({ row }) => <span className="font-medium">{row.getValue("name")}</span>,
   },
   {
+    header: "Sort order",
+    accessorKey: "sortOrder",
+    meta: {
+      className: "w-[110px] min-w-[110px]",
+    },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.sortOrder}</span>,
+  },
+  {
     header: "Description",
     accessorKey: "description",
     meta: {
