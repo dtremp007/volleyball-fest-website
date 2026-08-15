@@ -23,6 +23,7 @@ import {
   solveSchedule,
   type SchedulingMetrics,
   type SolveScheduleInput,
+  type SolverEffort,
 } from "~/lib/scheduling/solver";
 import {
   parseScheduleDraftMetrics,
@@ -133,6 +134,7 @@ export type GenerateScheduleCandidatesParams = {
   dates?: string[];
   defaultStartTime?: string;
   gamesPerEvening?: number;
+  effort?: SolverEffort;
 };
 
 export async function generateScheduleCandidates(
@@ -247,6 +249,7 @@ export async function generateScheduleCandidates(
           gamesPerEvening,
           weights,
           seed,
+          effort: params.effort ?? "medium",
         })
       : {
           placements: [],

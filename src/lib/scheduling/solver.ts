@@ -1,10 +1,9 @@
 /**
- * Pure schedule solver — greedy placement plus three first-improvement swap
- * passes. No database access; all inputs are loaded by the caller.
+ * Pure schedule solver — greedy placement plus seeded simulated annealing.
+ * Moves are evaluated with delta scoring (affected events only). No database access.
  */
 
 import {
-  evaluatePlacementSwap,
   getEstimatedFemenilNetSwitchCount,
   getPlacementPreferenceScore,
   getPlacementViolationReason,
@@ -16,12 +15,25 @@ import {
 } from "~/lib/db/queries/schedule-algorithm";
 import type { SchedulingWeights } from "~/validators/scheduling.validators";
 
-const CATEGORY_BALANCE_MAX_PASSES = 6;
-const FEMENIL_CLUSTERING_MAX_PASSES = 6;
-const GENERAL_SWAP_MAX_PASSES = 15;
-const MAX_SWAP_EVALUATIONS_PER_PASS = 1200;
-
 const COURTS: ("A" | "B")[] = ["A", "B"];
+
+const DEFAULT_ANNEALING_SEED = 1;
+const DEFAULT_INITIAL_TEMPERATURE = 30;
+const MIN_TEMPERATURE = 0.05;
+const COOLING_RATE = 0.995;
+const TEMPERATURE_SAMPLE_MOVES = 16;
+const MAX_PROPOSAL_ATTEMPTS_PER_STEP = 24;
+
+export type SolverEffort = "greedy" | "low" | "medium" | "high";
+
+const EFFORT_LIMITS: Record<
+  Exclude<SolverEffort, "greedy">,
+  { maxIterations: number; timeBudgetMs: number }
+> = {
+  low: { maxIterations: 120, timeBudgetMs: 250 },
+  medium: { maxIterations: 400, timeBudgetMs: 1000 },
+  high: { maxIterations: 2000, timeBudgetMs: 2500 },
+};
 
 /** mulberry32 — deterministic 32-bit RNG for seeded candidate runs. */
 function createSeededRng(seed: number) {
@@ -60,6 +72,11 @@ export type SolveScheduleInput = {
   weights: SchedulingWeights;
   /** When set, shuffles matchup order within far-away/local groups so candidate runs can differ. Omitted for identical regenerate. */
   seed?: number;
+  /**
+   * Search effort after greedy placement. Defaults to `"medium"`.
+   * `"greedy"` skips annealing (placement only).
+   */
+  effort?: SolverEffort;
 };
 
 export type SchedulingMetrics = {
@@ -81,13 +98,37 @@ export type SolveScheduleResult = {
   unscheduledMatchupIds: string[];
 };
 
-type ImprovementParams = {
+export type SolverMove =
+  | { type: "swap"; placementIdA: string; placementIdB: string }
+  | {
+      type: "relocate";
+      placementId: string;
+      eventId: string;
+      courtId: "A" | "B";
+      slotIndex: number;
+    }
+  | { type: "pool-swap"; scheduledId: string; unscheduledId: string };
+
+export type EvaluateMoveResult = {
+  valid: boolean;
+  scoreDelta: number;
+  nextPlacements: PlacementWithCategory[];
+  nextUnscheduled: string[];
+};
+
+type SolverScoreParams = {
   orderedEventIds: string[];
   maxSlotIndex: number;
   totalMatchups: number;
   categoryBalanceContext: CategoryBalanceContext | null;
   farAwayTeamIds: Set<string>;
   weights: SchedulingWeights;
+};
+
+type EmptySlot = {
+  eventId: string;
+  courtId: "A" | "B";
+  slotIndex: number;
 };
 
 function buildCategoryBalanceContext(
@@ -120,18 +161,6 @@ function buildCategoryBalanceContext(
     categoryIds,
     eventCategoryTargetByEventId,
   };
-}
-
-function applySwapToPlacements(
-  placements: PlacementWithCategory[],
-  swappedA: PlacementWithCategory,
-  swappedB: PlacementWithCategory,
-): PlacementWithCategory[] {
-  return placements.map((placement) => {
-    if (placement.id === swappedA.id) return swappedA;
-    if (placement.id === swappedB.id) return swappedB;
-    return placement;
-  });
 }
 
 function getTotalCategoryDeviationFromTargets(
@@ -168,194 +197,6 @@ function getTotalCategoryDeviationFromTargets(
   }
 
   return totalDeviation;
-}
-
-function improveEventCategoryBalance(
-  placements: PlacementWithCategory[],
-  validationContext: ConstraintValidationContext,
-  params: ImprovementParams,
-): PlacementWithCategory[] {
-  if (placements.length < 2 || !params.categoryBalanceContext) {
-    return placements;
-  }
-
-  let improvedPlacements = [...placements];
-
-  for (let pass = 0; pass < CATEGORY_BALANCE_MAX_PASSES; pass++) {
-    const currentDeviation = getTotalCategoryDeviationFromTargets(
-      improvedPlacements,
-      params.categoryBalanceContext,
-    );
-    let improvementFound = false;
-    let evaluations = 0;
-
-    for (let i = 0; i < improvedPlacements.length; i++) {
-      for (let j = i + 1; j < improvedPlacements.length; j++) {
-        evaluations++;
-        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-          break;
-        }
-
-        if (improvedPlacements[i]?.eventId === improvedPlacements[j]?.eventId) {
-          continue;
-        }
-
-        const result = evaluatePlacementSwap(
-          improvedPlacements[i],
-          improvedPlacements[j],
-          improvedPlacements,
-          validationContext,
-          params,
-        );
-        if (!result.valid) continue;
-
-        const [swappedA, swappedB] = result.swappedPlacements;
-        const placementsAfterSwap = applySwapToPlacements(
-          improvedPlacements,
-          swappedA,
-          swappedB,
-        );
-        const deviationAfter = getTotalCategoryDeviationFromTargets(
-          placementsAfterSwap,
-          params.categoryBalanceContext,
-        );
-        const deviationImprovement = currentDeviation - deviationAfter;
-        if (deviationImprovement > 0) {
-          improvedPlacements = placementsAfterSwap;
-          improvementFound = true;
-          break;
-        }
-      }
-      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-        break;
-      }
-    }
-
-    if (!improvementFound) {
-      break;
-    }
-  }
-
-  return improvedPlacements;
-}
-
-function improveFemenilNetChangeClustering(
-  placements: PlacementWithCategory[],
-  validationContext: ConstraintValidationContext,
-  params: ImprovementParams,
-): PlacementWithCategory[] {
-  if (placements.length < 2) {
-    return placements;
-  }
-
-  let improvedPlacements = [...placements];
-
-  for (let pass = 0; pass < FEMENIL_CLUSTERING_MAX_PASSES; pass++) {
-    const currentNetSwitches = getEstimatedFemenilNetSwitchCount(improvedPlacements);
-    const currentDeviation = getTotalCategoryDeviationFromTargets(
-      improvedPlacements,
-      params.categoryBalanceContext,
-    );
-    let improvementFound = false;
-    let evaluations = 0;
-
-    for (let i = 0; i < improvedPlacements.length; i++) {
-      for (let j = i + 1; j < improvedPlacements.length; j++) {
-        evaluations++;
-        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-          break;
-        }
-
-        const result = evaluatePlacementSwap(
-          improvedPlacements[i],
-          improvedPlacements[j],
-          improvedPlacements,
-          validationContext,
-          params,
-        );
-        if (!result.valid) continue;
-
-        const [swappedA, swappedB] = result.swappedPlacements;
-        const placementsAfterSwap = applySwapToPlacements(
-          improvedPlacements,
-          swappedA,
-          swappedB,
-        );
-        const netSwitchesAfter = getEstimatedFemenilNetSwitchCount(placementsAfterSwap);
-        const netSwitchImprovement = currentNetSwitches - netSwitchesAfter;
-        if (netSwitchImprovement <= 0) continue;
-
-        const deviationAfter = getTotalCategoryDeviationFromTargets(
-          placementsAfterSwap,
-          params.categoryBalanceContext,
-        );
-        if (deviationAfter > currentDeviation) continue;
-
-        improvedPlacements = placementsAfterSwap;
-        improvementFound = true;
-        break;
-      }
-      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-        break;
-      }
-    }
-
-    if (!improvementFound) {
-      break;
-    }
-  }
-
-  return improvedPlacements;
-}
-
-function improveByGeneralSwaps(
-  placements: PlacementWithCategory[],
-  validationContext: ConstraintValidationContext,
-  params: ImprovementParams,
-): PlacementWithCategory[] {
-  if (placements.length < 2) {
-    return placements;
-  }
-
-  let improvedPlacements = [...placements];
-
-  for (let pass = 0; pass < GENERAL_SWAP_MAX_PASSES; pass++) {
-    let improvementFound = false;
-    let evaluations = 0;
-
-    for (let i = 0; i < improvedPlacements.length; i++) {
-      for (let j = i + 1; j < improvedPlacements.length; j++) {
-        evaluations++;
-        if (evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) {
-          break;
-        }
-
-        const result = evaluatePlacementSwap(
-          improvedPlacements[i],
-          improvedPlacements[j],
-          improvedPlacements,
-          validationContext,
-          params,
-        );
-
-        if (result.valid && result.scoreImprovement > 0) {
-          const [swappedA, swappedB] = result.swappedPlacements;
-          improvedPlacements = applySwapToPlacements(
-            improvedPlacements,
-            swappedA,
-            swappedB,
-          );
-          improvementFound = true;
-          break;
-        }
-      }
-      if (improvementFound || evaluations > MAX_SWAP_EVALUATIONS_PER_PASS) break;
-    }
-
-    if (!improvementFound) break;
-  }
-
-  return improvedPlacements;
 }
 
 function getGamesByTeamAndEvent(placements: PlacementWithCategory[]) {
@@ -411,7 +252,7 @@ function getFarAwayTwoGamesHitRate(
 function buildSchedulingMetrics(
   placements: PlacementWithCategory[],
   matchups: SolveScheduleMatchup[],
-  params: ImprovementParams,
+  params: SolverScoreParams,
 ): SchedulingMetrics {
   const categoryCountsByEventId: Record<string, Record<string, number>> = {};
   for (const eventId of params.orderedEventIds) {
@@ -541,6 +382,578 @@ function runInitialPlacementPass(
   return acceptedPlacementsWithCategory;
 }
 
+function slotKey(eventId: string, courtId: string, slotIndex: number) {
+  return `${eventId}:${courtId}:${slotIndex}`;
+}
+
+function listEmptySlots(
+  orderedEventIds: string[],
+  gamesPerEvening: number,
+  placements: PlacementWithCategory[],
+): EmptySlot[] {
+  const occupied = new Set(
+    placements.map((placement) =>
+      slotKey(placement.eventId, placement.courtId, placement.slotIndex),
+    ),
+  );
+  const empty: EmptySlot[] = [];
+  for (const eventId of orderedEventIds) {
+    for (const courtId of COURTS) {
+      for (let slotIndex = 0; slotIndex < gamesPerEvening; slotIndex++) {
+        if (!occupied.has(slotKey(eventId, courtId, slotIndex))) {
+          empty.push({ eventId, courtId, slotIndex });
+        }
+      }
+    }
+  }
+  return empty;
+}
+
+function clonePlacements(placements: PlacementWithCategory[]): PlacementWithCategory[] {
+  return placements.map((placement) => ({ ...placement }));
+}
+
+function pickIndex(length: number, random: () => number) {
+  return Math.floor(random() * length);
+}
+
+function pickTwoDistinctIndices(
+  length: number,
+  random: () => number,
+): [number, number] | null {
+  if (length < 2) return null;
+  const first = pickIndex(length, random);
+  let second = pickIndex(length - 1, random);
+  if (second >= first) second += 1;
+  return [first, second];
+}
+
+function unscheduledIdsFromPlacements(
+  matchups: SolveScheduleMatchup[],
+  placements: PlacementWithCategory[],
+): string[] {
+  const scheduledIds = new Set(placements.map((placement) => placement.id));
+  return matchups
+    .filter((matchup) => !scheduledIds.has(matchup.id))
+    .map((matchup) => matchup.id);
+}
+
+function placementsWithoutCategory(
+  placements: PlacementWithCategory[],
+  excludeId: string,
+): ScheduledMatchupPlacement[] {
+  return placements.filter((placement) => placement.id !== excludeId);
+}
+
+/**
+ * Events whose placement scores can change when the given events are touched:
+ * each touched event plus its immediate neighbors in `orderedEventIds`.
+ */
+export function getAffectedEventIds(
+  orderedEventIds: string[],
+  touchedEventIds: Iterable<string>,
+): string[] {
+  const indices = new Set<number>();
+  for (const eventId of touchedEventIds) {
+    const index = orderedEventIds.indexOf(eventId);
+    if (index === -1) continue;
+    if (index > 0) indices.add(index - 1);
+    indices.add(index);
+    if (index < orderedEventIds.length - 1) indices.add(index + 1);
+  }
+  return Array.from(indices)
+    .sort((a, b) => a - b)
+    .flatMap((index) => {
+      const eventId = orderedEventIds[index];
+      return eventId ? [eventId] : [];
+    });
+}
+
+/** Sum of preference scores for placements whose event is in `eventIds`. */
+export function scorePlacementsOnEvents(
+  placements: PlacementWithCategory[],
+  eventIds: Iterable<string>,
+  params: SolverScoreParams,
+): number {
+  const eventIdSet = eventIds instanceof Set ? eventIds : new Set(eventIds);
+  if (eventIdSet.size === 0) return 0;
+
+  let total = 0;
+  for (const placement of placements) {
+    if (!eventIdSet.has(placement.eventId)) continue;
+    const existingPlacementsWithCategory = placements.filter(
+      (other) => other.id !== placement.id,
+    );
+    total += getPlacementPreferenceScore({
+      placement,
+      categoryId: placement.categoryId,
+      existingPlacements: existingPlacementsWithCategory,
+      existingPlacementsWithCategory,
+      orderedEventIds: params.orderedEventIds,
+      maxSlotIndex: params.maxSlotIndex,
+      totalMatchups: params.totalMatchups,
+      categoryBalanceContext: params.categoryBalanceContext,
+      farAwayTeamIds: params.farAwayTeamIds,
+      weights: params.weights,
+    });
+  }
+  return total;
+}
+
+function invalidMoveResult(
+  placements: PlacementWithCategory[],
+  unscheduledMatchupIds: string[],
+): EvaluateMoveResult {
+  return {
+    valid: false,
+    scoreDelta: 0,
+    nextPlacements: placements,
+    nextUnscheduled: unscheduledMatchupIds,
+  };
+}
+
+function allChangedPlacementsValid(
+  changedPlacements: PlacementWithCategory[],
+  nextPlacements: PlacementWithCategory[],
+  validationContext: ConstraintValidationContext,
+): boolean {
+  for (const placement of changedPlacements) {
+    const reason = getPlacementViolationReason(
+      placement,
+      placementsWithoutCategory(nextPlacements, placement.id),
+      validationContext,
+    );
+    if (reason) return false;
+  }
+  return true;
+}
+
+function evaluateAppliedMove(
+  placements: PlacementWithCategory[],
+  nextPlacements: PlacementWithCategory[],
+  changedPlacements: PlacementWithCategory[],
+  touchedEventIds: string[],
+  matchups: SolveScheduleMatchup[],
+  validationContext: ConstraintValidationContext,
+  params: SolverScoreParams,
+): EvaluateMoveResult {
+  if (!allChangedPlacementsValid(changedPlacements, nextPlacements, validationContext)) {
+    return invalidMoveResult(
+      placements,
+      unscheduledIdsFromPlacements(matchups, placements),
+    );
+  }
+
+  const affectedEventIds = getAffectedEventIds(params.orderedEventIds, touchedEventIds);
+  const scoreBefore = scorePlacementsOnEvents(placements, affectedEventIds, params);
+  const scoreAfter = scorePlacementsOnEvents(nextPlacements, affectedEventIds, params);
+
+  return {
+    valid: true,
+    scoreDelta: scoreAfter - scoreBefore,
+    nextPlacements,
+    nextUnscheduled: unscheduledIdsFromPlacements(matchups, nextPlacements),
+  };
+}
+
+function applySwapMove(
+  placements: PlacementWithCategory[],
+  placementIdA: string,
+  placementIdB: string,
+): {
+  nextPlacements: PlacementWithCategory[];
+  changedPlacements: PlacementWithCategory[];
+  touchedEventIds: string[];
+} | null {
+  if (placementIdA === placementIdB) return null;
+  const placementA = placements.find((placement) => placement.id === placementIdA);
+  const placementB = placements.find((placement) => placement.id === placementIdB);
+  if (!placementA || !placementB) return null;
+  if (
+    placementA.eventId === placementB.eventId &&
+    placementA.courtId === placementB.courtId &&
+    placementA.slotIndex === placementB.slotIndex
+  ) {
+    return null;
+  }
+
+  const swappedA: PlacementWithCategory = {
+    ...placementA,
+    eventId: placementB.eventId,
+    courtId: placementB.courtId,
+    slotIndex: placementB.slotIndex,
+  };
+  const swappedB: PlacementWithCategory = {
+    ...placementB,
+    eventId: placementA.eventId,
+    courtId: placementA.courtId,
+    slotIndex: placementA.slotIndex,
+  };
+  const nextPlacements = placements.map((placement) => {
+    if (placement.id === placementA.id) return swappedA;
+    if (placement.id === placementB.id) return swappedB;
+    return placement;
+  });
+
+  return {
+    nextPlacements,
+    changedPlacements: [swappedA, swappedB],
+    touchedEventIds: [placementA.eventId, placementB.eventId],
+  };
+}
+
+function applyRelocateMove(
+  placements: PlacementWithCategory[],
+  placementId: string,
+  destination: EmptySlot,
+  gamesPerEvening: number,
+): {
+  nextPlacements: PlacementWithCategory[];
+  changedPlacements: PlacementWithCategory[];
+  touchedEventIds: string[];
+} | null {
+  if (destination.slotIndex < 0 || destination.slotIndex >= gamesPerEvening) {
+    return null;
+  }
+  if (destination.courtId !== "A" && destination.courtId !== "B") {
+    return null;
+  }
+
+  const current = placements.find((placement) => placement.id === placementId);
+  if (!current) return null;
+  if (
+    current.eventId === destination.eventId &&
+    current.courtId === destination.courtId &&
+    current.slotIndex === destination.slotIndex
+  ) {
+    return null;
+  }
+
+  const occupied = placements.some(
+    (placement) =>
+      placement.id !== placementId &&
+      placement.eventId === destination.eventId &&
+      placement.courtId === destination.courtId &&
+      placement.slotIndex === destination.slotIndex,
+  );
+  if (occupied) return null;
+
+  const relocated: PlacementWithCategory = {
+    ...current,
+    eventId: destination.eventId,
+    courtId: destination.courtId,
+    slotIndex: destination.slotIndex,
+  };
+  const nextPlacements = placements.map((placement) =>
+    placement.id === placementId ? relocated : placement,
+  );
+
+  return {
+    nextPlacements,
+    changedPlacements: [relocated],
+    touchedEventIds: [current.eventId, destination.eventId],
+  };
+}
+
+function applyPoolSwapMove(
+  placements: PlacementWithCategory[],
+  scheduledId: string,
+  unscheduledId: string,
+  matchupsById: Map<string, SolveScheduleMatchup>,
+): {
+  nextPlacements: PlacementWithCategory[];
+  changedPlacements: PlacementWithCategory[];
+  touchedEventIds: string[];
+} | null {
+  if (scheduledId === unscheduledId) return null;
+  const scheduled = placements.find((placement) => placement.id === scheduledId);
+  const incoming = matchupsById.get(unscheduledId);
+  if (!scheduled || !incoming) return null;
+  if (placements.some((placement) => placement.id === unscheduledId)) return null;
+
+  const incomingPlacement: PlacementWithCategory = {
+    id: incoming.id,
+    teamAId: incoming.teamAId,
+    teamBId: incoming.teamBId,
+    categoryId: incoming.categoryId,
+    eventId: scheduled.eventId,
+    courtId: scheduled.courtId,
+    slotIndex: scheduled.slotIndex,
+  };
+  const nextPlacements = placements.map((placement) =>
+    placement.id === scheduledId ? incomingPlacement : placement,
+  );
+
+  return {
+    nextPlacements,
+    changedPlacements: [incomingPlacement],
+    touchedEventIds: [scheduled.eventId],
+  };
+}
+
+function evaluateMoveWithParams(
+  move: SolverMove,
+  placements: PlacementWithCategory[],
+  matchups: SolveScheduleMatchup[],
+  matchupsById: Map<string, SolveScheduleMatchup>,
+  validationContext: ConstraintValidationContext,
+  gamesPerEvening: number,
+  params: SolverScoreParams,
+): EvaluateMoveResult {
+  const currentUnscheduled = unscheduledIdsFromPlacements(matchups, placements);
+  let applied: {
+    nextPlacements: PlacementWithCategory[];
+    changedPlacements: PlacementWithCategory[];
+    touchedEventIds: string[];
+  } | null = null;
+
+  if (move.type === "swap") {
+    applied = applySwapMove(placements, move.placementIdA, move.placementIdB);
+  } else if (move.type === "relocate") {
+    applied = applyRelocateMove(
+      placements,
+      move.placementId,
+      {
+        eventId: move.eventId,
+        courtId: move.courtId,
+        slotIndex: move.slotIndex,
+      },
+      gamesPerEvening,
+    );
+  } else {
+    applied = applyPoolSwapMove(
+      placements,
+      move.scheduledId,
+      move.unscheduledId,
+      matchupsById,
+    );
+  }
+
+  if (!applied) {
+    return invalidMoveResult(placements, currentUnscheduled);
+  }
+
+  return evaluateAppliedMove(
+    placements,
+    applied.nextPlacements,
+    applied.changedPlacements,
+    applied.touchedEventIds,
+    matchups,
+    validationContext,
+    params,
+  );
+}
+
+/**
+ * Apply a candidate move and return its validity plus quality-score delta.
+ * Delta is computed by rescoring only affected events (plus neighbors).
+ */
+export function evaluateMove(
+  move: SolverMove,
+  placements: PlacementWithCategory[],
+  unscheduledMatchupIds: string[],
+  input: Pick<
+    SolveScheduleInput,
+    "matchups" | "orderedEventIds" | "gamesPerEvening" | "validationContext" | "weights"
+  >,
+): EvaluateMoveResult {
+  const params: SolverScoreParams = {
+    orderedEventIds: input.orderedEventIds,
+    maxSlotIndex: input.gamesPerEvening - 1,
+    totalMatchups: input.matchups.length,
+    categoryBalanceContext: buildCategoryBalanceContext(
+      input.matchups,
+      input.orderedEventIds,
+    ),
+    farAwayTeamIds: input.validationContext.farAwayTeamIds,
+    weights: input.weights,
+  };
+  const matchupsById = new Map(input.matchups.map((matchup) => [matchup.id, matchup]));
+  const result = evaluateMoveWithParams(
+    move,
+    placements,
+    input.matchups,
+    matchupsById,
+    input.validationContext,
+    input.gamesPerEvening,
+    params,
+  );
+  if (!result.valid) {
+    return {
+      ...result,
+      nextUnscheduled: unscheduledMatchupIds,
+    };
+  }
+  return result;
+}
+
+function proposeMove(
+  placements: PlacementWithCategory[],
+  unscheduledIds: string[],
+  orderedEventIds: string[],
+  gamesPerEvening: number,
+  random: () => number,
+): SolverMove | null {
+  const emptySlots = listEmptySlots(orderedEventIds, gamesPerEvening, placements);
+  const types: Array<SolverMove["type"]> = [];
+  if (placements.length >= 2) types.push("swap");
+  if (placements.length >= 1 && emptySlots.length >= 1) types.push("relocate");
+  if (placements.length >= 1 && unscheduledIds.length >= 1) types.push("pool-swap");
+  if (types.length === 0) return null;
+
+  const type = types[pickIndex(types.length, random)];
+  if (type === "swap") {
+    const indices = pickTwoDistinctIndices(placements.length, random);
+    if (!indices) return null;
+    const placementA = placements[indices[0]];
+    const placementB = placements[indices[1]];
+    if (!placementA || !placementB) return null;
+    return {
+      type: "swap",
+      placementIdA: placementA.id,
+      placementIdB: placementB.id,
+    };
+  }
+
+  if (type === "relocate") {
+    const placement = placements[pickIndex(placements.length, random)];
+    const slot = emptySlots[pickIndex(emptySlots.length, random)];
+    if (!placement || !slot) return null;
+    return {
+      type: "relocate",
+      placementId: placement.id,
+      eventId: slot.eventId,
+      courtId: slot.courtId,
+      slotIndex: slot.slotIndex,
+    };
+  }
+
+  const scheduled = placements[pickIndex(placements.length, random)];
+  const unscheduledId = unscheduledIds[pickIndex(unscheduledIds.length, random)];
+  if (!scheduled || !unscheduledId) return null;
+  return {
+    type: "pool-swap",
+    scheduledId: scheduled.id,
+    unscheduledId,
+  };
+}
+
+function estimateInitialTemperature(
+  placements: PlacementWithCategory[],
+  matchups: SolveScheduleMatchup[],
+  matchupsById: Map<string, SolveScheduleMatchup>,
+  validationContext: ConstraintValidationContext,
+  gamesPerEvening: number,
+  params: SolverScoreParams,
+  random: () => number,
+): number {
+  const unscheduledIds = unscheduledIdsFromPlacements(matchups, placements);
+  const samples: number[] = [];
+  for (let i = 0; i < TEMPERATURE_SAMPLE_MOVES; i++) {
+    const move = proposeMove(
+      placements,
+      unscheduledIds,
+      params.orderedEventIds,
+      gamesPerEvening,
+      random,
+    );
+    if (!move) continue;
+    const evaluated = evaluateMoveWithParams(
+      move,
+      placements,
+      matchups,
+      matchupsById,
+      validationContext,
+      gamesPerEvening,
+      params,
+    );
+    if (!evaluated.valid) continue;
+    samples.push(Math.abs(evaluated.scoreDelta));
+  }
+  if (samples.length === 0) return DEFAULT_INITIAL_TEMPERATURE;
+  const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  if (mean === 0) return DEFAULT_INITIAL_TEMPERATURE;
+  return Math.min(80, Math.max(10, mean * 2));
+}
+
+function runSimulatedAnnealing(
+  initialPlacements: PlacementWithCategory[],
+  matchups: SolveScheduleMatchup[],
+  validationContext: ConstraintValidationContext,
+  gamesPerEvening: number,
+  params: SolverScoreParams,
+  effort: Exclude<SolverEffort, "greedy">,
+  random: () => number,
+): PlacementWithCategory[] {
+  const limits = EFFORT_LIMITS[effort];
+  const matchupsById = new Map(matchups.map((matchup) => [matchup.id, matchup]));
+  const deadline = Date.now() + limits.timeBudgetMs;
+
+  let currentPlacements = clonePlacements(initialPlacements);
+  let bestPlacements = clonePlacements(initialPlacements);
+  let bestScore = scorePlacementsOnEvents(bestPlacements, params.orderedEventIds, params);
+  let currentScore = bestScore;
+
+  let temperature = estimateInitialTemperature(
+    currentPlacements,
+    matchups,
+    matchupsById,
+    validationContext,
+    gamesPerEvening,
+    params,
+    random,
+  );
+
+  let steps = 0;
+  const maxProposalAttempts = limits.maxIterations * MAX_PROPOSAL_ATTEMPTS_PER_STEP;
+
+  for (
+    let attempts = 0;
+    steps < limits.maxIterations &&
+    attempts < maxProposalAttempts &&
+    Date.now() < deadline &&
+    temperature > MIN_TEMPERATURE;
+    attempts++
+  ) {
+    const unscheduledIds = unscheduledIdsFromPlacements(matchups, currentPlacements);
+    const move = proposeMove(
+      currentPlacements,
+      unscheduledIds,
+      params.orderedEventIds,
+      gamesPerEvening,
+      random,
+    );
+    if (!move) continue;
+
+    const evaluated = evaluateMoveWithParams(
+      move,
+      currentPlacements,
+      matchups,
+      matchupsById,
+      validationContext,
+      gamesPerEvening,
+      params,
+    );
+    if (!evaluated.valid) continue;
+
+    steps += 1;
+    const delta = evaluated.scoreDelta;
+    const accept = delta < 0 || random() < Math.exp(-delta / temperature);
+    if (accept) {
+      currentPlacements = evaluated.nextPlacements;
+      currentScore += delta;
+      if (currentScore < bestScore) {
+        bestScore = currentScore;
+        bestPlacements = clonePlacements(currentPlacements);
+      }
+    }
+
+    temperature *= COOLING_RATE;
+  }
+
+  return bestPlacements;
+}
+
 export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
   const {
     matchups,
@@ -549,6 +962,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
     validationContext,
     weights,
     seed,
+    effort = "medium",
   } = input;
 
   if (matchups.length === 0 || orderedEventIds.length === 0 || gamesPerEvening <= 0) {
@@ -577,7 +991,7 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
   const categoryBalanceContext = buildCategoryBalanceContext(matchups, orderedEventIds);
   const maxSlotIndex = gamesPerEvening - 1;
   const { farAwayTeamIds } = validationContext;
-  const improvementParams: ImprovementParams = {
+  const scoreParams: SolverScoreParams = {
     orderedEventIds,
     maxSlotIndex,
     totalMatchups: matchups.length,
@@ -620,30 +1034,25 @@ export function solveSchedule(input: SolveScheduleInput): SolveScheduleResult {
     weights,
     maxSlotIndex,
   });
-  finalPlacements = improveEventCategoryBalance(
-    finalPlacements,
-    validationContext,
-    improvementParams,
-  );
-  finalPlacements = improveFemenilNetChangeClustering(
-    finalPlacements,
-    validationContext,
-    improvementParams,
-  );
-  finalPlacements = improveByGeneralSwaps(
-    finalPlacements,
-    validationContext,
-    improvementParams,
-  );
 
-  const scheduledIds = new Set(finalPlacements.map((placement) => placement.id));
-  const unscheduledMatchupIds = matchups
-    .filter((matchup) => !scheduledIds.has(matchup.id))
-    .map((matchup) => matchup.id);
+  if (effort !== "greedy") {
+    const annealingRandom = createSeededRng(seed ?? DEFAULT_ANNEALING_SEED);
+    finalPlacements = runSimulatedAnnealing(
+      finalPlacements,
+      matchups,
+      validationContext,
+      gamesPerEvening,
+      scoreParams,
+      effort,
+      annealingRandom,
+    );
+  }
+
+  const unscheduledMatchupIds = unscheduledIdsFromPlacements(matchups, finalPlacements);
 
   return {
     placements: finalPlacements,
-    metrics: buildSchedulingMetrics(finalPlacements, matchups, improvementParams),
+    metrics: buildSchedulingMetrics(finalPlacements, matchups, scoreParams),
     unscheduledMatchupIds,
   };
 }

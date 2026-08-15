@@ -87,6 +87,8 @@ export const schedulingMetricsSchema = z.object({
   scheduledCount: z.number(),
 });
 
+export const solverEffortSchema = z.enum(["greedy", "low", "medium", "high"]);
+
 export const generateScheduleCandidatesSchema = z.object({
   seasonId: z.string(),
   count: z.number().int().min(1).max(8).default(3),
@@ -95,6 +97,7 @@ export const generateScheduleCandidatesSchema = z.object({
   dates: z.array(z.string().min(1, "Date cannot be empty")).optional(),
   defaultStartTime: z.string().optional(),
   gamesPerEvening: z.number().int().positive().optional(),
+  effort: solverEffortSchema.optional(),
 });
 
 export type GenerateScheduleCandidatesValues = z.infer<
