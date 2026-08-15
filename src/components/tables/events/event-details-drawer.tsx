@@ -80,6 +80,7 @@ export function EventDetailsDrawer({ seasonId }: Props) {
     ...trpc.matchup.getBySeasonId.queryOptions({ seasonId }),
     enabled: !!eventId,
   });
+  const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
 
   const event = data?.events.find((item) => item.id === eventId);
   const matchups =
@@ -141,6 +142,7 @@ export function EventDetailsDrawer({ seasonId }: Props) {
       const blob = await generateEventScheduleImage(
         eventForImage,
         window.location.origin,
+        categories,
       );
       downloadScheduleImage(blob, event.name);
     } finally {

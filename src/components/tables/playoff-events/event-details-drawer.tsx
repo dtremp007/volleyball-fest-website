@@ -77,6 +77,7 @@ export function PlayoffEventDetailsDrawer() {
     ...trpc.playoff.getEventById.queryOptions({ eventId: playoffEventId! }),
     enabled: !!playoffEventId,
   });
+  const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
 
   const event = eventData;
   const matchups =
@@ -127,7 +128,11 @@ export function PlayoffEventDetailsDrawer() {
     if (!event) return;
     setImageLoading(true);
     try {
-      const blob = await generateEventScheduleImage(event, window.location.origin);
+      const blob = await generateEventScheduleImage(
+        event,
+        window.location.origin,
+        categories,
+      );
       downloadScheduleImage(blob, event.name);
     } finally {
       setImageLoading(false);

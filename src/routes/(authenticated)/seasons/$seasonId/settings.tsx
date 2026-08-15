@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import z from "zod";
+import {
+  CategoriesDataTable,
+  CategoryDetailsDrawer,
+  NEW_CATEGORY_ID,
+} from "~/components/tables/categories";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -30,6 +36,9 @@ import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/settings")({
   component: SettingsPage,
+  validateSearch: z.object({
+    categoryId: z.string().optional(),
+  }),
 });
 
 function SettingsPage() {
@@ -56,178 +65,38 @@ function SettingsPage() {
 // ============================================================================
 
 function CategoriesSection() {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const { data: categories = [] } = useQuery(trpc.category.getAll.queryOptions());
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
-
-  const createMutation = useMutation({
-    ...trpc.category.create.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.category.getAll.queryKey() });
-      setIsAdding(false);
-      toast.success("Category created");
-    },
-    onError: () => toast.error("Failed to create category"),
-  });
-
-  const updateMutation = useMutation({
-    ...trpc.category.update.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.category.getAll.queryKey() });
-      setEditingId(null);
-      toast.success("Category updated");
-    },
-    onError: () => toast.error("Failed to update category"),
-  });
-
-  const deleteMutation = useMutation({
-    ...trpc.category.delete.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.category.getAll.queryKey() });
-      toast.success("Category deleted");
-    },
-    onError: () => toast.error("Failed to delete category"),
-  });
+  const navigate = Route.useNavigate();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Categories</CardTitle>
-        <CardDescription>
-          Define league categories (e.g., Mixed, Women&apos;s, Men&apos;s)
-        </CardDescription>
-        <CardAction>
-          <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
-            <Plus className="size-4" />
-            Add Category
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-2">
-          {isAdding && (
-            <CategoryRow
-              isNew
-              onSave={(data) =>
-                createMutation.mutate({
-                  name: data.name,
-                  description: data.description,
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Categories</CardTitle>
+          <CardDescription>
+            Define league categories and the colors used on schedule images and PDFs
+          </CardDescription>
+          <CardAction>
+            <Button
+              size="sm"
+              onClick={() =>
+                navigate({
+                  search: (prev) => ({ ...prev, categoryId: NEW_CATEGORY_ID }),
+                  replace: true,
+                  resetScroll: false,
                 })
               }
-              onCancel={() => setIsAdding(false)}
-              isPending={createMutation.isPending}
-            />
-          )}
-          {categories.map((category) => (
-            <CategoryRow
-              key={category.id}
-              category={category}
-              isEditing={editingId === category.id}
-              onEdit={() => setEditingId(category.id)}
-              onSave={(data) => updateMutation.mutate({ id: category.id, data })}
-              onCancel={() => setEditingId(null)}
-              onDelete={() => deleteMutation.mutate({ id: category.id })}
-              isPending={updateMutation.isPending || deleteMutation.isPending}
-            />
-          ))}
-          {categories.length === 0 && !isAdding && (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              No categories yet. Add one to get started.
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface CategoryRowProps {
-  category?: { id: string; name: string; description: string };
-  isNew?: boolean;
-  isEditing?: boolean;
-  onEdit?: () => void;
-  onSave: (data: { name: string; description: string }) => void;
-  onCancel: () => void;
-  onDelete?: () => void;
-  isPending?: boolean;
-}
-
-function CategoryRow({
-  category,
-  isNew,
-  isEditing,
-  onEdit,
-  onSave,
-  onCancel,
-  onDelete,
-  isPending,
-}: CategoryRowProps) {
-  const [name, setName] = useState(category?.name ?? "");
-  const [description, setDescription] = useState(category?.description ?? "");
-
-  const isEditMode = isNew || isEditing;
-
-  const handleSave = () => {
-    if (!name.trim() || !description.trim()) {
-      toast.error("All fields are required");
-      return;
-    }
-    onSave({ name: name.trim(), description: description.trim() });
-  };
-
-  const handleCancel = () => {
-    setName(category?.name ?? "");
-    setDescription(category?.description ?? "");
-    onCancel();
-  };
-
-  if (isEditMode) {
-    return (
-      <div className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-lg p-3">
-        <Input
-          placeholder="Category name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="min-w-[150px] flex-1"
-          disabled={isPending}
-        />
-        <Input
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="min-w-[200px] flex-[2]"
-          disabled={isPending}
-        />
-        <div className="flex gap-1">
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={isPending}>
-            <Check className="size-4" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={handleCancel} disabled={isPending}>
-            <X className="size-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="hover:bg-muted/50 flex items-center justify-between gap-4 rounded-lg p-3 transition-colors">
-      <div className="flex flex-1 flex-col gap-1">
-        <span className="font-medium">{category?.name}</span>
-        <span className="text-muted-foreground text-sm">{category?.description}</span>
-      </div>
-      <div className="flex gap-1">
-        <Button size="icon" variant="ghost" onClick={onEdit}>
-          <Pencil className="size-4" />
-        </Button>
-        <Button size="icon" variant="ghost" onClick={onDelete}>
-          <Trash2 className="size-4" />
-        </Button>
-      </div>
-    </div>
+            >
+              <Plus className="size-4" />
+              Add Category
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <CategoriesDataTable />
+        </CardContent>
+      </Card>
+      <CategoryDetailsDrawer />
+    </>
   );
 }
 

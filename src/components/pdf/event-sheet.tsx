@@ -1,5 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { format } from "date-fns";
+import { colorForCategory, type CategoryColor } from "~/lib/category-color";
 import type { EventWithMatchups } from "~/lib/db/queries/schedule";
 import {
   formatEventDateForDisplay,
@@ -7,12 +8,6 @@ import {
   getSlotTimeConfigForEvent,
   getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  "Varonil Libre": "#000000",
-  "Segunda Fuerza": "#dc2626",
-  Femenil: "#9333ea",
-};
 
 const styles = StyleSheet.create({
   page: {
@@ -188,6 +183,7 @@ const styles = StyleSheet.create({
 type Props = {
   events: EventWithMatchups[];
   baseUrl: string;
+  categories: CategoryColor[];
 };
 
 type EventMatchup = EventWithMatchups["matchups"][number];
@@ -273,10 +269,12 @@ function CourtColumns({
   matchup,
   singleCourt,
   side,
+  categories,
 }: {
   matchup?: EventMatchup;
   singleCourt: boolean;
   side: "left" | "right";
+  categories: CategoryColor[];
 }) {
   const teamCellStyle = singleCourt ? styles.singleCourtTeamCell : styles.teamCell;
   const vsCellStyle = singleCourt ? styles.singleCourtVsCell : styles.vsCell;
@@ -300,7 +298,7 @@ function CourtColumns({
     );
   }
 
-  const matchupColor = CATEGORY_COLORS[matchup.category] ?? "#374151";
+  const matchupColor = colorForCategory(matchup.category, categories);
   const matchupLabel = matchup.label;
   const hasTeamA = !matchup.teamA.isPlaceholder;
   const hasTeamB = !matchup.teamB.isPlaceholder;
@@ -359,7 +357,7 @@ function CourtColumns({
   );
 }
 
-export function EventSheetDocument({ events, baseUrl }: Props) {
+export function EventSheetDocument({ events, baseUrl, categories }: Props) {
   return (
     <Document>
       {events.map((event) => {
@@ -384,19 +382,14 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
             </View>
 
             <View style={styles.legendContainer}>
-              <Text
-                style={{ ...styles.legendItem, color: CATEGORY_COLORS["Varonil Libre"] }}
-              >
-                VARONIL LIBRE
-              </Text>
-              <Text
-                style={{ ...styles.legendItem, color: CATEGORY_COLORS["Segunda Fuerza"] }}
-              >
-                SEGUNDA FUERZA
-              </Text>
-              <Text style={{ ...styles.legendItem, color: CATEGORY_COLORS["Femenil"] }}>
-                FEMENIL
-              </Text>
+              {categories.map((category) => (
+                <Text
+                  key={category.name}
+                  style={{ ...styles.legendItem, color: category.color }}
+                >
+                  {category.name.toUpperCase()}
+                </Text>
+              ))}
             </View>
 
             {sortedSlotIndices.length > 0 ? (
@@ -415,6 +408,7 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                           matchup={slot.courtA}
                           singleCourt={singleCourt}
                           side="left"
+                          categories={categories}
                         />
                       )}
                       <View
@@ -434,6 +428,7 @@ export function EventSheetDocument({ events, baseUrl }: Props) {
                           matchup={slot.courtB}
                           singleCourt={singleCourt}
                           side="right"
+                          categories={categories}
                         />
                       )}
                     </View>

@@ -1,16 +1,11 @@
 import { format } from "date-fns";
+import { colorForCategory, type CategoryColor } from "~/lib/category-color";
 import {
   formatEventDateForDisplay,
   getSlotDurationsByIndex,
   getSlotTimeConfigForEvent,
   getTimeForSlotIndexWithDurations,
 } from "~/lib/schedule/slot-times";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  "Varonil Libre": "#000000",
-  "Segunda Fuerza": "#dc2626",
-  Femenil: "#9333ea",
-};
 
 const W = 1080;
 const H = 1080; // 3:4 aspect ratio
@@ -146,6 +141,7 @@ export function downloadScheduleImage(blob: Blob, eventName: string) {
 export async function generateEventScheduleImage(
   event: EventForImage,
   baseUrl: string = typeof window !== "undefined" ? window.location.origin : "",
+  categories: CategoryColor[] = [],
 ): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -187,19 +183,30 @@ export async function generateEventScheduleImage(
   ctx.fillText(format(formatEventDateForDisplay(event.date), "MMM d, yyyy"), W / 2, y);
   y += 40;
 
-  // Legend
+  // Legend — divide the row evenly, like justify-between
   ctx.font = "bold 18px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  const legendItems = [
-    { text: "VARONIL LIBRE", color: CATEGORY_COLORS["Varonil Libre"] },
-    { text: "SEGUNDA FUERZA", color: CATEGORY_COLORS["Segunda Fuerza"] },
-    { text: "FEMENIL", color: CATEGORY_COLORS["Femenil"] },
-  ];
-  legendItems.forEach((item, i) => {
-    ctx.fillStyle = item.color;
-    ctx.fillText(item.text, W * (0.25 + i * 0.25), y);
-  });
-  y += 36;
+  const legendItems = categories.map((category) => ({
+    text: category.name.toUpperCase(),
+    color: category.color,
+  }));
+  const legendCount = legendItems.length;
+  if (legendCount === 1) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = legendItems[0]!.color;
+    ctx.fillText(legendItems[0]!.text, W / 2, y);
+  } else if (legendCount > 1) {
+    const legendLeft = PADDING;
+    const legendWidth = W - PADDING * 2;
+    legendItems.forEach((item, i) => {
+      const x = legendLeft + (i / (legendCount - 1)) * legendWidth;
+      ctx.textAlign = i === 0 ? "left" : i === legendCount - 1 ? "right" : "center";
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.text, x, y);
+    });
+  }
+  if (legendCount > 0) {
+    y += 36;
+  }
 
   // Table: team | vs | team | time | team | vs | team, collapsing unused courts.
   const tableLeft = PADDING;
@@ -251,7 +258,7 @@ export async function generateEventScheduleImage(
   ) => {
     if (!matchup) return;
 
-    const color = CATEGORY_COLORS[matchup.category] ?? "#374151";
+    const color = colorForCategory(matchup.category, categories);
     drawWrappedTeam(
       matchup.teamA.name.toUpperCase(),
       colCenters[indices[0]]!,

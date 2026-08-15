@@ -41,7 +41,7 @@ beforeEach(async () => {
   await client.executeMultiple(`
     PRAGMA foreign_keys=ON;
     CREATE TABLE season (id text PRIMARY KEY, name text NOT NULL, start_date text NOT NULL, end_date text NOT NULL, state text DEFAULT 'draft');
-    CREATE TABLE category (id text PRIMARY KEY, name text NOT NULL, description text NOT NULL, playoff_format text DEFAULT 'top-4' NOT NULL);
+    CREATE TABLE category (id text PRIMARY KEY, name text NOT NULL, description text NOT NULL, playoff_format text DEFAULT 'top-4' NOT NULL, color text DEFAULT '#374151' NOT NULL);
     CREATE TABLE position (id text PRIMARY KEY, name text NOT NULL);
     CREATE TABLE team_group (id text PRIMARY KEY, name text NOT NULL, season_id text NOT NULL, category_id text NOT NULL);
     CREATE TABLE team (id text PRIMARY KEY);

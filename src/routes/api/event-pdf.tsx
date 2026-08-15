@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { createFileRoute } from "@tanstack/react-router";
 import { EventSheetDocument } from "~/components/pdf/event-sheet";
 import { db } from "~/lib/db";
+import { getCategories } from "~/lib/db/queries/category";
 import { getEventsWithMatchupsBySeasonId } from "~/lib/db/queries/schedule";
 
 async function handleGetEventPDF({ request }: { request: Request }) {
@@ -16,7 +17,10 @@ async function handleGetEventPDF({ request }: { request: Request }) {
       });
     }
 
-    const events = await getEventsWithMatchupsBySeasonId(db, seasonId);
+    const [events, categories] = await Promise.all([
+      getEventsWithMatchupsBySeasonId(db, seasonId),
+      getCategories(db),
+    ]);
 
     if (events.length === 0) {
       return new Response(JSON.stringify({ error: "No events found for this season" }), {
@@ -28,7 +32,7 @@ async function handleGetEventPDF({ request }: { request: Request }) {
     const baseUrl = url.origin;
 
     const pdfBuffer = await renderToBuffer(
-      <EventSheetDocument events={events} baseUrl={baseUrl} />,
+      <EventSheetDocument events={events} baseUrl={baseUrl} categories={categories} />,
     );
     const pdfBytes = Uint8Array.from(pdfBuffer);
     const sanitizedName = events[0]!.season.name
