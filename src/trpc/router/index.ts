@@ -7,6 +7,7 @@ import { matchupRouter } from "~/trpc/router/matchup.trpc";
 import { playoffRouter } from "~/trpc/router/playoff.trpc";
 import { positionRouter } from "~/trpc/router/position.trpc";
 import { scheduleConfigRouter } from "~/trpc/router/scheduleConfig.trpc";
+import { scheduleDraftRouter } from "~/trpc/router/scheduleDraft.trpc";
 import { seasonRouter } from "~/trpc/router/season.trpc";
 import { teamRouter } from "~/trpc/router/team.trpc";
 import { userRouter } from "~/trpc/router/user";
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
   cms: cmsRouter,
   group: groupRouter,
   scheduleConfig: scheduleConfigRouter,
+  scheduleDraft: scheduleDraftRouter,
 });
 
 export type AppRouter = typeof appRouter;

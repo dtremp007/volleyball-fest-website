@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
-import { solveSchedule } from "~/lib/scheduling/solver";
+import { solveSchedule, type SolveScheduleInput } from "~/lib/scheduling/solver";
 import {
   contributionFromFirstTwoSets,
   sortStandingsTeams,
@@ -514,16 +514,15 @@ async function buildConstraintValidationContext(
 }
 
 /**
- * Auto-schedule matchups across events and courts.
- * Loads season data, runs the pure solver, then persists placements.
+ * Load matchups, ordered events, and constraint context for the pure solver.
+ * Does not persist placements. Returns null when there are no matchups or events.
  */
-export async function autoScheduleMatchups(
+export async function loadSolveScheduleContext(
   db: Database,
   seasonId: string,
   eventIds: string[],
-  gamesPerEvening: number,
   weights?: Partial<SchedulingWeights> | SchedulingWeights,
-) {
+): Promise<SolveScheduleInput | null> {
   const resolvedWeights = resolveSchedulingWeights(weights);
   const allSeasonMatchups = await db
     .select({
@@ -535,7 +534,7 @@ export async function autoScheduleMatchups(
     .where(eq(schema.matchup.seasonId, seasonId));
 
   if (allSeasonMatchups.length === 0 || eventIds.length === 0) {
-    return { scheduledCount: 0, unscheduledCount: allSeasonMatchups.length };
+    return null;
   }
 
   const events = await db
@@ -584,12 +583,41 @@ export async function autoScheduleMatchups(
       null,
   }));
 
-  const result = solveSchedule({
+  const scheduleConfig = await getScheduleConfig(db, seasonId);
+
+  return {
     matchups,
     orderedEventIds,
-    gamesPerEvening,
+    gamesPerEvening: scheduleConfig?.gamesPerEvening ?? 7,
     validationContext,
     weights: resolvedWeights,
+  };
+}
+
+/**
+ * Auto-schedule matchups across events and courts.
+ * Loads season data, runs the pure solver, then persists placements.
+ */
+export async function autoScheduleMatchups(
+  db: Database,
+  seasonId: string,
+  eventIds: string[],
+  gamesPerEvening: number,
+  weights?: Partial<SchedulingWeights> | SchedulingWeights,
+) {
+  const input = await loadSolveScheduleContext(db, seasonId, eventIds, weights);
+
+  if (!input) {
+    const remaining = await db
+      .select({ id: schema.matchup.id })
+      .from(schema.matchup)
+      .where(eq(schema.matchup.seasonId, seasonId));
+    return { scheduledCount: 0, unscheduledCount: remaining.length };
+  }
+
+  const result = solveSchedule({
+    ...input,
+    gamesPerEvening,
   });
 
   await db

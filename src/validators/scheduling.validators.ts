@@ -65,3 +65,70 @@ export const saveSchedulePresetSchema = z.object({
 });
 
 export type SaveSchedulePresetValues = z.infer<typeof saveSchedulePresetSchema>;
+
+export const scheduleDraftPlacementSchema = z.object({
+  id: z.string(),
+  teamAId: z.string(),
+  teamBId: z.string(),
+  eventId: z.string(),
+  courtId: z.enum(["A", "B"]),
+  slotIndex: z.number().int(),
+  categoryId: z.string().nullable(),
+});
+
+export const schedulingMetricsSchema = z.object({
+  qualityScore: z.number(),
+  totalCategoryDeviation: z.number(),
+  estimatedFemenilNetSwitches: z.number(),
+  categoryCountsByEventId: z.record(z.string(), z.record(z.string(), z.number())),
+  gamesPerEventSpread: z.number(),
+  farAwayTwoGamesHitRate: z.number(),
+  unscheduledCount: z.number(),
+  scheduledCount: z.number(),
+});
+
+export const generateScheduleCandidatesSchema = z.object({
+  seasonId: z.string(),
+  count: z.number().int().min(1).max(8).default(3),
+  presetIds: z.array(z.string()).optional(),
+  weights: partialSchedulingWeightsSchema.optional(),
+  dates: z.array(z.string().min(1, "Date cannot be empty")).optional(),
+  defaultStartTime: z.string().optional(),
+  gamesPerEvening: z.number().int().positive().optional(),
+});
+
+export type GenerateScheduleCandidatesValues = z.infer<
+  typeof generateScheduleCandidatesSchema
+>;
+
+export function parseScheduleDraftPlacements(placementsJson: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(placementsJson);
+  } catch {
+    throw new Error("Invalid schedule draft placements JSON");
+  }
+
+  const result = z.array(scheduleDraftPlacementSchema).safeParse(parsed);
+  if (!result.success) {
+    throw new Error("Invalid schedule draft placements");
+  }
+
+  return result.data;
+}
+
+export function parseScheduleDraftMetrics(metricsJson: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(metricsJson);
+  } catch {
+    throw new Error("Invalid schedule draft metrics JSON");
+  }
+
+  const result = schedulingMetricsSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error("Invalid schedule draft metrics");
+  }
+
+  return result.data;
+}

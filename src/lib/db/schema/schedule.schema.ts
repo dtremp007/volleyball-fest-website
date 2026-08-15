@@ -14,6 +14,23 @@ export const schedulePreset = sqliteTable("schedule_preset", {
     .notNull(),
 });
 
+export const scheduleDraft = sqliteTable("schedule_draft", {
+  id: text("id").primaryKey(),
+  seasonId: text("season_id")
+    .notNull()
+    .references(() => season.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  presetName: text("preset_name"),
+  weightsJson: text("weights_json").notNull(),
+  seed: integer("seed").notNull(),
+  placementsJson: text("placements_json").notNull(),
+  metricsJson: text("metrics_json").notNull(),
+  unscheduledCount: integer("unscheduled_count").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+});
+
 export const scheduleConfig = sqliteTable("schedule_config", {
   id: text("id").primaryKey(),
   seasonId: text("season_id")
@@ -62,6 +79,13 @@ export const schedulePresetRelations = relations(schedulePreset, ({ one, many })
     references: [season.id],
   }),
   activeConfigs: many(scheduleConfig),
+}));
+
+export const scheduleDraftRelations = relations(scheduleDraft, ({ one }) => ({
+  season: one(season, {
+    fields: [scheduleDraft.seasonId],
+    references: [season.id],
+  }),
 }));
 
 export const scheduleConfigRelations = relations(scheduleConfig, ({ one }) => ({
