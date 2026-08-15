@@ -436,3 +436,26 @@ export const updateTeamIsFarAway = async (
       and(eq(schema.seasonTeam.seasonId, seasonId), eq(schema.seasonTeam.teamId, teamId)),
     );
 };
+
+/** Bulk-update category for teams in a season. Clears group since groups are category-scoped. */
+export const updateTeamsCategory = async (
+  db: Database,
+  seasonId: string,
+  teamIds: string[],
+  categoryId: string,
+) => {
+  if (!teamIds.length) return { count: 0 };
+
+  const updated = await db
+    .update(schema.seasonTeam)
+    .set({ categoryId, groupId: null })
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, seasonId),
+        inArray(schema.seasonTeam.teamId, teamIds),
+      ),
+    )
+    .returning({ teamId: schema.seasonTeam.teamId });
+
+  return { count: updated.length };
+};

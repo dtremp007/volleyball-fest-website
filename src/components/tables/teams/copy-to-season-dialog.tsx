@@ -64,8 +64,8 @@ export function CopyToSeasonDialog({ selectedTeamIds, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5">
-          <Copy className="size-4" />
-          Copy to Season
+          <Copy className="size-4 shrink-0" />
+          <span className="whitespace-nowrap">Copy to Season</span>
         </Button>
       </DialogTrigger>
       <DialogContent>

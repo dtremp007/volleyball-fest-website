@@ -13,6 +13,7 @@ import {
   removeTeamFromSeason,
   updateTeamForSeason,
   updateTeamIsFarAway,
+  updateTeamsCategory,
 } from "~/lib/db/queries/team";
 import { normalizeUnavailableDates } from "~/lib/unavailable-dates";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
@@ -108,6 +109,23 @@ export const teamRouter = {
         input.sourceSeasonId,
         input.targetSeasonId,
         input.teamIds,
+      );
+    }),
+
+  moveToCategory: protectedProcedure
+    .input(
+      z.object({
+        seasonId: z.string(),
+        teamIds: z.array(z.string()).min(1),
+        categoryId: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateTeamsCategory(
+        db,
+        input.seasonId,
+        input.teamIds,
+        input.categoryId,
       );
     }),
 

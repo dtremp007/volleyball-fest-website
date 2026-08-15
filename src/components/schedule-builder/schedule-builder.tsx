@@ -44,7 +44,7 @@ export type ScheduleBuilderProps = {
   onSave: (snapshot: ScheduleBuilderSnapshot) => Promise<void>;
   isSaving?: boolean;
   toolbarActions?: ReactNode;
-  title?: string;
+  title?: ReactNode;
   autosaveIntervalMs?: number;
 };
 

@@ -1,7 +1,8 @@
 import { Monitor } from "lucide-react";
+import type { ReactNode } from "react";
 
 type ScheduleBuilderMobileNoticeProps = {
-  title: string;
+  title: ReactNode;
 };
 
 export function ScheduleBuilderMobileNotice({ title }: ScheduleBuilderMobileNoticeProps) {

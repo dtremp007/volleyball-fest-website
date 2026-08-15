@@ -19,6 +19,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { formatEventDateForDisplay, getDatePart } from "~/lib/schedule/slot-times";
 import { useTRPC } from "~/trpc/react";
 import {
   DEFAULT_SCHEDULING_WEIGHTS,
@@ -72,6 +73,23 @@ function toDateStrings(dates: Date[]) {
   ];
 }
 
+function datesFromEvents(events: Array<{ date: string }>): Date[] {
+  const seen = new Set<string>();
+  const dates: Date[] = [];
+
+  for (const event of events) {
+    const datePart = getDatePart(event.date);
+    if (!datePart || seen.has(datePart)) continue;
+    seen.add(datePart);
+
+    const date = formatEventDateForDisplay(event.date);
+    if (Number.isNaN(date.getTime())) continue;
+    dates.push(date);
+  }
+
+  return dates.sort((a, b) => a.getTime() - b.getTime());
+}
+
 function GeneratePage() {
   const { seasonId } = Route.useParams();
   const { matchupsData, scheduleConfig, season, presets } = Route.useLoaderData();
@@ -102,7 +120,9 @@ function GeneratePage() {
 
   const totalMatchups = (liveMatchups?.matchups ?? matchupsData.matchups).length;
 
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [selectedDates, setSelectedDates] = useState<Date[]>(() =>
+    datesFromEvents(matchupsData.events),
+  );
   const [startTime, setStartTime] = useState(scheduleConfig?.defaultStartTime || "16:15");
   const [gamesPerEvening, setGamesPerEvening] = useState(
     scheduleConfig?.gamesPerEvening || 7,
@@ -234,7 +254,7 @@ function GeneratePage() {
                 mode="multiple"
                 showOutsideDays={false}
                 numberOfMonths={3}
-                defaultMonth={new Date()}
+                defaultMonth={selectedDates[0] ?? new Date()}
                 selected={selectedDates}
                 onSelect={(dates) => {
                   if (dates) {
@@ -386,7 +406,7 @@ function GeneratePage() {
                   id="solver-effort"
                   value={effort}
                   onChange={(event) => setEffort(event.target.value as CandidateEffort)}
-                  className="h-8 w-28"
+                  className="w-28"
                 >
                   <NativeSelectOption value="low">Low</NativeSelectOption>
                   <NativeSelectOption value="medium">Medium</NativeSelectOption>

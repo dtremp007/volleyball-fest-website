@@ -92,36 +92,37 @@ function BuildPage() {
   const isRegenerating = isRegeneratingMutation || isRefetching;
   const isBusy = isRegenerating || isSaving;
 
+  const hasEvents = data.events.length > 0;
+
   return (
     <ScheduleBuilder
       key={`${seasonId}:${data.revision}`}
       initialState={data}
-      title="Build Schedule"
+      title={
+        <span className="flex flex-col items-start gap-2">
+          <Link
+            to="/seasons/$seasonId/generate"
+            params={{ seasonId }}
+            className="text-muted-foreground hover:text-foreground text-sm font-normal underline-offset-4 hover:underline"
+          >
+            ← Generate
+          </Link>
+          <span>Build Schedule</span>
+        </span>
+      }
       onSave={handleSave}
       isSaving={isSaving}
       toolbarActions={
         <>
-          <Button
-            asChild={data.events.length > 0}
-            variant="outline"
-            size="sm"
-            disabled={data.events.length === 0}
-          >
-            {data.events.length > 0 ? (
-              <a
-                href={`/api/event-pdf?seasonId=${encodeURIComponent(seasonId)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FileText className="mr-2 size-4" />
-                Schedule PDF
-              </a>
-            ) : (
-              <>
-                <FileText className="mr-2 size-4" />
-                Schedule PDF
-              </>
-            )}
+          <Button asChild variant="outline" size="sm" disabled={!hasEvents}>
+            <a
+              href={`/api/event-pdf?seasonId=${encodeURIComponent(seasonId)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <FileText className="mr-2 size-4" />
+              Schedule PDF
+            </a>
           </Button>
           <Button
             variant="outline"
