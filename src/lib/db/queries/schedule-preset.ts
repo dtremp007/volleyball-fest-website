@@ -71,7 +71,7 @@ export const deleteSchedulePreset = async (db: Database, id: string) => {
   return preset;
 };
 
-const DEFAULT_START_TIME = "16:15";
+const DEFAULT_START_TIME = "16:00";
 const DEFAULT_GAMES_PER_EVENING = 7;
 
 export const setActiveSchedulePreset = async (

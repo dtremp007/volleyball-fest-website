@@ -22,7 +22,7 @@ describe("getScheduleTemplateForDate", () => {
   });
 
   it("reads the calendar date from a datetime string", () => {
-    expect(getScheduleTemplateForDate("2026-08-15 16:15")).toEqual(
+    expect(getScheduleTemplateForDate("2026-08-15 16:00")).toEqual(
       SATURDAY_SCHEDULE_TEMPLATE,
     );
   });
@@ -33,7 +33,7 @@ describe("buildGamesPerEveningByEventId", () => {
     expect(
       buildGamesPerEveningByEventId([
         { id: "weekday", date: "2026-08-14 19:00" },
-        { id: "saturday", date: "2026-08-15 16:15" },
+        { id: "saturday", date: "2026-08-15 16:00" },
       ]),
     ).toEqual({
       weekday: 4,

@@ -1,6 +1,6 @@
-/** Default game-night start (4:15 PM) until slotConfig is wired from scheduleConfig. */
+/** Default game-night start (4:00 PM) until slotConfig is wired from scheduleConfig. */
 export const DEFAULT_SLOT_START_HOUR = 16;
-export const DEFAULT_SLOT_START_MINUTE = 15;
+export const DEFAULT_SLOT_START_MINUTE = 0;
 export const DEFAULT_SLOT_DURATION_MINUTES = 45;
 
 export type SlotTimeConfig = {

@@ -37,7 +37,7 @@ export const scheduleConfig = sqliteTable("schedule_config", {
     .notNull()
     .references(() => season.id, { onDelete: "cascade" })
     .unique(),
-  defaultStartTime: text("default_start_time").notNull(), // e.g., "4:15 PM"
+  defaultStartTime: text("default_start_time").notNull(), // e.g., "4:00 PM"
   gamesPerEvening: integer("games_per_evening").notNull().default(4),
   activePresetId: text("active_preset_id").references(() => schedulePreset.id, {
     onDelete: "set null",

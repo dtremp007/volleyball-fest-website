@@ -10,11 +10,11 @@ import {
 
 describe("getTimeForSlotIndex", () => {
   it("formats the default start time for slot 0", () => {
-    expect(getTimeForSlotIndex(0)).toBe("4:15 PM");
+    expect(getTimeForSlotIndex(0)).toBe("4:00 PM");
   });
 
   it("advances by the default slot duration", () => {
-    expect(getTimeForSlotIndex(1)).toBe("5:00 PM");
+    expect(getTimeForSlotIndex(1)).toBe("4:45 PM");
   });
 
   it("uses an event-specific start time when provided", () => {
@@ -50,7 +50,7 @@ describe("getTimeForSlotIndex", () => {
   it("falls back to the default start time for date-only events", () => {
     const config = getSlotTimeConfigForEvent("2026-06-06");
 
-    expect(getTimeForSlotIndex(0, config)).toBe("4:15 PM");
+    expect(getTimeForSlotIndex(0, config)).toBe("4:00 PM");
   });
 
   it("formats event dates from date parts without using the time portion", () => {

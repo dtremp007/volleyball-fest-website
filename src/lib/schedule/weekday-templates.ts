@@ -11,9 +11,9 @@ export const WEEKDAY_SCHEDULE_TEMPLATE: ScheduleWeekdayTemplate = {
   gamesPerEvening: 4,
 };
 
-/** Saturday: 4:15 PM, 7 slots. */
+/** Saturday: 4:00 PM, 7 slots. */
 export const SATURDAY_SCHEDULE_TEMPLATE: ScheduleWeekdayTemplate = {
-  startTime: "16:15",
+  startTime: "16:00",
   gamesPerEvening: 7,
 };
 

@@ -55,7 +55,7 @@ export const scheduleConfigRouter = {
     .input(
       z.object({
         seasonId: z.string(),
-        defaultStartTime: z.string(), // e.g., "4:15 PM"
+        defaultStartTime: z.string(), // e.g., "4:00 PM"
         gamesPerEvening: z.number().int().positive(),
       }),
     )
