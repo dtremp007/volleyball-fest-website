@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -248,7 +248,14 @@ function GeneratePage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold tracking-tight">Generate Schedule</h2>
+        <Link
+          to="/seasons/$seasonId/configure"
+          params={{ seasonId }}
+          className="text-muted-foreground hover:text-foreground text-sm font-normal underline-offset-4 hover:underline"
+        >
+          ← Configure
+        </Link>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Generate Schedule</h2>
         <p className="text-muted-foreground mt-2">
           Select dates and configure schedule settings for {season.name}
         </p>
@@ -422,7 +429,6 @@ function GeneratePage() {
                   id="solver-effort"
                   value={effort}
                   onChange={(event) => setEffort(event.target.value as CandidateEffort)}
-                  className="w-28"
                 >
                   <NativeSelectOption value="low">Low</NativeSelectOption>
                   <NativeSelectOption value="medium">Medium</NativeSelectOption>
