@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
+import { format } from "date-fns";
 import { Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import AvatarUpload from "~/components/avatar-upload";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Calendar } from "~/components/ui/calendar";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
   Drawer,
@@ -25,7 +27,12 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Textarea } from "~/components/ui/textarea";
-import { formatUnavailableDates, parseUnavailableDates } from "~/lib/unavailable-dates";
+import {
+  fromCalendarDates,
+  parseUnavailableDates,
+  toCalendarDates,
+} from "~/lib/unavailable-dates";
+import { cn } from "~/lib/utils";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/router";
@@ -105,7 +112,7 @@ export function TeamDetailsDrawer() {
         jerseyNumber: player.jerseyNumber,
         positionId: player.position?.id ?? positions[0]?.id ?? "",
       })),
-      unavailableDates: [dates[0] ?? "", dates[1] ?? ""],
+      unavailableDates: dates,
       comingFrom: team.comingFrom,
       isFarAway: Boolean(team.isFarAway),
       notes: team.notes ?? "",
@@ -319,10 +326,7 @@ function TeamReadView({
       <Separator />
       <div className="grid gap-5 sm:grid-cols-2">
         <Detail label="Coming from" value={team.comingFrom || "Not specified"} />
-        <Detail
-          label="Unavailable dates"
-          value={formatUnavailableDates(team.unavailableDates) || "None"}
-        />
+        <UnavailableDatesReadView dates={parseUnavailableDates(team.unavailableDates)} />
       </div>
       {team.notes && <Detail label="Notes" value={team.notes} />}
     </div>
@@ -350,6 +354,103 @@ function Detail({
         </a>
       )}
     </div>
+  );
+}
+
+function formatUnavailableDateLabel(dateString: string): string {
+  const [date] = toCalendarDates([dateString]);
+  if (!date) return dateString;
+  return format(date, "EEE, MMM d, yyyy");
+}
+
+function UnavailableDatesReadView({ dates }: { dates: string[] }) {
+  const sortedDates = [...dates].sort();
+
+  return (
+    <div className="space-y-1">
+      <h3 className="text-muted-foreground text-sm font-medium">Unavailable dates</h3>
+      {sortedDates.length === 0 ? (
+        <p className="text-sm font-medium">None</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {sortedDates.map((date) => (
+            <Badge key={date} variant="secondary">
+              {formatUnavailableDateLabel(date)}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UnavailableDatesEditor({
+  dates,
+  disabled,
+  onChange,
+}: {
+  dates: string[];
+  disabled: boolean;
+  onChange: (dates: string[]) => void;
+}) {
+  const selectedDates = toCalendarDates(dates);
+
+  return (
+    <Field>
+      <div className="flex items-center justify-between gap-3">
+        <FieldLabel>Unavailable dates</FieldLabel>
+        {dates.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-auto px-2 py-1 text-xs"
+            onClick={() => onChange([])}
+            disabled={disabled}
+          >
+            Clear all
+          </Button>
+        )}
+      </div>
+      <p className="text-muted-foreground text-sm">
+        Click dates to block the team from being scheduled. You can select as many as
+        needed.
+      </p>
+      <Calendar
+        mode="multiple"
+        showOutsideDays={false}
+        numberOfMonths={1}
+        defaultMonth={selectedDates[0] ?? new Date()}
+        selected={selectedDates}
+        onSelect={(nextDates) => {
+          onChange(fromCalendarDates(nextDates ?? []));
+        }}
+        className={cn(
+          "rounded-lg border shadow-sm",
+          disabled && "pointer-events-none opacity-60",
+        )}
+      />
+      {selectedDates.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {fromCalendarDates(selectedDates).map((date) => (
+            <Badge key={date} variant="secondary" className="gap-1 pr-1">
+              {formatUnavailableDateLabel(date)}
+              <button
+                type="button"
+                className="hover:bg-muted-foreground/20 rounded-full p-0.5"
+                aria-label={`Remove ${formatUnavailableDateLabel(date)}`}
+                onClick={() => onChange(dates.filter((value) => value !== date))}
+                disabled={disabled}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">No dates blocked</p>
+      )}
+    </Field>
   );
 }
 
@@ -523,29 +624,11 @@ function TeamEditForm({
       <Separator />
       <section className="space-y-4">
         <h3 className="font-semibold">Availability and notes</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[0, 1].map((index) => (
-            <Field key={index}>
-              <FieldLabel htmlFor={`unavailable-${index}`}>
-                Unavailable date {index + 1}
-              </FieldLabel>
-              <Input
-                id={`unavailable-${index}`}
-                type="date"
-                value={draft.unavailableDates[index] ?? ""}
-                onChange={(event) =>
-                  setField(
-                    "unavailableDates",
-                    draft.unavailableDates.map((date, dateIndex) =>
-                      dateIndex === index ? event.target.value : date,
-                    ),
-                  )
-                }
-                disabled={disabled}
-              />
-            </Field>
-          ))}
-        </div>
+        <UnavailableDatesEditor
+          dates={draft.unavailableDates}
+          disabled={disabled}
+          onChange={(dates) => setField("unavailableDates", dates)}
+        />
         <Field>
           <FieldLabel htmlFor="coming-from">Coming from</FieldLabel>
           <Input

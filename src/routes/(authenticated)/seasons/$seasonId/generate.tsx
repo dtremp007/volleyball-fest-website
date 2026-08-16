@@ -21,9 +21,9 @@ import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { formatEventDateForDisplay, getDatePart } from "~/lib/schedule/slot-times";
 import {
+  getScheduleTemplateForDate,
   SATURDAY_SCHEDULE_TEMPLATE,
   WEEKDAY_SCHEDULE_TEMPLATE,
-  getScheduleTemplateForDate,
 } from "~/lib/schedule/weekday-templates";
 import { useTRPC } from "~/trpc/react";
 import {
