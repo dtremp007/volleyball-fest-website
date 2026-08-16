@@ -313,7 +313,7 @@ function GeneratePage() {
                   <p className="text-muted-foreground">Full evening</p>
                 </div>
                 <p className="text-right">
-                  4:15 PM
+                  4:00 PM
                   <span className="text-muted-foreground">
                     · {SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening} slots
                   </span>
