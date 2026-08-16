@@ -6,7 +6,10 @@ import { getCategories, updateCategory } from "~/lib/db/queries/category";
 import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
 import { generateRoundRobinPairs } from "~/lib/schedule/round-robin";
-import { buildGamesPerEveningByEventId } from "~/lib/schedule/weekday-templates";
+import {
+  buildGamesPerEveningByEventId,
+  SATURDAY_SCHEDULE_TEMPLATE,
+} from "~/lib/schedule/weekday-templates";
 import { solveSchedule, type SolveScheduleInput } from "~/lib/scheduling/solver";
 import {
   contributionFromFirstTwoSets,
@@ -596,7 +599,7 @@ export async function loadSolveScheduleContext(
   const gamesPerEvening =
     slotCounts.length > 0
       ? Math.max(...slotCounts)
-      : (scheduleConfig?.gamesPerEvening ?? 7);
+      : (scheduleConfig?.gamesPerEvening ?? SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening);
 
   return {
     matchups,

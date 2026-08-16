@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import * as schema from "~/lib/db/schema";
+import { SATURDAY_SCHEDULE_TEMPLATE } from "~/lib/schedule/weekday-templates";
 import {
   DEFAULT_SCHEDULING_WEIGHTS,
   parseSchedulePresetWeights,
@@ -71,8 +72,8 @@ export const deleteSchedulePreset = async (db: Database, id: string) => {
   return preset;
 };
 
-const DEFAULT_START_TIME = "16:00";
-const DEFAULT_GAMES_PER_EVENING = 7;
+const DEFAULT_START_TIME = SATURDAY_SCHEDULE_TEMPLATE.startTime;
+const DEFAULT_GAMES_PER_EVENING = SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening;
 
 export const setActiveSchedulePreset = async (
   db: Database,

@@ -302,7 +302,9 @@ function GeneratePage() {
                 </div>
                 <p className="text-right">
                   7:00 PM
-                  <span className="text-muted-foreground"> · 4 slots</span>
+                  <span className="text-muted-foreground">
+                    · {WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening} slots
+                  </span>
                 </p>
               </div>
               <div className="flex items-start justify-between gap-4">
@@ -312,7 +314,9 @@ function GeneratePage() {
                 </div>
                 <p className="text-right">
                   4:00 PM
-                  <span className="text-muted-foreground"> · 7 slots</span>
+                  <span className="text-muted-foreground">
+                    · {SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening} slots
+                  </span>
                 </p>
               </div>
             </CardContent>

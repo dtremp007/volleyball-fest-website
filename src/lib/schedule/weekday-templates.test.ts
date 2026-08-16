@@ -37,7 +37,7 @@ describe("buildGamesPerEveningByEventId", () => {
       ]),
     ).toEqual({
       weekday: 4,
-      saturday: 7,
+      saturday: 8,
     });
   });
 });
