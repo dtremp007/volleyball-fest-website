@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { unorderedTeamPairKey } from "~/lib/schedule/matchup-pair";
 import { getTimePart } from "~/lib/schedule/slot-times";
 import type { ScheduleEvent } from "./types";
 
@@ -49,6 +50,33 @@ export function getConflictingTeams(
   }
 
   return conflicting;
+}
+
+/**
+ * Returns team names when another matchup on this event is the same unordered pair.
+ */
+export function getSameNightRematchTeams(
+  event: ScheduleEvent,
+  courtId: "A" | "B",
+  index: number,
+): string[] {
+  const thisCourt = event.courts.find((court) => court.id === courtId);
+  const thisMatchup = thisCourt?.matchups[index];
+  if (!thisMatchup) return [];
+
+  const pairKey = unorderedTeamPairKey(thisMatchup.teamA.id, thisMatchup.teamB.id);
+  for (const court of event.courts) {
+    for (let matchupIndex = 0; matchupIndex < court.matchups.length; matchupIndex++) {
+      if (court.id === courtId && matchupIndex === index) continue;
+      const other = court.matchups[matchupIndex];
+      if (!other) continue;
+      if (unorderedTeamPairKey(other.teamA.id, other.teamB.id) === pairKey) {
+        return [thisMatchup.teamA.name, thisMatchup.teamB.name];
+      }
+    }
+  }
+
+  return [];
 }
 
 export function createNewEvent(name: string, date: string): ScheduleEvent {

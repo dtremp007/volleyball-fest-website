@@ -2,9 +2,10 @@ import { startOfDay, subDays } from "date-fns";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
-import { getCategories } from "~/lib/db/queries/category";
+import { getCategories, updateCategory } from "~/lib/db/queries/category";
 import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
+import { generateRoundRobinPairs } from "~/lib/schedule/round-robin";
 import { buildGamesPerEveningByEventId } from "~/lib/schedule/weekday-templates";
 import { solveSchedule, type SolveScheduleInput } from "~/lib/scheduling/solver";
 import {
@@ -380,6 +381,7 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
       logoUrl: schema.seasonTeam.logoUrl,
       categoryId: schema.seasonTeam.categoryId,
       category: schema.category.name,
+      meetingsPerPair: schema.category.meetingsPerPair,
       groupId: schema.seasonTeam.groupId,
     })
     .from(schema.seasonTeam)
@@ -416,15 +418,17 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
       // Only generate matchups if there are at least 2 teams in the group
       if (groupTeams.length < 2) continue;
 
-      for (let i = 0; i < groupTeams.length; i++) {
-        for (let j = i + 1; j < groupTeams.length; j++) {
-          matchupsToInsert.push({
-            id: uuidv4(),
-            teamAId: groupTeams[i].id,
-            teamBId: groupTeams[j].id,
-            seasonId,
-          });
-        }
+      const meetingsPerPair = groupTeams[0]?.meetingsPerPair ?? 1;
+      for (const pair of generateRoundRobinPairs(
+        groupTeams.map((team) => team.id),
+        meetingsPerPair,
+      )) {
+        matchupsToInsert.push({
+          id: uuidv4(),
+          teamAId: pair.teamAId,
+          teamBId: pair.teamBId,
+          seasonId,
+        });
       }
     }
   }
@@ -713,6 +717,7 @@ export async function saveSchedule(db: Database, data: ScheduleData) {
 
 type GroupConfig = {
   categoryId: string;
+  meetingsPerPair?: number;
   groups: Array<{
     name: string;
     teamIds: string[];
@@ -723,7 +728,7 @@ type GroupConfig = {
  * One-shot function to configure groups and generate matchups
  * 1. Deletes existing groups and matchups for the season
  * 2. Creates new groups with team assignments
- * 3. Generates round-robin matchups per group
+ * 3. Generates round-robin matchups per group (meetingsPerPair times per pair)
  */
 export async function configureGroupsAndGenerateMatchups(
   db: Database,
@@ -751,6 +756,9 @@ export async function configureGroupsAndGenerateMatchups(
   }> = [];
 
   for (const categoryConfig of categoryConfigs) {
+    const meetingsPerPair = categoryConfig.meetingsPerPair ?? 1;
+    await updateCategory(db, categoryConfig.categoryId, { meetingsPerPair });
+
     for (const groupConfig of categoryConfig.groups) {
       // Create the group
       const groupId = uuidv4();
@@ -777,15 +785,13 @@ export async function configureGroupsAndGenerateMatchups(
       // Generate round-robin matchups for this group
       const teamIds = groupConfig.teamIds;
       if (teamIds.length >= 2) {
-        for (let i = 0; i < teamIds.length; i++) {
-          for (let j = i + 1; j < teamIds.length; j++) {
-            matchupsToInsert.push({
-              id: uuidv4(),
-              teamAId: teamIds[i],
-              teamBId: teamIds[j],
-              seasonId,
-            });
-          }
+        for (const pair of generateRoundRobinPairs(teamIds, meetingsPerPair)) {
+          matchupsToInsert.push({
+            id: uuidv4(),
+            teamAId: pair.teamAId,
+            teamBId: pair.teamBId,
+            seasonId,
+          });
         }
       }
     }

@@ -9,7 +9,7 @@ import { isDateUnavailable, normalizeDateOnly } from "~/lib/unavailable-dates";
 import { cn } from "~/lib/utils";
 import { useScheduleStore } from "./store";
 import type { DragData, Matchup } from "./types";
-import { getConflictingTeams } from "./utils";
+import { getConflictingTeams, getSameNightRematchTeams } from "./utils";
 
 const categoryColorCache = new Map<
   string,
@@ -146,6 +146,13 @@ export const MatchupBlock = memo(function MatchupBlock({
       return getConflictingTeams(event, courtId, index);
     }),
   );
+  const rematchTeams = useScheduleStore(
+    useShallow((state) => {
+      const event = state.events.find((e) => e.id === eventId);
+      if (!event) return [];
+      return getSameNightRematchTeams(event, courtId, index);
+    }),
+  );
 
   const dragData: DragData = useMemo(
     () => ({
@@ -176,11 +183,12 @@ export const MatchupBlock = memo(function MatchupBlock({
 
   const colors = getCategoryColor(matchup.category);
   const hasConflict = conflictingTeams.length > 0;
+  const hasRematchConflict = rematchTeams.length > 0;
   const unavailableTeams = [matchup.teamA, matchup.teamB]
     .filter((team) => isDateUnavailable(team.unavailableDates ?? "", eventDate))
     .map((team) => team.name);
   const hasUnavailableDateConflict = unavailableTeams.length > 0;
-  const hasWarning = hasConflict || hasUnavailableDateConflict;
+  const hasWarning = hasConflict || hasUnavailableDateConflict || hasRematchConflict;
   const eventDateLabel = normalizeDateOnly(eventDate);
 
   return (
@@ -213,6 +221,9 @@ export const MatchupBlock = memo(function MatchupBlock({
                   {conflictingTeams.join(", ")} also playing on Court{" "}
                   {courtId === "A" ? "B" : "A"} at this time
                 </p>
+              )}
+              {hasRematchConflict && (
+                <p>{rematchTeams.join(" vs ")} already play each other tonight</p>
               )}
               {hasUnavailableDateConflict && (
                 <p>

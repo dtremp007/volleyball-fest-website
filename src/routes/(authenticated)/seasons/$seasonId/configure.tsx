@@ -27,6 +27,10 @@ import {
 } from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 import { useTRPC } from "~/trpc/react";
+import {
+  MEETINGS_PER_PAIR_MAX,
+  MEETINGS_PER_PAIR_MIN,
+} from "~/validators/category.validators";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/configure")({
   component: ConfigurePage,
@@ -64,6 +68,7 @@ type GroupAssignment = {
 
 type CategoryState = {
   groupCount: number;
+  meetingsPerPair: number;
   assignments: GroupAssignment;
 };
 
@@ -94,7 +99,7 @@ function distributeTeams(teams: Team[], groupCount: number): GroupAssignment {
 
 // Build initial category state from existing groups and team assignments
 function buildInitialCategoryStates(
-  categories: { id: string }[],
+  categories: { id: string; meetingsPerPair: number }[],
   teams: Team[],
   groups: { id: string; name: string; categoryId: string }[],
 ): Record<string, CategoryState> {
@@ -131,11 +136,13 @@ function buildInitialCategoryStates(
       });
       initial[cat.id] = {
         groupCount: catGroups.length,
+        meetingsPerPair: cat.meetingsPerPair ?? 1,
         assignments,
       };
     } else {
       initial[cat.id] = {
         groupCount: 1,
+        meetingsPerPair: cat.meetingsPerPair ?? 1,
         assignments: distributeTeams(catTeams, 1),
       };
     }
@@ -298,12 +305,28 @@ function ConfigurePage() {
       setCategoryStates((prev) => ({
         ...prev,
         [categoryId]: {
+          ...prev[categoryId],
           groupCount: newCount,
+          meetingsPerPair: prev[categoryId]?.meetingsPerPair ?? 1,
           assignments: distributeTeams(catTeams, newCount),
         },
       }));
     },
     [teamsByCategory],
+  );
+
+  const handleMeetingsPerPairChange = useCallback(
+    (categoryId: string, meetingsPerPair: number) => {
+      setCategoryStates((prev) => ({
+        ...prev,
+        [categoryId]: {
+          groupCount: prev[categoryId]?.groupCount ?? 1,
+          assignments: prev[categoryId]?.assignments ?? {},
+          meetingsPerPair,
+        },
+      }));
+    },
+    [],
   );
 
   // DnD handlers
@@ -387,6 +410,7 @@ function ConfigurePage() {
 
         return {
           categoryId: category.id,
+          meetingsPerPair: state.meetingsPerPair ?? 1,
           groups,
         };
       })
@@ -437,6 +461,7 @@ function ConfigurePage() {
             const catTeams = teamsByCategory.get(category.id) || [];
             const state = categoryStates[category.id] || {
               groupCount: 1,
+              meetingsPerPair: 1,
               assignments: {},
             };
 
@@ -491,6 +516,16 @@ function ConfigurePage() {
                     onChange={(count) => handleGroupCountChange(category.id, count)}
                     min={1}
                     max={4}
+                  />
+
+                  <Counter
+                    id={`meetings-${category.id}`}
+                    name={`meetings-${category.id}`}
+                    label="Times teams play each other"
+                    value={state.meetingsPerPair}
+                    onChange={(count) => handleMeetingsPerPairChange(category.id, count)}
+                    min={MEETINGS_PER_PAIR_MIN}
+                    max={MEETINGS_PER_PAIR_MAX}
                   />
 
                   {/* Group Columns */}

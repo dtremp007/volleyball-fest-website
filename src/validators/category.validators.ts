@@ -13,6 +13,15 @@ export const categoryColorSchema = z.string().transform((value, ctx) => {
   return color;
 });
 
+export const MEETINGS_PER_PAIR_MIN = 1;
+export const MEETINGS_PER_PAIR_MAX = 3;
+
+export const meetingsPerPairSchema = z
+  .number()
+  .int()
+  .min(MEETINGS_PER_PAIR_MIN)
+  .max(MEETINGS_PER_PAIR_MAX);
+
 export const createCategorySchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),

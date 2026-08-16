@@ -30,6 +30,7 @@ import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state"
 import { combineDateAndTime } from "~/lib/schedule/slot-times";
 import { getScheduleTemplateForDate } from "~/lib/schedule/weekday-templates";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { meetingsPerPairSchema } from "~/validators/category.validators";
 import { partialSchedulingWeightsSchema } from "~/validators/scheduling.validators";
 
 export const matchupRouter = {
@@ -179,6 +180,7 @@ export const matchupRouter = {
         categoryConfigs: z.array(
           z.object({
             categoryId: z.string(),
+            meetingsPerPair: meetingsPerPairSchema.default(1),
             groups: z.array(
               z.object({
                 name: z.string(),

@@ -9,6 +9,7 @@ import {
   type ConstraintValidationContext,
   type PlacementWithCategory,
 } from "~/lib/db/queries/schedule-algorithm";
+import { unorderedTeamPairKey } from "~/lib/schedule/matchup-pair";
 import {
   evaluateMove,
   solveSchedule,
@@ -139,6 +140,15 @@ function assertHardConstraints(
         false,
       );
     }
+  }
+
+  const pairsByEvent = new Map<string, Set<string>>();
+  for (const placement of placements) {
+    const pairKey = unorderedTeamPairKey(placement.teamAId, placement.teamBId);
+    const seen = pairsByEvent.get(placement.eventId) ?? new Set<string>();
+    expect(seen.has(pairKey)).toBe(false);
+    seen.add(pairKey);
+    pairsByEvent.set(placement.eventId, seen);
   }
 }
 
@@ -394,5 +404,102 @@ describe("solveSchedule", () => {
       expect(placement.slotIndex).toBeLessThan(4);
     }
     expect(saturdayPlacements.some((placement) => placement.slotIndex >= 4)).toBe(true);
+  });
+
+  it("does not schedule the same pair twice on one event", () => {
+    const matchups = [
+      matchup("m1", "a", "b", CAT_EARLY),
+      matchup("m2", "b", "a", CAT_EARLY),
+    ];
+    const teamIds = ["a", "b"];
+    const input: SolveScheduleInput = {
+      matchups,
+      orderedEventIds: ["e1", "e2"],
+      orderedCategoryIds: ORDERED_CATEGORY_IDS,
+      gamesPerEvening: 2,
+      validationContext: {
+        eventDateById: new Map([
+          ["e1", "2026-03-01"],
+          ["e2", "2026-03-08"],
+        ]),
+        teamUnavailableDatesById: new Map(teamIds.map((id) => [id, ""])),
+        maxGamesPerTeamId: new Map(teamIds.map((id) => [id, 2])),
+        farAwayTeamIds: new Set(),
+      },
+      weights: DEFAULT_SCHEDULING_WEIGHTS,
+      effort: "greedy",
+      seed: 1,
+    };
+
+    const result = solveSchedule(input);
+    expect(result.placements).toHaveLength(2);
+    expect(result.placements[0]?.eventId).not.toBe(result.placements[1]?.eventId);
+    assertHardConstraints(result.placements, input);
+  });
+});
+
+describe("getPlacementViolationReason", () => {
+  const context: ConstraintValidationContext = {
+    eventDateById: new Map([
+      ["e1", "2026-03-01"],
+      ["e2", "2026-03-08"],
+    ]),
+    teamUnavailableDatesById: new Map([
+      ["a", ""],
+      ["b", ""],
+    ]),
+    maxGamesPerTeamId: new Map([
+      ["a", 2],
+      ["b", 2],
+    ]),
+    farAwayTeamIds: new Set(),
+  };
+
+  it("rejects the same unordered pair on the same event", () => {
+    const existing = [
+      {
+        id: "m1",
+        teamAId: "a",
+        teamBId: "b",
+        eventId: "e1",
+        courtId: "A" as const,
+        slotIndex: 0,
+      },
+    ];
+    const candidate = {
+      id: "m2",
+      teamAId: "b",
+      teamBId: "a",
+      eventId: "e1",
+      courtId: "B" as const,
+      slotIndex: 1,
+    };
+
+    expect(getPlacementViolationReason(candidate, existing, context)).toBe(
+      "These two teams already play each other at this event.",
+    );
+  });
+
+  it("allows the same pair on a different event", () => {
+    const existing = [
+      {
+        id: "m1",
+        teamAId: "a",
+        teamBId: "b",
+        eventId: "e1",
+        courtId: "A" as const,
+        slotIndex: 0,
+      },
+    ];
+    const candidate = {
+      id: "m2",
+      teamAId: "b",
+      teamBId: "a",
+      eventId: "e2",
+      courtId: "A" as const,
+      slotIndex: 0,
+    };
+
+    expect(getPlacementViolationReason(candidate, existing, context)).toBeNull();
   });
 });

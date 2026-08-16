@@ -6,11 +6,12 @@
  * maintainability.
  *
  * The algorithm:
- * 1. Validates each candidate placement against hard constraints (availability, conflicts, max games)
+ * 1. Validates each candidate placement against hard constraints (availability, conflicts, rematches, max games)
  * 2. Scores valid placements by preference (lower = better)
  * 3. Selects the best valid matchup for each slot
  */
 
+import { unorderedTeamPairKey } from "~/lib/schedule/matchup-pair";
 import { isDateUnavailable } from "~/lib/unavailable-dates";
 import {
   DEFAULT_SCHEDULING_WEIGHTS,
@@ -136,6 +137,16 @@ export function getPlacementViolationReason(
   );
   if (slotConflict) {
     return "A team cannot play two matches at the same time.";
+  }
+
+  const rematchSameNight = existingPlacements.find(
+    (existing) =>
+      existing.eventId === placement.eventId &&
+      unorderedTeamPairKey(existing.teamAId, existing.teamBId) ===
+        unorderedTeamPairKey(placement.teamAId, placement.teamBId),
+  );
+  if (rematchSameNight) {
+    return "These two teams already play each other at this event.";
   }
 
   const maxTeamA =

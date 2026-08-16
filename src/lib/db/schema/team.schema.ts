@@ -35,6 +35,7 @@ export const category = sqliteTable("category", {
   playoffFormat: text("playoff_format").notNull().$type<PlayoffFormat>().default("top-4"),
   color: text("color").notNull().default("#374151"),
   sortOrder: integer("sort_order").notNull().default(0),
+  meetingsPerPair: integer("meetings_per_pair").notNull().default(1),
 });
 
 export const group = sqliteTable("team_group", {

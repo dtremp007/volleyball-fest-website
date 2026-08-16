@@ -51,6 +51,7 @@ type UpdateCategoryParams = {
   description?: string;
   color?: string;
   sortOrder?: number;
+  meetingsPerPair?: number;
 };
 
 export const updateCategory = async (
