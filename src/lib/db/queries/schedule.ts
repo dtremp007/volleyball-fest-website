@@ -599,8 +599,7 @@ export async function loadSolveScheduleContext(
   const gamesPerEvening =
     slotCounts.length > 0
       ? Math.max(...slotCounts)
-      : (scheduleConfig?.gamesPerEvening ??
-        SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening);
+      : (scheduleConfig?.gamesPerEvening ?? SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening);
 
   return {
     matchups,

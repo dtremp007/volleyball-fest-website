@@ -405,14 +405,11 @@ describe("solveSchedule", () => {
     expect(weekdayPlacements.length).toBeGreaterThan(0);
     expect(saturdayPlacements.length).toBeGreaterThan(0);
     for (const placement of weekdayPlacements) {
-      expect(placement.slotIndex).toBeLessThan(
-        WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
-      );
+      expect(placement.slotIndex).toBeLessThan(WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening);
     }
     expect(
       saturdayPlacements.some(
-        (placement) =>
-          placement.slotIndex >= WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
+        (placement) => placement.slotIndex >= WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
       ),
     ).toBe(true);
   });
