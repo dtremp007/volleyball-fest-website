@@ -11,6 +11,10 @@ import {
 } from "~/lib/db/queries/schedule-algorithm";
 import { unorderedTeamPairKey } from "~/lib/schedule/matchup-pair";
 import {
+  SATURDAY_SCHEDULE_TEMPLATE,
+  WEEKDAY_SCHEDULE_TEMPLATE,
+} from "~/lib/schedule/weekday-templates";
+import {
   evaluateMove,
   solveSchedule,
   type SolverMove,
@@ -353,7 +357,7 @@ describe("solveSchedule", () => {
     expect(splitCategories.length).toBeLessThanOrEqual(1);
   });
 
-  it("does not place weekday events past 4 slots when Saturday events have 7", () => {
+  it("does not place weekday events past weekday slot count when Saturday events have more", () => {
     const weekdayEventId = "weekday";
     const saturdayEventId = "saturday";
     const matchups: SolveScheduleMatchup[] = [];
@@ -372,10 +376,10 @@ describe("solveSchedule", () => {
       matchups,
       orderedEventIds: [weekdayEventId, saturdayEventId],
       orderedCategoryIds: ORDERED_CATEGORY_IDS,
-      gamesPerEvening: 7,
+      gamesPerEvening: SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
       gamesPerEveningByEventId: {
-        [weekdayEventId]: 4,
-        [saturdayEventId]: 7,
+        [weekdayEventId]: WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
+        [saturdayEventId]: SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
       },
       validationContext: {
         eventDateById: new Map([
@@ -401,9 +405,13 @@ describe("solveSchedule", () => {
     expect(weekdayPlacements.length).toBeGreaterThan(0);
     expect(saturdayPlacements.length).toBeGreaterThan(0);
     for (const placement of weekdayPlacements) {
-      expect(placement.slotIndex).toBeLessThan(4);
+      expect(placement.slotIndex).toBeLessThan(WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening);
     }
-    expect(saturdayPlacements.some((placement) => placement.slotIndex >= 4)).toBe(true);
+    expect(
+      saturdayPlacements.some(
+        (placement) => placement.slotIndex >= WEEKDAY_SCHEDULE_TEMPLATE.gamesPerEvening,
+      ),
+    ).toBe(true);
   });
 
   it("does not schedule the same pair twice on one event", () => {
