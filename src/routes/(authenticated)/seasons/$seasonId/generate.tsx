@@ -5,6 +5,16 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlgorithmTuningPanel } from "~/components/schedule/algorithm-tuning-panel";
 import { CandidateCompare } from "~/components/schedule/candidate-compare";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
@@ -32,6 +42,7 @@ import {
 } from "~/validators/scheduling.validators";
 
 type CandidateEffort = "low" | "medium" | "high";
+type PendingGenerateAction = "schedule" | "candidates";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/generate")({
   component: GeneratePage,
@@ -136,6 +147,11 @@ function GeneratePage() {
   const [weights, setWeights] = useState<SchedulingWeights>(
     activePreset?.weights ?? DEFAULT_SCHEDULING_WEIGHTS,
   );
+  const [pendingAction, setPendingAction] = useState<PendingGenerateAction | null>(
+    null,
+  );
+
+  const hasExistingSchedule = events.length > 0;
 
   const generateScheduleMutation = useMutation(
     trpc.matchup.generateSchedule.mutationOptions(),
@@ -173,7 +189,7 @@ function GeneratePage() {
     weights,
   });
 
-  const handleGenerateSchedule = async () => {
+  const runGenerateSchedule = async () => {
     if (selectedDates.length === 0) {
       toast.error("Please select at least one date");
       return;
@@ -203,7 +219,7 @@ function GeneratePage() {
     }
   };
 
-  const handleGenerateCandidates = async () => {
+  const runGenerateCandidates = async () => {
     if (selectedDates.length === 0) {
       toast.error("Please select at least one date");
       return;
@@ -245,20 +261,63 @@ function GeneratePage() {
     }
   };
 
+  const handleGenerateSchedule = () => {
+    if (selectedDates.length === 0) {
+      toast.error("Please select at least one date");
+      return;
+    }
+    if (hasExistingSchedule) {
+      setPendingAction("schedule");
+      return;
+    }
+    void runGenerateSchedule();
+  };
+
+  const handleGenerateCandidates = () => {
+    if (selectedDates.length === 0) {
+      toast.error("Please select at least one date");
+      return;
+    }
+    if (hasExistingSchedule) {
+      setPendingAction("candidates");
+      return;
+    }
+    void runGenerateCandidates();
+  };
+
+  const handleConfirmOverwrite = () => {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action === "schedule") {
+      void runGenerateSchedule();
+    } else if (action === "candidates") {
+      void runGenerateCandidates();
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <Link
-          to="/seasons/$seasonId/configure"
-          params={{ seasonId }}
-          className="text-muted-foreground hover:text-foreground text-sm font-normal underline-offset-4 hover:underline"
-        >
-          ← Configure
-        </Link>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Generate Schedule</h2>
-        <p className="text-muted-foreground mt-2">
-          Select dates and configure schedule settings for {season.name}
-        </p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link
+            to="/seasons/$seasonId/configure"
+            params={{ seasonId }}
+            className="text-muted-foreground hover:text-foreground text-sm font-normal underline-offset-4 hover:underline"
+          >
+            ← Configure
+          </Link>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">Generate Schedule</h2>
+          <p className="text-muted-foreground mt-2">
+            Select dates and configure schedule settings for {season.name}
+          </p>
+        </div>
+        {hasExistingSchedule ? (
+          <Button asChild variant="outline" className="shrink-0 self-start sm:mt-1">
+            <Link to="/seasons/$seasonId/build" params={{ seasonId }}>
+              Open Builder
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -483,6 +542,34 @@ function GeneratePage() {
           gamesPerEvening={SATURDAY_SCHEDULE_TEMPLATE.gamesPerEvening}
         />
       </div>
+
+      <AlertDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingAction(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite existing schedule?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the current game nights and matchup placements for this
+              season. Any manual adjustments you made in the schedule builder will be
+              lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleConfirmOverwrite}>
+              {pendingAction === "candidates"
+                ? "Overwrite and generate candidates"
+                : "Overwrite and generate schedule"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
