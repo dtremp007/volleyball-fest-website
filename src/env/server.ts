@@ -14,6 +14,10 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
 
+    // Optional. Local AI Gateway key for the season assistant.
+    // Vercel deployments can authenticate with OIDC instead.
+    AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+
     // Cloudflare R2 Storage
     R2_ACCOUNT_ID: z.string().min(1),
     R2_ACCESS_KEY_ID: z.string().min(1),

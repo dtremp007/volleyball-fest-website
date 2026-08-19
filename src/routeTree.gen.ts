@@ -14,6 +14,7 @@ import { Route as authenticatedRouteRouteImport } from './routes/(authenticated)
 import { Route as authPagesRouteRouteImport } from './routes/(auth-pages)/route'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as ApiUploadImageRouteImport } from './routes/api/upload-image'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiTeamPdfRouteImport } from './routes/api/team-pdf'
 import { Route as ApiPlayoffEventPdfRouteImport } from './routes/api/playoff-event-pdf'
 import { Route as ApiEventPdfRouteImport } from './routes/api/event-pdf'
@@ -36,6 +37,7 @@ import { Route as authenticatedSeasonsSeasonIdRouteRouteImport } from './routes/
 import { Route as authenticatedSeasonsSeasonIdIndexRouteImport } from './routes/(authenticated)/seasons/$seasonId/index'
 import { Route as authenticatedSeasonsSeasonIdTeamsRouteImport } from './routes/(authenticated)/seasons/$seasonId/teams'
 import { Route as authenticatedSeasonsSeasonIdSettingsRouteImport } from './routes/(authenticated)/seasons/$seasonId/settings'
+import { Route as authenticatedSeasonsSeasonIdChatRouteImport } from './routes/(authenticated)/seasons/$seasonId/chat'
 import { Route as authenticatedSeasonsSeasonIdScorecardRouteImport } from './routes/(authenticated)/seasons/$seasonId/scorecard'
 import { Route as authenticatedSeasonsSeasonIdPlayoffsRouteImport } from './routes/(authenticated)/seasons/$seasonId/playoffs'
 import { Route as authenticatedSeasonsSeasonIdGenerateRouteImport } from './routes/(authenticated)/seasons/$seasonId/generate'
@@ -64,6 +66,11 @@ const publicIndexRoute = publicIndexRouteImport.update({
 const ApiUploadImageRoute = ApiUploadImageRouteImport.update({
   id: '/api/upload-image',
   path: '/api/upload-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTeamPdfRoute = ApiTeamPdfRouteImport.update({
@@ -184,6 +191,12 @@ const authenticatedSeasonsSeasonIdSettingsRoute =
     path: '/settings',
     getParentRoute: () => authenticatedSeasonsSeasonIdRouteRoute,
   } as any)
+const authenticatedSeasonsSeasonIdChatRoute =
+  authenticatedSeasonsSeasonIdChatRouteImport.update({
+    id: '/chat',
+    path: '/chat',
+    getParentRoute: () => authenticatedSeasonsSeasonIdRouteRoute,
+  } as any)
 const authenticatedSeasonsSeasonIdScorecardRoute =
   authenticatedSeasonsSeasonIdScorecardRouteImport.update({
     id: '/scorecard',
@@ -238,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/api/playoff-event-pdf': typeof ApiPlayoffEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
   '/api/upload-image': typeof ApiUploadImageRoute
+  '/api/chat': typeof ApiChatRoute
   '/': typeof publicIndexRoute
   '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdRouteRouteWithChildren
   '/seasons/new': typeof authenticatedSeasonsNewRoute
@@ -255,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/seasons/$seasonId/playoffs': typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   '/seasons/$seasonId/scorecard': typeof authenticatedSeasonsSeasonIdScorecardRoute
   '/seasons/$seasonId/settings': typeof authenticatedSeasonsSeasonIdSettingsRoute
+  '/seasons/$seasonId/chat': typeof authenticatedSeasonsSeasonIdChatRoute
   '/seasons/$seasonId/teams': typeof authenticatedSeasonsSeasonIdTeamsRoute
   '/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
   '/seasons/$seasonId/playoffs/build': typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
@@ -270,6 +285,7 @@ export interface FileRoutesByTo {
   '/api/playoff-event-pdf': typeof ApiPlayoffEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
   '/api/upload-image': typeof ApiUploadImageRoute
+  '/api/chat': typeof ApiChatRoute
   '/': typeof publicIndexRoute
   '/seasons/new': typeof authenticatedSeasonsNewRoute
   '/equipos/$teamId': typeof publicEquiposTeamIdRoute
@@ -286,6 +302,7 @@ export interface FileRoutesByTo {
   '/seasons/$seasonId/playoffs': typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   '/seasons/$seasonId/scorecard': typeof authenticatedSeasonsSeasonIdScorecardRoute
   '/seasons/$seasonId/settings': typeof authenticatedSeasonsSeasonIdSettingsRoute
+  '/seasons/$seasonId/chat': typeof authenticatedSeasonsSeasonIdChatRoute
   '/seasons/$seasonId/teams': typeof authenticatedSeasonsSeasonIdTeamsRoute
   '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdIndexRoute
   '/seasons/$seasonId/playoffs/build': typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
@@ -306,6 +323,7 @@ export interface FileRoutesById {
   '/api/playoff-event-pdf': typeof ApiPlayoffEventPdfRoute
   '/api/team-pdf': typeof ApiTeamPdfRoute
   '/api/upload-image': typeof ApiUploadImageRoute
+  '/api/chat': typeof ApiChatRoute
   '/(public)/': typeof publicIndexRoute
   '/(authenticated)/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdRouteRouteWithChildren
   '/(authenticated)/seasons/new': typeof authenticatedSeasonsNewRoute
@@ -323,6 +341,7 @@ export interface FileRoutesById {
   '/(authenticated)/seasons/$seasonId/playoffs': typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   '/(authenticated)/seasons/$seasonId/scorecard': typeof authenticatedSeasonsSeasonIdScorecardRoute
   '/(authenticated)/seasons/$seasonId/settings': typeof authenticatedSeasonsSeasonIdSettingsRoute
+  '/(authenticated)/seasons/$seasonId/chat': typeof authenticatedSeasonsSeasonIdChatRoute
   '/(authenticated)/seasons/$seasonId/teams': typeof authenticatedSeasonsSeasonIdTeamsRoute
   '/(authenticated)/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
   '/(authenticated)/seasons/$seasonId/playoffs_/build': typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
@@ -341,6 +360,7 @@ export interface FileRouteTypes {
     | '/api/playoff-event-pdf'
     | '/api/team-pdf'
     | '/api/upload-image'
+    | '/api/chat'
     | '/'
     | '/seasons/$seasonId'
     | '/seasons/new'
@@ -358,6 +378,7 @@ export interface FileRouteTypes {
     | '/seasons/$seasonId/playoffs'
     | '/seasons/$seasonId/scorecard'
     | '/seasons/$seasonId/settings'
+    | '/seasons/$seasonId/chat'
     | '/seasons/$seasonId/teams'
     | '/seasons/$seasonId/'
     | '/seasons/$seasonId/playoffs/build'
@@ -373,6 +394,7 @@ export interface FileRouteTypes {
     | '/api/playoff-event-pdf'
     | '/api/team-pdf'
     | '/api/upload-image'
+    | '/api/chat'
     | '/'
     | '/seasons/new'
     | '/equipos/$teamId'
@@ -389,6 +411,7 @@ export interface FileRouteTypes {
     | '/seasons/$seasonId/playoffs'
     | '/seasons/$seasonId/scorecard'
     | '/seasons/$seasonId/settings'
+    | '/seasons/$seasonId/chat'
     | '/seasons/$seasonId/teams'
     | '/seasons/$seasonId'
     | '/seasons/$seasonId/playoffs/build'
@@ -408,6 +431,7 @@ export interface FileRouteTypes {
     | '/api/playoff-event-pdf'
     | '/api/team-pdf'
     | '/api/upload-image'
+    | '/api/chat'
     | '/(public)/'
     | '/(authenticated)/seasons/$seasonId'
     | '/(authenticated)/seasons/new'
@@ -425,6 +449,7 @@ export interface FileRouteTypes {
     | '/(authenticated)/seasons/$seasonId/playoffs'
     | '/(authenticated)/seasons/$seasonId/scorecard'
     | '/(authenticated)/seasons/$seasonId/settings'
+    | '/(authenticated)/seasons/$seasonId/chat'
     | '/(authenticated)/seasons/$seasonId/teams'
     | '/(authenticated)/seasons/$seasonId/'
     | '/(authenticated)/seasons/$seasonId/playoffs_/build'
@@ -439,6 +464,7 @@ export interface RootRouteChildren {
   ApiPlayoffEventPdfRoute: typeof ApiPlayoffEventPdfRoute
   ApiTeamPdfRoute: typeof ApiTeamPdfRoute
   ApiUploadImageRoute: typeof ApiUploadImageRoute
+  ApiChatRoute: typeof ApiChatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
 }
@@ -478,6 +504,13 @@ declare module '@tanstack/react-router' {
       path: '/api/upload-image'
       fullPath: '/api/upload-image'
       preLoaderRoute: typeof ApiUploadImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/team-pdf': {
@@ -634,6 +667,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authenticatedSeasonsSeasonIdSettingsRouteImport
       parentRoute: typeof authenticatedSeasonsSeasonIdRouteRoute
     }
+    '/(authenticated)/seasons/$seasonId/chat': {
+      id: '/(authenticated)/seasons/$seasonId/chat'
+      path: '/chat'
+      fullPath: '/seasons/$seasonId/chat'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdChatRouteImport
+      parentRoute: typeof authenticatedSeasonsSeasonIdRouteRoute
+    }
     '/(authenticated)/seasons/$seasonId/scorecard': {
       id: '/(authenticated)/seasons/$seasonId/scorecard'
       path: '/scorecard'
@@ -721,6 +761,7 @@ interface authenticatedSeasonsSeasonIdRouteRouteChildren {
   authenticatedSeasonsSeasonIdPlayoffsRoute: typeof authenticatedSeasonsSeasonIdPlayoffsRoute
   authenticatedSeasonsSeasonIdScorecardRoute: typeof authenticatedSeasonsSeasonIdScorecardRoute
   authenticatedSeasonsSeasonIdSettingsRoute: typeof authenticatedSeasonsSeasonIdSettingsRoute
+  authenticatedSeasonsSeasonIdChatRoute: typeof authenticatedSeasonsSeasonIdChatRoute
   authenticatedSeasonsSeasonIdTeamsRoute: typeof authenticatedSeasonsSeasonIdTeamsRoute
   authenticatedSeasonsSeasonIdIndexRoute: typeof authenticatedSeasonsSeasonIdIndexRoute
   authenticatedSeasonsSeasonIdPlayoffsBuildRoute: typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
@@ -741,6 +782,8 @@ const authenticatedSeasonsSeasonIdRouteRouteChildren: authenticatedSeasonsSeason
       authenticatedSeasonsSeasonIdScorecardRoute,
     authenticatedSeasonsSeasonIdSettingsRoute:
       authenticatedSeasonsSeasonIdSettingsRoute,
+    authenticatedSeasonsSeasonIdChatRoute:
+      authenticatedSeasonsSeasonIdChatRoute,
     authenticatedSeasonsSeasonIdTeamsRoute:
       authenticatedSeasonsSeasonIdTeamsRoute,
     authenticatedSeasonsSeasonIdIndexRoute:
@@ -809,6 +852,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlayoffEventPdfRoute: ApiPlayoffEventPdfRoute,
   ApiTeamPdfRoute: ApiTeamPdfRoute,
   ApiUploadImageRoute: ApiUploadImageRoute,
+  ApiChatRoute: ApiChatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
 }

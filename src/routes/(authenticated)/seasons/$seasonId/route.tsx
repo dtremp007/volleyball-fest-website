@@ -38,6 +38,7 @@ const seasonLinks = [
   { label: "Teams", to: "/seasons/$seasonId/teams" },
   { label: "Scorecard", to: "/seasons/$seasonId/scorecard" },
   { label: "Schedule Builder", to: "/seasons/$seasonId/build" },
+  { label: "Assistant", to: "/seasons/$seasonId/chat" },
   { label: "Playoffs", to: "/seasons/$seasonId/playoffs" },
   {
     label: "Playoffs Scorecard",
@@ -50,6 +51,7 @@ const breadcrumbSegmentLabels: Record<string, string> = {
   teams: "Teams",
   scorecard: "Scorecard",
   build: "Builder",
+  chat: "Assistant",
   playoffs: "Playoffs",
   configure: "Configure Groups",
   generate: "Generate Matchups",
