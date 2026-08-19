@@ -15,6 +15,9 @@ describe("season navigation", () => {
     expect(
       getSeasonSwitchTarget("/seasons/current/playoffs/scorecard", "current", "next"),
     ).toBe("/seasons/next/playoffs/scorecard");
+    expect(getSeasonSwitchTarget("/seasons/current/chat", "current", "next")).toBe(
+      "/seasons/next/chat",
+    );
   });
 
   it("falls back to overview for an unknown season section", () => {

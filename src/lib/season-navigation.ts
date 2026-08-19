@@ -11,6 +11,7 @@ const supportedSeasonSuffixes = new Set([
   "/playoffs/build",
   "/playoffs/scorecard",
   "/settings",
+  "/chat",
 ]);
 
 export function getSeasonSwitchTarget(
