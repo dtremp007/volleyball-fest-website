@@ -20,22 +20,26 @@ import {
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId")({
   component: SeasonLayout,
   loader: async ({ context, params }) => {
-    const season = await context.queryClient.fetchQuery(
-      context.trpc.season.getById.queryOptions({ id: params.seasonId }),
-    );
+    const [season, categories] = await Promise.all([
+      context.queryClient.fetchQuery(
+        context.trpc.season.getById.queryOptions({ id: params.seasonId }),
+      ),
+      context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
+    ]);
     if (!season) {
       throw redirect({
         to: "/seasons",
         search: { notice: "season-not-found" },
       });
     }
-    return { season };
+    return { season, categories };
   },
 });
 
 const seasonLinks = [
-  { label: "Overview", to: "/seasons/$seasonId" },
+  { label: "Overview", to: "/seasons/$seasonId", exact: true },
   { label: "Teams", to: "/seasons/$seasonId/teams" },
+  { label: "Configure", to: "/seasons/$seasonId/configure", exact: false },
   { label: "Scorecard", to: "/seasons/$seasonId/scorecard" },
   { label: "Schedule Builder", to: "/seasons/$seasonId/build" },
   { label: "Playoffs", to: "/seasons/$seasonId/playoffs" },
@@ -58,6 +62,7 @@ const breadcrumbSegmentLabels: Record<string, string> = {
 
 function SeasonLayout() {
   const { seasonId } = Route.useParams();
+  const { categories } = Route.useLoaderData();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const seasonBasePath = `/seasons/${seasonId}`;
   const breadcrumbSegments = pathname
@@ -65,12 +70,15 @@ function SeasonLayout() {
     .split("/")
     .filter(Boolean);
   const isOverview = breadcrumbSegments.length === 0;
+  const categoryNameById = new Map(
+    categories.map((category) => [category.id, category.name]),
+  );
   const breadcrumbs = breadcrumbSegments.map((segment, index) => {
     const href = `${seasonBasePath}/${breadcrumbSegments.slice(0, index + 1).join("/")}`;
 
     return {
       href,
-      label: breadcrumbSegmentLabels[segment] ?? segment,
+      label: breadcrumbSegmentLabels[segment] ?? categoryNameById.get(segment) ?? segment,
     };
   });
 

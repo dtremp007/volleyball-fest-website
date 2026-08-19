@@ -13,6 +13,10 @@ const supportedSeasonSuffixes = new Set([
   "/settings",
 ]);
 
+function isSupportedSeasonSuffix(suffix: string) {
+  return supportedSeasonSuffixes.has(suffix) || suffix.startsWith("/configure/");
+}
+
 export function getSeasonSwitchTarget(
   pathname: string,
   currentSeasonId: string,
@@ -20,7 +24,7 @@ export function getSeasonSwitchTarget(
 ) {
   const prefix = `/seasons/${currentSeasonId}`;
   const suffix = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
-  const safeSuffix = supportedSeasonSuffixes.has(suffix) ? suffix : "";
+  const safeSuffix = isSupportedSeasonSuffix(suffix) ? suffix : "";
   return `/seasons/${targetSeasonId}${safeSuffix}`;
 }
 

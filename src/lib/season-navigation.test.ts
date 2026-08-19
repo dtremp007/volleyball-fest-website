@@ -13,8 +13,8 @@ describe("season navigation", () => {
       "/seasons/next/teams",
     );
     expect(
-      getSeasonSwitchTarget("/seasons/current/playoffs/scorecard", "current", "next"),
-    ).toBe("/seasons/next/playoffs/scorecard");
+      getSeasonSwitchTarget("/seasons/current/configure/category-1", "current", "next"),
+    ).toBe("/seasons/next/configure/category-1");
   });
 
   it("falls back to overview for an unknown season section", () => {

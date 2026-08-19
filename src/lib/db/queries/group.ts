@@ -13,6 +13,7 @@ export async function getGroupsBySeason(db: Database, seasonId: string) {
       name: schema.group.name,
       seasonId: schema.group.seasonId,
       categoryId: schema.group.categoryId,
+      gamesPerTeam: schema.group.gamesPerTeam,
     })
     .from(schema.group)
     .where(eq(schema.group.seasonId, seasonId))
@@ -33,6 +34,7 @@ export async function getGroupsBySeasonAndCategory(
       name: schema.group.name,
       seasonId: schema.group.seasonId,
       categoryId: schema.group.categoryId,
+      gamesPerTeam: schema.group.gamesPerTeam,
     })
     .from(schema.group)
     .where(
@@ -46,11 +48,23 @@ export async function getGroupsBySeasonAndCategory(
  */
 export async function createGroup(
   db: Database,
-  params: { seasonId: string; categoryId: string; name: string },
+  params: {
+    seasonId: string;
+    categoryId: string;
+    name: string;
+    gamesPerTeam?: number;
+  },
 ) {
   const id = uuidv4();
-  await db.insert(schema.group).values({ id, ...params });
-  return { id, ...params };
+  const gamesPerTeam = params.gamesPerTeam ?? 0;
+  await db.insert(schema.group).values({
+    id,
+    seasonId: params.seasonId,
+    categoryId: params.categoryId,
+    name: params.name,
+    gamesPerTeam,
+  });
+  return { id, ...params, gamesPerTeam };
 }
 
 /**

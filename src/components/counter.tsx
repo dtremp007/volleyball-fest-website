@@ -9,17 +9,24 @@ type CounterProps = {
   max: number;
   min: number;
   disabled?: boolean;
+  getNext?: (current: number) => number;
+  getPrev?: (current: number) => number;
 };
 
 export function Counter(input: CounterProps) {
+  const nextValue = input.getNext
+    ? input.getNext(input.value)
+    : Math.min(input.value + 1, input.max);
+  const prevValue = input.getPrev
+    ? input.getPrev(input.value)
+    : Math.max(input.value - 1, input.min);
+
   const handleIncrement = () => {
-    const newValue = Math.min(input.value + 1, input.max);
-    input.onChange(newValue);
+    input.onChange(nextValue);
   };
 
   const handleDecrement = () => {
-    const newValue = Math.max(input.value - 1, input.min);
-    input.onChange(newValue);
+    input.onChange(prevValue);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +44,7 @@ export function Counter(input: CounterProps) {
         <button
           className="border-border rounded-full border p-2 active:translate-y-px disabled:opacity-50"
           onClick={handleDecrement}
-          disabled={input.disabled || input.value <= input.min}
+          disabled={input.disabled || prevValue === input.value}
           tabIndex={-1}
           type="button"
         >
@@ -58,7 +65,7 @@ export function Counter(input: CounterProps) {
         <button
           className="border-border rounded-full border p-2 active:translate-y-px disabled:opacity-50"
           onClick={handleIncrement}
-          disabled={input.disabled || input.value >= input.max}
+          disabled={input.disabled || nextValue === input.value}
           tabIndex={-1}
           type="button"
         >

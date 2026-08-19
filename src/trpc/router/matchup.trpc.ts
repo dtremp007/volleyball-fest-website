@@ -1,19 +1,20 @@
-import type { TRPCRouterRecord } from "@trpc/server";
+import { TRPCError, type TRPCRouterRecord } from "@trpc/server";
 import { format } from "date-fns";
 import { z } from "zod";
 import { db } from "~/lib/db";
 import { getPublicUnifiedSchedule } from "~/lib/db/queries/public-schedule";
 import {
   autoScheduleMatchups,
+  CategoryHasScoresError,
   clearMatchupPlacementsForSeason,
-  configureGroupsAndGenerateMatchups,
+  configureCategoryGroupsAndGenerateMatchups,
   createEvent,
   deleteEvent,
   deleteMatchupsForSeason,
   generateMatchupsForSeason,
   getEventMatchupsWithScores,
-  getEventWithMatchupsById,
   getEventsBySeasonId,
+  getEventWithMatchupsById,
   getMatchupsBySeasonId,
   getPublicSchedule,
   getStandingsBySeasonId,
@@ -30,7 +31,7 @@ import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state"
 import { combineDateAndTime } from "~/lib/schedule/slot-times";
 import { getScheduleTemplateForDate } from "~/lib/schedule/weekday-templates";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
-import { meetingsPerPairSchema } from "~/validators/category.validators";
+import { generateCategoryGroupsSchema } from "~/validators/group.validators";
 import { partialSchedulingWeightsSchema } from "~/validators/scheduling.validators";
 
 export const matchupRouter = {
@@ -169,35 +170,29 @@ export const matchupRouter = {
     }),
 
   /**
-   * One-shot: Configure groups and generate matchups
-   * Takes all group configurations and team assignments, persists everything,
-   * and generates round-robin matchups in a single operation
+   * Configure groups and generate matchups for a single category.
+   * Replaces only that category's groups and matchups.
    */
-  generateWithGroups: protectedProcedure
-    .input(
-      z.object({
-        seasonId: z.string(),
-        categoryConfigs: z.array(
-          z.object({
-            categoryId: z.string(),
-            meetingsPerPair: meetingsPerPairSchema.default(1),
-            groups: z.array(
-              z.object({
-                name: z.string(),
-                teamIds: z.array(z.string()),
-              }),
-            ),
-          }),
-        ),
-      }),
-    )
+  generateForCategory: protectedProcedure
+    .input(generateCategoryGroupsSchema)
     .mutation(async ({ input }) => {
-      const result = await configureGroupsAndGenerateMatchups(
-        db,
-        input.seasonId,
-        input.categoryConfigs,
-      );
-      return result;
+      try {
+        return await configureCategoryGroupsAndGenerateMatchups(db, input);
+      } catch (error) {
+        if (error instanceof CategoryHasScoresError) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: error.message,
+          });
+        }
+        if (error instanceof Error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: error.message,
+          });
+        }
+        throw error;
+      }
     }),
 
   /**

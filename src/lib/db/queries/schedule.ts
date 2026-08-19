@@ -2,10 +2,14 @@ import { startOfDay, subDays } from "date-fns";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
-import { getCategories, updateCategory } from "~/lib/db/queries/category";
+import { getCategories } from "~/lib/db/queries/category";
 import type { ConstraintValidationContext } from "~/lib/db/queries/schedule-algorithm";
 import * as schema from "~/lib/db/schema";
-import { generateRoundRobinPairs } from "~/lib/schedule/round-robin";
+import {
+  clampGamesPerTeam,
+  resolveStoredGamesPerTeam,
+} from "~/lib/schedule/games-per-team";
+import { generatePairsForGamesPerTeam } from "~/lib/schedule/round-robin";
 import {
   buildGamesPerEveningByEventId,
   SATURDAY_SCHEDULE_TEMPLATE,
@@ -386,9 +390,11 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
       category: schema.category.name,
       meetingsPerPair: schema.category.meetingsPerPair,
       groupId: schema.seasonTeam.groupId,
+      gamesPerTeam: schema.group.gamesPerTeam,
     })
     .from(schema.seasonTeam)
     .innerJoin(schema.category, eq(schema.seasonTeam.categoryId, schema.category.id))
+    .leftJoin(schema.group, eq(schema.seasonTeam.groupId, schema.group.id))
     .where(eq(schema.seasonTeam.seasonId, seasonId));
 
   // Group teams by category and then by group
@@ -408,7 +414,7 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
     {} as Record<string, Record<string, typeof teams>>,
   );
 
-  // Generate round-robin matchups for each category-group combination
+  // Generate k-regular matchups for each category-group combination
   const matchupsToInsert: {
     id: string;
     teamAId: string;
@@ -421,10 +427,14 @@ export async function generateMatchupsForSeason(db: Database, seasonId: string) 
       // Only generate matchups if there are at least 2 teams in the group
       if (groupTeams.length < 2) continue;
 
-      const meetingsPerPair = groupTeams[0]?.meetingsPerPair ?? 1;
-      for (const pair of generateRoundRobinPairs(
+      const gamesPerTeam = resolveStoredGamesPerTeam(
+        groupTeams.length,
+        groupTeams[0]?.gamesPerTeam,
+        groupTeams[0]?.meetingsPerPair ?? 1,
+      );
+      for (const pair of generatePairsForGamesPerTeam(
         groupTeams.map((team) => team.id),
-        meetingsPerPair,
+        gamesPerTeam,
       )) {
         matchupsToInsert.push({
           id: uuidv4(),
@@ -718,39 +728,120 @@ export async function saveSchedule(db: Database, data: ScheduleData) {
 
 // ============== Configure Groups & Generate Matchups ==============
 
-type GroupConfig = {
-  categoryId: string;
-  meetingsPerPair?: number;
-  groups: Array<{
-    name: string;
-    teamIds: string[];
-  }>;
+export class CategoryHasScoresError extends Error {
+  constructor() {
+    super(
+      "Cannot regenerate matchups for this category because some games already have scores.",
+    );
+    this.name = "CategoryHasScoresError";
+  }
+}
+
+export type CategoryGroupConfig = {
+  name: string;
+  teamIds: string[];
+  gamesPerTeam: number;
 };
 
-/**
- * One-shot function to configure groups and generate matchups
- * 1. Deletes existing groups and matchups for the season
- * 2. Creates new groups with team assignments
- * 3. Generates round-robin matchups per group (meetingsPerPair times per pair)
- */
-export async function configureGroupsAndGenerateMatchups(
+async function getMatchupIdsForSeasonCategory(
   db: Database,
   seasonId: string,
-  categoryConfigs: GroupConfig[],
+  categoryId: string,
 ) {
-  // Delete existing matchups for this season
-  await db.delete(schema.matchup).where(eq(schema.matchup.seasonId, seasonId));
+  const rows = await db
+    .select({ id: schema.matchup.id })
+    .from(schema.matchup)
+    .innerJoin(
+      schema.seasonTeam,
+      and(
+        eq(schema.matchup.teamAId, schema.seasonTeam.teamId),
+        eq(schema.matchup.seasonId, schema.seasonTeam.seasonId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.matchup.seasonId, seasonId),
+        eq(schema.seasonTeam.categoryId, categoryId),
+      ),
+    );
+  return rows.map((row) => row.id);
+}
 
-  // Delete existing groups for this season
-  await db.delete(schema.group).where(eq(schema.group.seasonId, seasonId));
+/**
+ * Configure groups and generate matchups for a single category.
+ * 1. Blocks if this category already has scored matchups
+ * 2. Deletes existing matchups and groups for this category only
+ * 3. Creates new groups with team assignments and gamesPerTeam
+ * 4. Generates a k-regular pairing per group
+ */
+export async function configureCategoryGroupsAndGenerateMatchups(
+  db: Database,
+  params: {
+    seasonId: string;
+    categoryId: string;
+    groups: CategoryGroupConfig[];
+  },
+) {
+  const { seasonId, categoryId, groups } = params;
 
-  // Clear all team group assignments for this season
+  const categoryTeams = await db
+    .select({ teamId: schema.seasonTeam.teamId })
+    .from(schema.seasonTeam)
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, seasonId),
+        eq(schema.seasonTeam.categoryId, categoryId),
+      ),
+    );
+  const categoryTeamIds = new Set(categoryTeams.map((team) => team.teamId));
+  const assignedTeamIds = new Set<string>();
+
+  for (const groupConfig of groups) {
+    for (const teamId of groupConfig.teamIds) {
+      if (!categoryTeamIds.has(teamId)) {
+        throw new Error("Teams must belong to this category in the current season.");
+      }
+      if (assignedTeamIds.has(teamId)) {
+        throw new Error("A team cannot be assigned to more than one group.");
+      }
+      assignedTeamIds.add(teamId);
+    }
+  }
+
+  const existingMatchupIds = await getMatchupIdsForSeasonCategory(
+    db,
+    seasonId,
+    categoryId,
+  );
+  if (existingMatchupIds.length > 0) {
+    const scored = await db
+      .select({ matchupId: schema.points.matchupId })
+      .from(schema.points)
+      .where(inArray(schema.points.matchupId, existingMatchupIds))
+      .limit(1);
+    if (scored.length > 0) {
+      throw new CategoryHasScoresError();
+    }
+
+    await db.delete(schema.matchup).where(inArray(schema.matchup.id, existingMatchupIds));
+  }
+
   await db
     .update(schema.seasonTeam)
     .set({ groupId: null })
-    .where(eq(schema.seasonTeam.seasonId, seasonId));
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, seasonId),
+        eq(schema.seasonTeam.categoryId, categoryId),
+      ),
+    );
 
-  // Create groups and assign teams
+  await db
+    .delete(schema.group)
+    .where(
+      and(eq(schema.group.seasonId, seasonId), eq(schema.group.categoryId, categoryId)),
+    );
+
   const matchupsToInsert: Array<{
     id: string;
     teamAId: string;
@@ -758,49 +849,47 @@ export async function configureGroupsAndGenerateMatchups(
     seasonId: string;
   }> = [];
 
-  for (const categoryConfig of categoryConfigs) {
-    const meetingsPerPair = categoryConfig.meetingsPerPair ?? 1;
-    await updateCategory(db, categoryConfig.categoryId, { meetingsPerPair });
+  for (const groupConfig of groups) {
+    const gamesPerTeam = clampGamesPerTeam(
+      groupConfig.teamIds.length,
+      groupConfig.gamesPerTeam,
+    );
+    const groupId = uuidv4();
+    await db.insert(schema.group).values({
+      id: groupId,
+      name: groupConfig.name,
+      seasonId,
+      categoryId,
+      gamesPerTeam,
+    });
 
-    for (const groupConfig of categoryConfig.groups) {
-      // Create the group
-      const groupId = uuidv4();
-      await db.insert(schema.group).values({
-        id: groupId,
-        name: groupConfig.name,
-        seasonId,
-        categoryId: categoryConfig.categoryId,
-      });
+    for (const teamId of groupConfig.teamIds) {
+      await db
+        .update(schema.seasonTeam)
+        .set({ groupId })
+        .where(
+          and(
+            eq(schema.seasonTeam.seasonId, seasonId),
+            eq(schema.seasonTeam.teamId, teamId),
+          ),
+        );
+    }
 
-      // Assign teams to this group
-      for (const teamId of groupConfig.teamIds) {
-        await db
-          .update(schema.seasonTeam)
-          .set({ groupId })
-          .where(
-            and(
-              eq(schema.seasonTeam.seasonId, seasonId),
-              eq(schema.seasonTeam.teamId, teamId),
-            ),
-          );
-      }
-
-      // Generate round-robin matchups for this group
-      const teamIds = groupConfig.teamIds;
-      if (teamIds.length >= 2) {
-        for (const pair of generateRoundRobinPairs(teamIds, meetingsPerPair)) {
-          matchupsToInsert.push({
-            id: uuidv4(),
-            teamAId: pair.teamAId,
-            teamBId: pair.teamBId,
-            seasonId,
-          });
-        }
+    if (groupConfig.teamIds.length >= 2) {
+      for (const pair of generatePairsForGamesPerTeam(
+        groupConfig.teamIds,
+        gamesPerTeam,
+      )) {
+        matchupsToInsert.push({
+          id: uuidv4(),
+          teamAId: pair.teamAId,
+          teamBId: pair.teamBId,
+          seasonId,
+        });
       }
     }
   }
 
-  // Bulk insert matchups
   if (matchupsToInsert.length > 0) {
     await db.insert(schema.matchup).values(matchupsToInsert);
   }

@@ -92,6 +92,13 @@
       "when": 1786829000000,
       "tag": "0012_category_meetings_per_pair",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1786900000000,
+      "tag": "0013_group_games_per_team",
+      "breakpoints": true
     }
   ]
 }

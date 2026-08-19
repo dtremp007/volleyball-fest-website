@@ -47,6 +47,7 @@ export const group = sqliteTable("team_group", {
   categoryId: text("category_id")
     .notNull()
     .references(() => category.id, { onDelete: "cascade" }),
+  gamesPerTeam: integer("games_per_team").notNull().default(0),
 });
 
 export const seasonTeam = sqliteTable(
