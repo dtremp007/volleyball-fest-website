@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays } from "lucide-react";
 import { Suspense } from "react";
 import z from "zod";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,11 +30,25 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
     matchupId: z.string().optional(),
   }),
   loader: async ({ params, context }) => {
-    const season = await context.queryClient.fetchQuery(
-      context.trpc.season.getById.queryOptions({ id: params.seasonId }),
-    );
+    const [season, categories, teams, matchupsData] = await Promise.all([
+      context.queryClient.fetchQuery(
+        context.trpc.season.getById.queryOptions({ id: params.seasonId }),
+      ),
+      context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),
+      context.queryClient.fetchQuery(
+        context.trpc.team.list.queryOptions({ seasonId: params.seasonId }),
+      ),
+      context.queryClient.fetchQuery(
+        context.trpc.matchup.getBySeasonId.queryOptions({ seasonId: params.seasonId }),
+      ),
+    ]);
 
-    return { season };
+    return {
+      season,
+      categories,
+      teams,
+      matchups: matchupsData.matchups,
+    };
   },
 });
 
@@ -65,7 +80,18 @@ function SeasonOverviewPage() {
   const { seasonId } = Route.useParams();
   const navigate = Route.useNavigate();
   const { view = "events" } = Route.useSearch();
-  const { season } = Route.useLoaderData();
+  const { season, categories, teams, matchups } = Route.useLoaderData();
+
+  const teamCategoryById = new Map(teams.map((team) => [team.id, team.category.id]));
+  const matchupsByCategoryId = new Map<string, number>();
+  for (const matchup of matchups) {
+    const categoryId = teamCategoryById.get(matchup.teamA.id);
+    if (!categoryId) continue;
+    matchupsByCategoryId.set(categoryId, (matchupsByCategoryId.get(categoryId) ?? 0) + 1);
+  }
+  const categoriesWithTeams = categories.filter((category) =>
+    teams.some((team) => team.category.id === category.id),
+  );
 
   const handleViewChange = (nextView: string) => {
     if (nextView !== "events" && nextView !== "playoffs") return;
@@ -122,6 +148,45 @@ function SeasonOverviewPage() {
           )}
         </CardContent>
       </Card>
+
+      {categoriesWithTeams.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Matchups</CardTitle>
+            <CardDescription>
+              View and edit generated pairings for each category
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-border divide-y">
+              {categoriesWithTeams.map((category) => {
+                const matchupCount = matchupsByCategoryId.get(category.id) ?? 0;
+                return (
+                  <li
+                    key={category.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div>
+                      <p className="font-medium">{category.name}</p>
+                      <p className="text-muted-foreground text-sm">
+                        {matchupCount} matchup{matchupCount !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <Button asChild variant="outline" size="sm">
+                      <Link
+                        to="/seasons/$seasonId/configure/$categoryId/matchups"
+                        params={{ seasonId, categoryId: category.id }}
+                      >
+                        View matchups
+                      </Link>
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <EventDetailsDrawer seasonId={seasonId} />
       <PlayoffEventDetailsDrawer />

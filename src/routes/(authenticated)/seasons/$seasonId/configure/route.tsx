@@ -23,7 +23,14 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/configu
       ),
     ]);
 
-    return { categories, teams, season, groups, matchups: matchupsData.matchups };
+    return {
+      categories,
+      teams,
+      season,
+      groups,
+      matchups: matchupsData.matchups,
+      events: matchupsData.events,
+    };
   },
 });
 
@@ -48,38 +55,47 @@ function ConfigureLayout() {
         </p>
       </div>
 
-      <nav className="mb-6 flex flex-wrap gap-2 border-b pb-px">
-        <Link
-          to="/seasons/$seasonId/configure"
-          params={{ seasonId }}
-          activeOptions={{ exact: true }}
-          className={cn(
-            "text-muted-foreground hover:text-foreground -mb-px border-b-2 px-3 py-2 text-sm font-medium",
-            pathname === overviewPath
-              ? "border-primary text-foreground"
-              : "border-transparent",
-          )}
+      <div className="scrollbar-none mb-6 max-w-full overflow-x-auto">
+        <nav
+          className="bg-muted inline-flex h-9 items-center rounded-lg p-1"
+          aria-label="Configure category"
         >
-          Overview
-        </Link>
-        {categoriesWithTeams.map((category) => {
-          const href = `/seasons/${seasonId}/configure/${category.id}`;
-          const isActive = pathname === href;
-          return (
-            <Link
-              key={category.id}
-              to="/seasons/$seasonId/configure/$categoryId"
-              params={{ seasonId, categoryId: category.id }}
-              className={cn(
-                "text-muted-foreground hover:text-foreground -mb-px border-b-2 px-3 py-2 text-sm font-medium",
-                isActive ? "border-primary text-foreground" : "border-transparent",
-              )}
-            >
-              {category.name}
-            </Link>
-          );
-        })}
-      </nav>
+          <Link
+            to="/seasons/$seasonId/configure"
+            params={{ seasonId }}
+            activeOptions={{ exact: true }}
+            className={cn(
+              "inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
+              "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              pathname === overviewPath
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Overview
+          </Link>
+          {categoriesWithTeams.map((category) => {
+            const href = `/seasons/${seasonId}/configure/${category.id}`;
+            const isActive = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <Link
+                key={category.id}
+                to="/seasons/$seasonId/configure/$categoryId"
+                params={{ seasonId, categoryId: category.id }}
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
+                  "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                  isActive
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {category.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
       <Outlet />
     </div>

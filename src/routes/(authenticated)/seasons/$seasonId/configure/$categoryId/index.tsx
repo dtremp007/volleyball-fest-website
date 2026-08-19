@@ -7,7 +7,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -39,23 +39,12 @@ import {
 } from "~/components/ui/card";
 import { useTRPC } from "~/trpc/react";
 import { GROUP_COUNT_MAX, GROUP_COUNT_MIN } from "~/validators/group.validators";
-import { Route as ConfigureLayoutRoute } from "./route";
+import { Route as ConfigureLayoutRoute } from "../route";
 
 export const Route = createFileRoute(
-  "/(authenticated)/seasons/$seasonId/configure/$categoryId",
+  "/(authenticated)/seasons/$seasonId/configure/$categoryId/",
 )({
   component: ConfigureCategoryPage,
-  loader: async ({ params, context }) => {
-    const categories = await context.queryClient.fetchQuery(
-      context.trpc.category.getAll.queryOptions(),
-    );
-    if (!categories.some((category) => category.id === params.categoryId)) {
-      throw redirect({
-        to: "/seasons/$seasonId/configure",
-        params: { seasonId: params.seasonId },
-      });
-    }
-  },
 });
 
 function ConfigureCategoryPage() {

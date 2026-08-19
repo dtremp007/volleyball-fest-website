@@ -44,7 +44,9 @@ import { Route as authenticatedSeasonsSeasonIdConfigureRouteRouteImport } from '
 import { Route as authenticatedSeasonsSeasonIdConfigureIndexRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure/index'
 import { Route as authenticatedSeasonsSeasonIdPlayoffsScorecardRouteImport } from './routes/(authenticated)/seasons/$seasonId/playoffs_.scorecard'
 import { Route as authenticatedSeasonsSeasonIdPlayoffsBuildRouteImport } from './routes/(authenticated)/seasons/$seasonId/playoffs_.build'
-import { Route as authenticatedSeasonsSeasonIdConfigureCategoryIdRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure/$categoryId'
+import { Route as authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure/$categoryId/route'
+import { Route as authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure/$categoryId/index'
+import { Route as authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRouteImport } from './routes/(authenticated)/seasons/$seasonId/configure/$categoryId/matchups'
 
 const publicRouteRoute = publicRouteRouteImport.update({
   id: '/(public)',
@@ -234,11 +236,25 @@ const authenticatedSeasonsSeasonIdPlayoffsBuildRoute =
     path: '/playoffs/build',
     getParentRoute: () => authenticatedSeasonsSeasonIdRouteRoute,
   } as any)
-const authenticatedSeasonsSeasonIdConfigureCategoryIdRoute =
-  authenticatedSeasonsSeasonIdConfigureCategoryIdRouteImport.update({
+const authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute =
+  authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteImport.update({
     id: '/$categoryId',
     path: '/$categoryId',
     getParentRoute: () => authenticatedSeasonsSeasonIdConfigureRouteRoute,
+  } as any)
+const authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute =
+  authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () =>
+      authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute,
+  } as any)
+const authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute =
+  authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRouteImport.update({
+    id: '/matchups',
+    path: '/matchups',
+    getParentRoute: () =>
+      authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -271,10 +287,12 @@ export interface FileRoutesByFullPath {
   '/seasons/$seasonId/settings': typeof authenticatedSeasonsSeasonIdSettingsRoute
   '/seasons/$seasonId/teams': typeof authenticatedSeasonsSeasonIdTeamsRoute
   '/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
-  '/seasons/$seasonId/configure/$categoryId': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRoute
+  '/seasons/$seasonId/configure/$categoryId': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteWithChildren
   '/seasons/$seasonId/playoffs/build': typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
   '/seasons/$seasonId/playoffs/scorecard': typeof authenticatedSeasonsSeasonIdPlayoffsScorecardRoute
   '/seasons/$seasonId/configure/': typeof authenticatedSeasonsSeasonIdConfigureIndexRoute
+  '/seasons/$seasonId/configure/$categoryId/matchups': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute
+  '/seasons/$seasonId/configure/$categoryId/': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof authPagesLoginRoute
@@ -303,10 +321,11 @@ export interface FileRoutesByTo {
   '/seasons/$seasonId/settings': typeof authenticatedSeasonsSeasonIdSettingsRoute
   '/seasons/$seasonId/teams': typeof authenticatedSeasonsSeasonIdTeamsRoute
   '/seasons/$seasonId': typeof authenticatedSeasonsSeasonIdIndexRoute
-  '/seasons/$seasonId/configure/$categoryId': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRoute
   '/seasons/$seasonId/playoffs/build': typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
   '/seasons/$seasonId/playoffs/scorecard': typeof authenticatedSeasonsSeasonIdPlayoffsScorecardRoute
   '/seasons/$seasonId/configure': typeof authenticatedSeasonsSeasonIdConfigureIndexRoute
+  '/seasons/$seasonId/configure/$categoryId/matchups': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute
+  '/seasons/$seasonId/configure/$categoryId': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -342,10 +361,12 @@ export interface FileRoutesById {
   '/(authenticated)/seasons/$seasonId/settings': typeof authenticatedSeasonsSeasonIdSettingsRoute
   '/(authenticated)/seasons/$seasonId/teams': typeof authenticatedSeasonsSeasonIdTeamsRoute
   '/(authenticated)/seasons/$seasonId/': typeof authenticatedSeasonsSeasonIdIndexRoute
-  '/(authenticated)/seasons/$seasonId/configure/$categoryId': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRoute
+  '/(authenticated)/seasons/$seasonId/configure/$categoryId': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteWithChildren
   '/(authenticated)/seasons/$seasonId/playoffs_/build': typeof authenticatedSeasonsSeasonIdPlayoffsBuildRoute
   '/(authenticated)/seasons/$seasonId/playoffs_/scorecard': typeof authenticatedSeasonsSeasonIdPlayoffsScorecardRoute
   '/(authenticated)/seasons/$seasonId/configure/': typeof authenticatedSeasonsSeasonIdConfigureIndexRoute
+  '/(authenticated)/seasons/$seasonId/configure/$categoryId/matchups': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute
+  '/(authenticated)/seasons/$seasonId/configure/$categoryId/': typeof authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -383,6 +404,8 @@ export interface FileRouteTypes {
     | '/seasons/$seasonId/playoffs/build'
     | '/seasons/$seasonId/playoffs/scorecard'
     | '/seasons/$seasonId/configure/'
+    | '/seasons/$seasonId/configure/$categoryId/matchups'
+    | '/seasons/$seasonId/configure/$categoryId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -411,10 +434,11 @@ export interface FileRouteTypes {
     | '/seasons/$seasonId/settings'
     | '/seasons/$seasonId/teams'
     | '/seasons/$seasonId'
-    | '/seasons/$seasonId/configure/$categoryId'
     | '/seasons/$seasonId/playoffs/build'
     | '/seasons/$seasonId/playoffs/scorecard'
     | '/seasons/$seasonId/configure'
+    | '/seasons/$seasonId/configure/$categoryId/matchups'
+    | '/seasons/$seasonId/configure/$categoryId'
   id:
     | '__root__'
     | '/(auth-pages)'
@@ -453,6 +477,8 @@ export interface FileRouteTypes {
     | '/(authenticated)/seasons/$seasonId/playoffs_/build'
     | '/(authenticated)/seasons/$seasonId/playoffs_/scorecard'
     | '/(authenticated)/seasons/$seasonId/configure/'
+    | '/(authenticated)/seasons/$seasonId/configure/$categoryId/matchups'
+    | '/(authenticated)/seasons/$seasonId/configure/$categoryId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -718,8 +744,22 @@ declare module '@tanstack/react-router' {
       id: '/(authenticated)/seasons/$seasonId/configure/$categoryId'
       path: '/$categoryId'
       fullPath: '/seasons/$seasonId/configure/$categoryId'
-      preLoaderRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteImport
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteImport
       parentRoute: typeof authenticatedSeasonsSeasonIdConfigureRouteRoute
+    }
+    '/(authenticated)/seasons/$seasonId/configure/$categoryId/': {
+      id: '/(authenticated)/seasons/$seasonId/configure/$categoryId/'
+      path: '/'
+      fullPath: '/seasons/$seasonId/configure/$categoryId/'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRouteImport
+      parentRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute
+    }
+    '/(authenticated)/seasons/$seasonId/configure/$categoryId/matchups': {
+      id: '/(authenticated)/seasons/$seasonId/configure/$categoryId/matchups'
+      path: '/matchups'
+      fullPath: '/seasons/$seasonId/configure/$categoryId/matchups'
+      preLoaderRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRouteImport
+      parentRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute
     }
   }
 }
@@ -752,15 +792,33 @@ const authenticatedDashboardRouteRouteWithChildren =
     authenticatedDashboardRouteRouteChildren,
   )
 
+interface authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteChildren {
+  authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute
+  authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute
+}
+
+const authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteChildren: authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteChildren =
+  {
+    authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute:
+      authenticatedSeasonsSeasonIdConfigureCategoryIdMatchupsRoute,
+    authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute:
+      authenticatedSeasonsSeasonIdConfigureCategoryIdIndexRoute,
+  }
+
+const authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteWithChildren =
+  authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute._addFileChildren(
+    authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteChildren,
+  )
+
 interface authenticatedSeasonsSeasonIdConfigureRouteRouteChildren {
-  authenticatedSeasonsSeasonIdConfigureCategoryIdRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRoute
+  authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute: typeof authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteWithChildren
   authenticatedSeasonsSeasonIdConfigureIndexRoute: typeof authenticatedSeasonsSeasonIdConfigureIndexRoute
 }
 
 const authenticatedSeasonsSeasonIdConfigureRouteRouteChildren: authenticatedSeasonsSeasonIdConfigureRouteRouteChildren =
   {
-    authenticatedSeasonsSeasonIdConfigureCategoryIdRoute:
-      authenticatedSeasonsSeasonIdConfigureCategoryIdRoute,
+    authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRoute:
+      authenticatedSeasonsSeasonIdConfigureCategoryIdRouteRouteWithChildren,
     authenticatedSeasonsSeasonIdConfigureIndexRoute:
       authenticatedSeasonsSeasonIdConfigureIndexRoute,
   }

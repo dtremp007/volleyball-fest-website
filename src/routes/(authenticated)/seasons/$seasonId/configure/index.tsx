@@ -156,14 +156,26 @@ function ConfigureOverviewPage() {
                   </div>
                 </dl>
                 {categoryTeams.length > 0 && (
-                  <Button asChild variant="outline" className="w-full">
-                    <Link
-                      to="/seasons/$seasonId/configure/$categoryId"
-                      params={{ seasonId, categoryId: category.id }}
-                    >
-                      Configure {category.name}
-                    </Link>
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button asChild variant="outline" className="w-full">
+                      <Link
+                        to="/seasons/$seasonId/configure/$categoryId"
+                        params={{ seasonId, categoryId: category.id }}
+                      >
+                        Configure {category.name}
+                      </Link>
+                    </Button>
+                    {matchupCount > 0 && (
+                      <Button asChild variant="outline" className="w-full">
+                        <Link
+                          to="/seasons/$seasonId/configure/$categoryId/matchups"
+                          params={{ seasonId, categoryId: category.id }}
+                        >
+                          View matchups
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

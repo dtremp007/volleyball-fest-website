@@ -897,6 +897,144 @@ export async function configureCategoryGroupsAndGenerateMatchups(
   return { matchupsGenerated: matchupsToInsert.length };
 }
 
+export class MatchupHasScoresError extends Error {
+  constructor() {
+    super("Cannot change teams on a matchup that already has scores.");
+    this.name = "MatchupHasScoresError";
+  }
+}
+
+export class MatchupNotFoundError extends Error {
+  constructor() {
+    super("Matchup not found.");
+    this.name = "MatchupNotFoundError";
+  }
+}
+
+async function assertTeamsInSeasonCategory(
+  db: Database,
+  seasonId: string,
+  categoryId: string,
+  teamAId: string,
+  teamBId: string,
+) {
+  if (teamAId === teamBId) {
+    throw new Error("A matchup needs two different teams.");
+  }
+
+  const rows = await db
+    .select({
+      teamId: schema.seasonTeam.teamId,
+      categoryId: schema.seasonTeam.categoryId,
+    })
+    .from(schema.seasonTeam)
+    .where(
+      and(
+        eq(schema.seasonTeam.seasonId, seasonId),
+        inArray(schema.seasonTeam.teamId, [teamAId, teamBId]),
+      ),
+    );
+
+  if (rows.length !== 2) {
+    throw new Error("Both teams must be registered in this season.");
+  }
+  if (rows.some((row) => row.categoryId !== categoryId)) {
+    throw new Error("Both teams must belong to this category in the current season.");
+  }
+}
+
+export async function createMatchup(
+  db: Database,
+  params: {
+    seasonId: string;
+    categoryId: string;
+    teamAId: string;
+    teamBId: string;
+  },
+) {
+  await assertTeamsInSeasonCategory(
+    db,
+    params.seasonId,
+    params.categoryId,
+    params.teamAId,
+    params.teamBId,
+  );
+
+  const id = uuidv4();
+  await db.insert(schema.matchup).values({
+    id,
+    teamAId: params.teamAId,
+    teamBId: params.teamBId,
+    seasonId: params.seasonId,
+  });
+  return { id };
+}
+
+export async function updateMatchupTeams(
+  db: Database,
+  params: {
+    matchupId: string;
+    seasonId: string;
+    categoryId: string;
+    teamAId: string;
+    teamBId: string;
+  },
+) {
+  await assertTeamsInSeasonCategory(
+    db,
+    params.seasonId,
+    params.categoryId,
+    params.teamAId,
+    params.teamBId,
+  );
+
+  const categoryMatchupIds = await getMatchupIdsForSeasonCategory(
+    db,
+    params.seasonId,
+    params.categoryId,
+  );
+  if (!categoryMatchupIds.includes(params.matchupId)) {
+    throw new MatchupNotFoundError();
+  }
+
+  const scored = await db
+    .select({ matchupId: schema.points.matchupId })
+    .from(schema.points)
+    .where(eq(schema.points.matchupId, params.matchupId))
+    .limit(1);
+  if (scored.length > 0) {
+    throw new MatchupHasScoresError();
+  }
+
+  await db
+    .update(schema.matchup)
+    .set({ teamAId: params.teamAId, teamBId: params.teamBId })
+    .where(eq(schema.matchup.id, params.matchupId));
+
+  return { id: params.matchupId };
+}
+
+export async function deleteMatchup(
+  db: Database,
+  params: {
+    matchupId: string;
+    seasonId: string;
+    categoryId: string;
+  },
+) {
+  const categoryMatchupIds = await getMatchupIdsForSeasonCategory(
+    db,
+    params.seasonId,
+    params.categoryId,
+  );
+  if (!categoryMatchupIds.includes(params.matchupId)) {
+    throw new MatchupNotFoundError();
+  }
+
+  await db.delete(schema.matchup).where(eq(schema.matchup.id, params.matchupId));
+  return { id: params.matchupId };
+}
+
 // ============== Standings ==============
 
 export type TeamStanding = {

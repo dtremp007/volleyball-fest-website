@@ -9,7 +9,9 @@ import {
   clearMatchupPlacementsForSeason,
   configureCategoryGroupsAndGenerateMatchups,
   createEvent,
+  createMatchup,
   deleteEvent,
+  deleteMatchup,
   deleteMatchupsForSeason,
   generateMatchupsForSeason,
   getEventMatchupsWithScores,
@@ -19,9 +21,12 @@ import {
   getPublicSchedule,
   getStandingsBySeasonId,
   hasMatchupsForSeason,
+  MatchupHasScoresError,
+  MatchupNotFoundError,
   saveMatchupScorecard,
   saveSchedule,
   saveSetScore,
+  updateMatchupTeams,
 } from "~/lib/db/queries/schedule";
 import {
   resolveScheduleWeightsForSeason,
@@ -32,7 +37,34 @@ import { combineDateAndTime } from "~/lib/schedule/slot-times";
 import { getScheduleTemplateForDate } from "~/lib/schedule/weekday-templates";
 import { protectedProcedure, publicProcedure } from "~/trpc/init";
 import { generateCategoryGroupsSchema } from "~/validators/group.validators";
+import {
+  createMatchupSchema,
+  deleteMatchupSchema,
+  updateMatchupTeamsSchema,
+} from "~/validators/matchup.validators";
 import { partialSchedulingWeightsSchema } from "~/validators/scheduling.validators";
+
+function mapMatchupMutationError(error: unknown): never {
+  if (error instanceof MatchupHasScoresError || error instanceof CategoryHasScoresError) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: error.message,
+    });
+  }
+  if (error instanceof MatchupNotFoundError) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: error.message,
+    });
+  }
+  if (error instanceof Error) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: error.message,
+    });
+  }
+  throw error;
+}
 
 export const matchupRouter = {
   getStandings: publicProcedure
@@ -194,6 +226,32 @@ export const matchupRouter = {
         throw error;
       }
     }),
+
+  create: protectedProcedure.input(createMatchupSchema).mutation(async ({ input }) => {
+    try {
+      return await createMatchup(db, input);
+    } catch (error) {
+      throw mapMatchupMutationError(error);
+    }
+  }),
+
+  updateTeams: protectedProcedure
+    .input(updateMatchupTeamsSchema)
+    .mutation(async ({ input }) => {
+      try {
+        return await updateMatchupTeams(db, input);
+      } catch (error) {
+        throw mapMatchupMutationError(error);
+      }
+    }),
+
+  delete: protectedProcedure.input(deleteMatchupSchema).mutation(async ({ input }) => {
+    try {
+      return await deleteMatchup(db, input);
+    } catch (error) {
+      throw mapMatchupMutationError(error);
+    }
+  }),
 
   /**
    * Regenerate matchups (delete existing and create new)

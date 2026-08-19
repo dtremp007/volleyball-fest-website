@@ -15,6 +15,13 @@ describe("season navigation", () => {
     expect(
       getSeasonSwitchTarget("/seasons/current/configure/category-1", "current", "next"),
     ).toBe("/seasons/next/configure/category-1");
+    expect(
+      getSeasonSwitchTarget(
+        "/seasons/current/configure/category-1/matchups",
+        "current",
+        "next",
+      ),
+    ).toBe("/seasons/next/configure/category-1/matchups");
   });
 
   it("falls back to overview for an unknown season section", () => {

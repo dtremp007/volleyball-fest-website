@@ -57,6 +57,7 @@ const breadcrumbSegmentLabels: Record<string, string> = {
   playoffs: "Playoffs",
   configure: "Configure Groups",
   generate: "Generate Matchups",
+  matchups: "Matchups",
   settings: "Settings",
 };
 
