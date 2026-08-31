@@ -31,7 +31,7 @@ export function TeamsDataTable() {
   const trpc = useTRPC();
   const navigate = useNavigate();
   const { seasonId } = Route.useParams();
-  const { categoryId } = Route.useSearch();
+  const { categoryId, hasPaid } = Route.useSearch();
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -43,10 +43,13 @@ export function TeamsDataTable() {
   const { data: teams } = useSuspenseQuery(trpc.team.list.queryOptions({ seasonId }));
 
   // Compute column filters from URL search params
-  const columnFilters: ColumnFiltersState = useMemo(
-    () => (categoryId ? [{ id: "categoryId", value: categoryId }] : []),
-    [categoryId],
-  );
+  const columnFilters: ColumnFiltersState = useMemo(() => {
+    const filters: ColumnFiltersState = [];
+    if (categoryId) filters.push({ id: "categoryId", value: categoryId });
+    if (hasPaid === "paid") filters.push({ id: "hasPaid", value: true });
+    if (hasPaid === "unpaid") filters.push({ id: "hasPaid", value: false });
+    return filters;
+  }, [categoryId, hasPaid]);
 
   const tableData = useMemo(() => teams ?? [], [teams]);
 
@@ -106,7 +109,7 @@ export function TeamsDataTable() {
     navigate({
       to: "/seasons/$seasonId/teams",
       params: { seasonId },
-      search: { categoryId: undefined },
+      search: { categoryId: undefined, hasPaid: undefined },
     });
   };
 
@@ -117,7 +120,7 @@ export function TeamsDataTable() {
 
   // Teams exist but none match the current filter
   const filteredRows = table.getFilteredRowModel().rows;
-  if (categoryId && filteredRows.length === 0) {
+  if ((categoryId || hasPaid) && filteredRows.length === 0) {
     return <NoResults onClearFilters={handleClearFilters} />;
   }
 
@@ -139,7 +142,7 @@ export function TeamsDataTable() {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={7}>Total teams</TableCell>
+              <TableCell colSpan={8}>Total teams</TableCell>
               <TableCell className="text-right">
                 {table.getFilteredRowModel().rows.length}
               </TableCell>

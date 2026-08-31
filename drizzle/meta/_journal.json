@@ -99,6 +99,13 @@
       "when": 1786900000000,
       "tag": "0013_group_games_per_team",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1787000000000,
+      "tag": "0014_season_team_has_paid",
+      "breakpoints": true
     }
   ]
 }

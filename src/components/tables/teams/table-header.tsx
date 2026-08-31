@@ -108,6 +108,13 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
           </TableHead>
         )}
 
+        {/* Has Paid column */}
+        {isVisible("hasPaid") && (
+          <TableHead className="w-[80px]">
+            <span>Has Paid</span>
+          </TableHead>
+        )}
+
         {/* Far Away column */}
         {isVisible("isFarAway") && (
           <TableHead className="w-[80px]">

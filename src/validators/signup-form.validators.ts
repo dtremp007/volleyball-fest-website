@@ -42,7 +42,9 @@ export const signupFormSchema = teamDetailsSchema.extend({
   }),
 });
 
-export const adminTeamUpdateSchema = teamDetailsSchema;
+export const adminTeamUpdateSchema = teamDetailsSchema.extend({
+  hasPaid: z.boolean(),
+});
 
 export type SignupFormValues = z.infer<typeof signupFormSchema>;
 export type AdminTeamUpdateValues = z.infer<typeof adminTeamUpdateSchema>;

@@ -72,6 +72,7 @@ export const seasonTeam = sqliteTable(
     unavailableDates: text("unavailable_dates").notNull(),
     comingFrom: text("coming_from").notNull(),
     isFarAway: integer("is_far_away").notNull().default(0),
+    hasPaid: integer("has_paid").notNull().default(0),
     notes: text("notes"),
   },
   (t) => [primaryKey({ columns: [t.seasonId, t.teamId] })],

@@ -12,6 +12,7 @@ import {
   getTeamForSeason,
   removeTeamFromSeason,
   updateTeamForSeason,
+  updateTeamHasPaid,
 } from "./team";
 
 let client: ReturnType<typeof createClient>;
@@ -45,7 +46,7 @@ beforeEach(async () => {
     CREATE TABLE position (id text PRIMARY KEY, name text NOT NULL);
     CREATE TABLE team_group (id text PRIMARY KEY, name text NOT NULL, season_id text NOT NULL, category_id text NOT NULL);
     CREATE TABLE team (id text PRIMARY KEY);
-    CREATE TABLE season_team (season_id text NOT NULL, team_id text NOT NULL, group_id text, name text NOT NULL, logo_url text NOT NULL, category_id text, captain_name text NOT NULL, captain_phone text NOT NULL, co_captain_name text NOT NULL, co_captain_phone text NOT NULL, unavailable_dates text NOT NULL, coming_from text NOT NULL, is_far_away integer DEFAULT 0 NOT NULL, notes text, PRIMARY KEY (season_id, team_id), FOREIGN KEY (team_id) REFERENCES team(id) ON DELETE CASCADE);
+    CREATE TABLE season_team (season_id text NOT NULL, team_id text NOT NULL, group_id text, name text NOT NULL, logo_url text NOT NULL, category_id text, captain_name text NOT NULL, captain_phone text NOT NULL, co_captain_name text NOT NULL, co_captain_phone text NOT NULL, unavailable_dates text NOT NULL, coming_from text NOT NULL, is_far_away integer DEFAULT 0 NOT NULL, has_paid integer DEFAULT 0 NOT NULL, notes text, PRIMARY KEY (season_id, team_id), FOREIGN KEY (team_id) REFERENCES team(id) ON DELETE CASCADE);
     CREATE TABLE player (id text PRIMARY KEY, name text NOT NULL, jersey_number text NOT NULL, position_id text, team_id text NOT NULL, season_id text NOT NULL, FOREIGN KEY (season_id, team_id) REFERENCES season_team(season_id, team_id) ON DELETE CASCADE);
     CREATE TABLE schedule_event (id text PRIMARY KEY, name text NOT NULL, start_time text NOT NULL, season_id text NOT NULL);
     CREATE TABLE matchup (id text PRIMARY KEY, team_a_id text NOT NULL, team_b_id text NOT NULL, season_id text NOT NULL, event_id text, court_id text, slot_index integer, duration integer DEFAULT 45 NOT NULL, best_of integer DEFAULT 3 NOT NULL);
@@ -83,6 +84,27 @@ describe("season team snapshots", () => {
     expect((await getTeamForSeason(db, "source", created.id))?.name).toBe("Set Squad");
     expect((await getTeamForSeason(db, "target", created.id))?.name).toBe(
       "Set Squad 2027",
+    );
+  });
+
+  it("marks payment and resets it when copying to a new season", async () => {
+    const created = await createTeamRegistration(db, "source", {
+      ...registration,
+      hasPaid: true,
+    });
+    expect(Boolean((await getTeamForSeason(db, "source", created.id))?.hasPaid)).toBe(
+      true,
+    );
+
+    await updateTeamHasPaid(db, "source", created.id, false);
+    expect(Boolean((await getTeamForSeason(db, "source", created.id))?.hasPaid)).toBe(
+      false,
+    );
+
+    await updateTeamHasPaid(db, "source", created.id, true);
+    await copyTeamsToSeason(db, "source", "target", [created.id]);
+    expect(Boolean((await getTeamForSeason(db, "target", created.id))?.hasPaid)).toBe(
+      false,
     );
   });
 

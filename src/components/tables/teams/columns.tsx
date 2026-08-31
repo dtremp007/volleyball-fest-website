@@ -66,6 +66,58 @@ function FarAwayCell({ team }: { team: Team }) {
   );
 }
 
+function HasPaidCell({ team }: { team: Team }) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const { seasonId } = Route.useParams();
+
+  const updateHasPaidMutation = useMutation(
+    trpc.team.updateHasPaid.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Team updated");
+        await queryClient.invalidateQueries({
+          queryKey: trpc.team.getForSeason.queryKey({ seasonId, teamId: team.id }),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: trpc.team.list.queryKey({ seasonId }),
+        });
+      },
+      onError: () => {
+        toast.error("Failed to update team");
+      },
+    }),
+  );
+
+  const handleCheckedChange = (checked: boolean | "indeterminate") => {
+    updateHasPaidMutation.mutate({
+      seasonId,
+      teamId: team.id,
+      hasPaid: checked === true,
+    });
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={Boolean(team.hasPaid)}
+            onCheckedChange={handleCheckedChange}
+            disabled={updateHasPaidMutation.isPending}
+            aria-label="Has paid"
+          />
+          {updateHasPaidMutation.isPending && (
+            <Loader2 className="text-muted-foreground ml-1 size-3 animate-spin" />
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Has paid</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export const columns: ColumnDef<Team>[] = [
   {
     id: "select",
@@ -167,6 +219,17 @@ export const columns: ColumnDef<Team>[] = [
         </a>
       </Button>
     ),
+  },
+  {
+    id: "hasPaid",
+    header: "Has Paid",
+    accessorKey: "hasPaid",
+    meta: {
+      className: "w-[80px] min-w-[80px]",
+    },
+    cell: ({ row }) => <HasPaidCell team={row.original} />,
+    enableSorting: false,
+    filterFn: (row, _columnId, value: boolean) => Boolean(row.original.hasPaid) === value,
   },
   {
     id: "isFarAway",

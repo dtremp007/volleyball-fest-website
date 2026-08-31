@@ -23,7 +23,7 @@ export function CategoryTabs() {
         <Link
           to="/seasons/$seasonId/teams"
           params={{ seasonId }}
-          search={{ categoryId: undefined }}
+          search={(prev) => ({ ...prev, categoryId: undefined })}
           className={cn(
             "inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
             "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
@@ -39,7 +39,7 @@ export function CategoryTabs() {
             key={category.id}
             to="/seasons/$seasonId/teams"
             params={{ seasonId }}
-            search={{ categoryId: category.id }}
+            search={(prev) => ({ ...prev, categoryId: category.id })}
             className={cn(
               "inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-all",
               "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
