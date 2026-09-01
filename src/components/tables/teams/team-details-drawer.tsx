@@ -58,6 +58,7 @@ type TeamDraft = {
   unavailableDates: string[];
   comingFrom: string;
   isFarAway: boolean;
+  hasPaid: boolean;
   notes: string;
 };
 
@@ -115,6 +116,7 @@ export function TeamDetailsDrawer() {
       unavailableDates: dates,
       comingFrom: team.comingFrom,
       isFarAway: Boolean(team.isFarAway),
+      hasPaid: Boolean(team.hasPaid),
       notes: team.notes ?? "",
     } satisfies TeamDraft;
   }, [positions, team]);
@@ -284,6 +286,7 @@ function TeamReadView({
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         <Badge variant="secondary">{team.category.name}</Badge>
+        {Boolean(team.hasPaid) && <Badge variant="outline">Paid</Badge>}
         {Boolean(team.isFarAway) && <Badge variant="outline">Travelling team</Badge>}
       </div>
       <section className="grid gap-5 sm:grid-cols-2">
@@ -638,6 +641,15 @@ function TeamEditForm({
             disabled={disabled}
           />
         </Field>
+        <div className="flex items-center gap-3 rounded-lg border p-3">
+          <Checkbox
+            id="has-paid"
+            checked={draft.hasPaid}
+            onCheckedChange={(checked) => setField("hasPaid", checked === true)}
+            disabled={disabled}
+          />
+          <Label htmlFor="has-paid">Has paid</Label>
+        </div>
         <div className="flex items-center gap-3 rounded-lg border p-3">
           <Checkbox
             id="far-away"

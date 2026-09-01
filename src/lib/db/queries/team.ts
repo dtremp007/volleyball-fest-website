@@ -14,6 +14,7 @@ const teamColumns = {
   unavailableDates: schema.seasonTeam.unavailableDates,
   comingFrom: schema.seasonTeam.comingFrom,
   isFarAway: schema.seasonTeam.isFarAway,
+  hasPaid: schema.seasonTeam.hasPaid,
   season: {
     id: schema.season.id,
     name: schema.season.name,
@@ -53,6 +54,7 @@ export type TeamRegistrationInput = {
   unavailableDates: string;
   comingFrom: string;
   isFarAway?: boolean;
+  hasPaid?: boolean;
   notes?: string;
   players: TeamPlayerInput[];
 };
@@ -110,7 +112,7 @@ export const createTeamRegistration = async (
   input: TeamRegistrationInput,
 ) => {
   const teamId = uuidv4();
-  const { players, isFarAway, ...registration } = input;
+  const { players, isFarAway, hasPaid, ...registration } = input;
 
   await db.transaction(async (tx) => {
     await tx.insert(schema.team).values({ id: teamId });
@@ -119,6 +121,7 @@ export const createTeamRegistration = async (
       teamId,
       ...registration,
       isFarAway: isFarAway ? 1 : 0,
+      hasPaid: hasPaid ? 1 : 0,
     });
 
     if (players.length) {
@@ -147,11 +150,15 @@ export const updateTeamForSeason = async (
   const existing = await getTeamForSeason(db, seasonId, teamId);
   if (!existing) throw new Error("Team registration not found");
 
-  const { players, isFarAway, ...registration } = input;
+  const { players, isFarAway, hasPaid, ...registration } = input;
   await db.transaction(async (tx) => {
     await tx
       .update(schema.seasonTeam)
-      .set({ ...registration, isFarAway: isFarAway ? 1 : 0 })
+      .set({
+        ...registration,
+        isFarAway: isFarAway ? 1 : 0,
+        hasPaid: hasPaid ? 1 : 0,
+      })
       .where(
         and(
           eq(schema.seasonTeam.seasonId, seasonId),
@@ -242,7 +249,12 @@ export const copyTeamsToSeason = async (
     for (const registration of registrations) {
       const inserted = await tx
         .insert(schema.seasonTeam)
-        .values({ ...registration, seasonId: targetSeasonId, groupId: null })
+        .values({
+          ...registration,
+          seasonId: targetSeasonId,
+          groupId: null,
+          hasPaid: 0,
+        })
         .onConflictDoNothing()
         .returning({ teamId: schema.seasonTeam.teamId });
       if (!inserted.length) continue;
@@ -432,6 +444,20 @@ export const updateTeamIsFarAway = async (
   await db
     .update(schema.seasonTeam)
     .set({ isFarAway: isFarAway ? 1 : 0 })
+    .where(
+      and(eq(schema.seasonTeam.seasonId, seasonId), eq(schema.seasonTeam.teamId, teamId)),
+    );
+};
+
+export const updateTeamHasPaid = async (
+  db: Database,
+  seasonId: string,
+  teamId: string,
+  hasPaid: boolean,
+) => {
+  await db
+    .update(schema.seasonTeam)
+    .set({ hasPaid: hasPaid ? 1 : 0 })
     .where(
       and(eq(schema.seasonTeam.seasonId, seasonId), eq(schema.seasonTeam.teamId, teamId)),
     );

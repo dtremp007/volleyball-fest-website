@@ -14,7 +14,12 @@ export function TeamRow({ row }: Props) {
 
   const handleRowClick = (cellId: string, e: React.MouseEvent) => {
     // Don't navigate if clicking on checkbox, far away, or actions column
-    if (cellId === "select" || cellId === "isFarAway" || cellId === "actions") {
+    if (
+      cellId === "select" ||
+      cellId === "hasPaid" ||
+      cellId === "isFarAway" ||
+      cellId === "actions"
+    ) {
       return;
     }
 

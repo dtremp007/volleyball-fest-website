@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import z from "zod";
 import {
   CategoryTabs,
+  PaidTabs,
   TeamDetailsDrawer,
   TeamsDataTable,
   TeamsSkeleton,
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/teams")
   validateSearch: z.object({
     categoryId: z.string().optional(),
     teamId: z.string().optional(),
+    hasPaid: z.enum(["paid", "unpaid"]).optional(),
   }),
 });
 
@@ -33,6 +35,7 @@ function TeamsPage() {
         <Suspense fallback={<TabsSkeleton />}>
           <CategoryTabs />
         </Suspense>
+        <PaidTabs />
       </div>
 
       <Suspense fallback={<TeamsSkeleton />}>

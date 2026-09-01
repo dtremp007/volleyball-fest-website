@@ -12,6 +12,7 @@ import {
   getTeamsBySeasonId,
   removeTeamFromSeason,
   updateTeamForSeason,
+  updateTeamHasPaid,
   updateTeamIsFarAway,
   updateTeamsCategory,
 } from "~/lib/db/queries/team";
@@ -146,6 +147,13 @@ export const teamRouter = {
     .input(z.object({ seasonId: z.string(), teamId: z.string(), isFarAway: z.boolean() }))
     .mutation(async ({ input }) => {
       await updateTeamIsFarAway(db, input.seasonId, input.teamId, input.isFarAway);
+      return { success: true };
+    }),
+
+  updateHasPaid: protectedProcedure
+    .input(z.object({ seasonId: z.string(), teamId: z.string(), hasPaid: z.boolean() }))
+    .mutation(async ({ input }) => {
+      await updateTeamHasPaid(db, input.seasonId, input.teamId, input.hasPaid);
       return { success: true };
     }),
 } satisfies TRPCRouterRecord;
