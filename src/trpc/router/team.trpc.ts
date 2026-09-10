@@ -17,7 +17,7 @@ import {
   updateTeamsCategory,
 } from "~/lib/db/queries/team";
 import { normalizeUnavailableDates } from "~/lib/unavailable-dates";
-import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { permix, protectedProcedure, publicProcedure } from "~/trpc/init";
 import {
   adminTeamUpdateSchema,
   signupFormSchema,
@@ -35,6 +35,7 @@ function normalizeTeamInput<
 
 export const teamRouter = {
   list: protectedProcedure
+    .use(permix.checkMiddleware("team.read"))
     .input(z.object({ seasonId: z.string(), categoryId: z.string().optional() }))
     .query(async ({ input }) => {
       return await getTeamsBySeasonId(db, input.seasonId, input.categoryId);
@@ -53,6 +54,7 @@ export const teamRouter = {
     }),
 
   getForSeason: protectedProcedure
+    .use(permix.checkMiddleware("team.read"))
     .input(z.object({ seasonId: z.string(), teamId: z.string() }))
     .query(async ({ input }) => {
       return await getTeamForSeason(db, input.seasonId, input.teamId);
@@ -79,6 +81,7 @@ export const teamRouter = {
   }),
 
   updateForSeason: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -97,6 +100,7 @@ export const teamRouter = {
     }),
 
   copyToSeason: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         sourceSeasonId: z.string(),
@@ -114,6 +118,7 @@ export const teamRouter = {
     }),
 
   moveToCategory: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -131,6 +136,7 @@ export const teamRouter = {
     }),
 
   removeFromSeason: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(z.object({ seasonId: z.string(), teamId: z.string() }))
     .mutation(async ({ input }) => {
       try {
@@ -144,6 +150,7 @@ export const teamRouter = {
     }),
 
   updateIsFarAway: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(z.object({ seasonId: z.string(), teamId: z.string(), isFarAway: z.boolean() }))
     .mutation(async ({ input }) => {
       await updateTeamIsFarAway(db, input.seasonId, input.teamId, input.isFarAway);
@@ -151,6 +158,7 @@ export const teamRouter = {
     }),
 
   updateHasPaid: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(z.object({ seasonId: z.string(), teamId: z.string(), hasPaid: z.boolean() }))
     .mutation(async ({ input }) => {
       await updateTeamHasPaid(db, input.seasonId, input.teamId, input.hasPaid);

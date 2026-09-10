@@ -128,6 +128,9 @@ importers:
       nitro:
         specifier: ^3.0.1-alpha.1
         version: 3.0.1-alpha.2(@libsql/client@0.15.15)(drizzle-orm@0.45.1(@libsql/client@0.15.15)(kysely@0.28.11)(postgres@3.4.8))(rolldown@1.0.0-rc.5)(rollup@4.59.0)(vite@8.0.0-beta.15(@types/node@24.10.13)(esbuild@0.25.12)(jiti@2.6.1)(tsx@4.21.0))
+      permix:
+        specifier: ^4.1.2
+        version: 4.1.2(@tanstack/react-start@1.162.9(crossws@0.4.4(srvx@0.10.1))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vite@8.0.0-beta.15(@types/node@24.10.13)(esbuild@0.25.12)(jiti@2.6.1)(tsx@4.21.0)))(@trpc/server@11.10.0(typescript@5.9.3))(drizzle-orm@0.45.1(@libsql/client@0.15.15)(kysely@0.28.11)(postgres@3.4.8))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(solid-js@1.9.11)
       postgres:
         specifier: ^3.4.7
         version: 3.4.8
@@ -4539,6 +4542,60 @@ packages:
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
+
+  permix@4.1.2:
+    resolution: {integrity: sha512-AeGqOQWkZD6PZYPQwcSKZOBCnGdcOfwXPGEs3N+nWRMZHOnkHFipPQ1wSAsb9RVIXnOHhOoxotPlNqC6xSxMHQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@orpc/server': '>=1'
+      '@tanstack/react-start': '>=1'
+      '@trpc/server': '>=11'
+      drizzle-orm: '>=0.30.0 || >=1.0.0-rc.3'
+      effect: '>=3'
+      elysia: '>=1'
+      express: '>=4'
+      fastify: '>=5'
+      fastify-plugin: '>=5'
+      hono: '>=4'
+      next: '>=14'
+      react: '>=18'
+      react-dom: '>=18'
+      solid-js: '>=1'
+      svelte: '>=5'
+      vue: '>=3'
+    peerDependenciesMeta:
+      '@orpc/server':
+        optional: true
+      '@tanstack/react-start':
+        optional: true
+      '@trpc/server':
+        optional: true
+      drizzle-orm:
+        optional: true
+      effect:
+        optional: true
+      elysia:
+        optional: true
+      express:
+        optional: true
+      fastify:
+        optional: true
+      fastify-plugin:
+        optional: true
+      hono:
+        optional: true
+      next:
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      solid-js:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -9928,6 +9985,15 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
+
+  permix@4.1.2(@tanstack/react-start@1.162.9(crossws@0.4.4(srvx@0.10.1))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vite@8.0.0-beta.15(@types/node@24.10.13)(esbuild@0.25.12)(jiti@2.6.1)(tsx@4.21.0)))(@trpc/server@11.10.0(typescript@5.9.3))(drizzle-orm@0.45.1(@libsql/client@0.15.15)(kysely@0.28.11)(postgres@3.4.8))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(solid-js@1.9.11):
+    optionalDependencies:
+      '@tanstack/react-start': 1.162.9(crossws@0.4.4(srvx@0.10.1))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vite@8.0.0-beta.15(@types/node@24.10.13)(esbuild@0.25.12)(jiti@2.6.1)(tsx@4.21.0))
+      '@trpc/server': 11.10.0(typescript@5.9.3)
+      drizzle-orm: 0.45.1(@libsql/client@0.15.15)(kysely@0.28.11)(postgres@3.4.8)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      solid-js: 1.9.11
 
   picocolors@1.1.1: {}
 

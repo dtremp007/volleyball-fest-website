@@ -6,6 +6,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { Home } from "lucide-react";
+import type { RulesPaths } from "permix";
 import { Fragment } from "react";
 import { HorizontalMenuLayout, Menu } from "~/components/horizontal-menu";
 import {
@@ -16,6 +17,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "~/components/ui/breadcrumb";
+import { usePermissions } from "~/hooks/use-permissions";
+import type { PermissionsDefinition } from "~/lib/permix/permissions";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId")({
   component: SeasonLayout,
@@ -36,18 +39,38 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId")({
   },
 });
 
-const seasonLinks = [
-  { label: "Overview", to: "/seasons/$seasonId", exact: true },
-  { label: "Teams", to: "/seasons/$seasonId/teams" },
-  { label: "Configure", to: "/seasons/$seasonId/configure", exact: false },
-  { label: "Scorecard", to: "/seasons/$seasonId/scorecard" },
-  { label: "Schedule Builder", to: "/seasons/$seasonId/build" },
-  { label: "Playoffs", to: "/seasons/$seasonId/playoffs" },
+const seasonLinks: {
+  label: string;
+  to: string;
+  exact?: boolean;
+  permission: RulesPaths<PermissionsDefinition>;
+}[] = [
+  {
+    label: "Overview",
+    to: "/seasons/$seasonId",
+    exact: true,
+    permission: "season.update",
+  },
+  { label: "Teams", to: "/seasons/$seasonId/teams", permission: "team.read" },
+  {
+    label: "Configure",
+    to: "/seasons/$seasonId/configure",
+    exact: false,
+    permission: "team.update",
+  },
+  { label: "Scorecard", to: "/seasons/$seasonId/scorecard", permission: "score.update" },
+  {
+    label: "Schedule Builder",
+    to: "/seasons/$seasonId/build",
+    permission: "schedule.build",
+  },
+  { label: "Playoffs", to: "/seasons/$seasonId/playoffs", permission: "playoff.read" },
   {
     label: "Playoffs Scorecard",
     to: "/seasons/$seasonId/playoffs/scorecard",
+    permission: "score.update",
   },
-  { label: "Settings", to: "/seasons/$seasonId/settings" },
+  { label: "Settings", to: "/seasons/$seasonId/settings", permission: "settings.manage" },
 ];
 
 const breadcrumbSegmentLabels: Record<string, string> = {
@@ -64,6 +87,8 @@ const breadcrumbSegmentLabels: Record<string, string> = {
 function SeasonLayout() {
   const { seasonId } = Route.useParams();
   const { categories } = Route.useLoaderData();
+  const { check } = usePermissions();
+  const visibleLinks = seasonLinks.filter((link) => check(link.permission));
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const seasonBasePath = `/seasons/${seasonId}`;
   const breadcrumbSegments = pathname
@@ -129,7 +154,7 @@ function SeasonLayout() {
         </div>
         <HorizontalMenuLayout>
           <Menu
-            links={seasonLinks.map((link) => ({
+            links={visibleLinks.map((link) => ({
               ...link,
               params: { seasonId },
             }))}

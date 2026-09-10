@@ -10,7 +10,7 @@ import {
   getSchedulePresets,
   setActiveSchedulePreset,
 } from "~/lib/db/queries/schedule-preset";
-import { protectedProcedure } from "~/trpc/init";
+import { permix, protectedProcedure } from "~/trpc/init";
 import {
   DEFAULT_SCHEDULING_WEIGHTS,
   parseSchedulePresetWeights,
@@ -43,6 +43,7 @@ export const scheduleConfigRouter = {
    * Get schedule config for a season
    */
   get: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await getScheduleConfig(db, input.seasonId);
@@ -52,6 +53,7 @@ export const scheduleConfigRouter = {
    * Create or update schedule config for a season
    */
   upsert: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -64,6 +66,7 @@ export const scheduleConfigRouter = {
     }),
 
   listPresets: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       const presets = await getSchedulePresets(db, input.seasonId);
@@ -71,6 +74,7 @@ export const scheduleConfigRouter = {
     }),
 
   savePreset: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(saveSchedulePresetSchema)
     .mutation(async ({ input }) => {
       const preset = await createSchedulePreset(db, {
@@ -91,12 +95,14 @@ export const scheduleConfigRouter = {
     }),
 
   deletePreset: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await deleteSchedulePreset(db, input.id);
     }),
 
   setActivePreset: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string(), presetId: z.string().nullable() }))
     .mutation(async ({ input }) => {
       try {
@@ -107,6 +113,7 @@ export const scheduleConfigRouter = {
     }),
 
   getActivePreset: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       const preset = await getActiveSchedulePreset(db, input.seasonId);

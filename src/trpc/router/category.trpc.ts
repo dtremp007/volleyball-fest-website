@@ -9,7 +9,7 @@ import {
   reorderCategories,
   updateCategory,
 } from "~/lib/db/queries/category";
-import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { permix, protectedProcedure, publicProcedure } from "~/trpc/init";
 import {
   createCategorySchema,
   updateCategorySchema,
@@ -26,23 +26,29 @@ export const categoryRouter = {
       return await getCategoryById(db, input.id);
     }),
 
-  create: protectedProcedure.input(createCategorySchema).mutation(async ({ input }) => {
-    return await createCategory(db, input);
-  }),
+  create: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
+    .input(createCategorySchema)
+    .mutation(async ({ input }) => {
+      return await createCategory(db, input);
+    }),
 
   update: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
     .input(z.object({ id: z.string(), data: updateCategorySchema }))
     .mutation(async ({ input }) => {
       return await updateCategory(db, input.id, input.data);
     }),
 
   delete: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await deleteCategory(db, input.id);
     }),
 
   reorder: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
     .input(z.object({ orderedIds: z.array(z.string()).min(1) }))
     .mutation(async ({ input }) => {
       return await reorderCategories(db, input.orderedIds);

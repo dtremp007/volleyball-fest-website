@@ -7,9 +7,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createTRPCClient, httpBatchStreamLink, loggerLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import { createPermix } from "permix";
 import superjson from "superjson";
 import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { DefaultNotFound } from "~/components/default-not-found";
+import type { PermissionsDefinition } from "~/lib/permix/permissions";
+import { deniedRules } from "~/lib/permix/permissions";
 import { getUrl } from "~/lib/utils";
 import { TRPCProvider } from "~/trpc/react";
 import type { AppRouter } from "~/trpc/router";
@@ -52,8 +55,10 @@ export function getRouter() {
     queryClient,
   });
 
+  const permix = createPermix<PermissionsDefinition>(deniedRules);
+
   const router = createRouter({
-    context: { queryClient, trpc },
+    context: { queryClient, trpc, permix },
     routeTree,
     defaultPreload: "intent",
     defaultPendingMs: 120,

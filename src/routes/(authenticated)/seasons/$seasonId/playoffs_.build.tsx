@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { ScheduleBuilder } from "~/components/schedule-builder/schedule-builder";
 import { Button } from "~/components/ui/button";
+import { assertPermission } from "~/lib/permix/assert";
 import { mapPlayoffSnapshotToSaveInput } from "~/lib/schedule/playoff-builder-state";
 import { useTRPC } from "~/trpc/react";
 import type { ScheduleBuilderSnapshot } from "~/validators/schedule-builder.validators";
@@ -13,6 +14,9 @@ export const Route = createFileRoute(
   "/(authenticated)/seasons/$seasonId/playoffs_/build",
 )({
   component: PlayoffBuildPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "playoff.build");
+  },
   loader: async ({ params, context }) => {
     const { seasonId } = params;
     await context.queryClient.fetchQuery(

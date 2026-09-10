@@ -19,6 +19,7 @@ import { Route as ApiPlayoffEventPdfRouteImport } from './routes/api/playoff-eve
 import { Route as ApiEventPdfRouteImport } from './routes/api/event-pdf'
 import { Route as publicSignupSuccessRouteImport } from './routes/(public)/signup-success'
 import { Route as publicSignupFormRouteImport } from './routes/(public)/signup-form'
+import { Route as authenticatedUsersRouteImport } from './routes/(authenticated)/users'
 import { Route as authenticatedAdminRouteImport } from './routes/(authenticated)/admin'
 import { Route as authPagesSignupRouteImport } from './routes/(auth-pages)/signup'
 import { Route as authPagesLoginRouteImport } from './routes/(auth-pages)/login'
@@ -94,6 +95,11 @@ const publicSignupFormRoute = publicSignupFormRouteImport.update({
   id: '/signup-form',
   path: '/signup-form',
   getParentRoute: () => publicRouteRoute,
+} as any)
+const authenticatedUsersRoute = authenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => authenticatedRouteRoute,
 } as any)
 const authenticatedAdminRoute = authenticatedAdminRouteImport.update({
   id: '/admin',
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/admin': typeof authenticatedAdminRoute
+  '/users': typeof authenticatedUsersRoute
   '/signup-form': typeof publicSignupFormRoute
   '/signup-success': typeof publicSignupSuccessRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
@@ -298,6 +305,7 @@ export interface FileRoutesByTo {
   '/login': typeof authPagesLoginRoute
   '/signup': typeof authPagesSignupRoute
   '/admin': typeof authenticatedAdminRoute
+  '/users': typeof authenticatedUsersRoute
   '/signup-form': typeof publicSignupFormRoute
   '/signup-success': typeof publicSignupSuccessRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
@@ -336,6 +344,7 @@ export interface FileRoutesById {
   '/(auth-pages)/login': typeof authPagesLoginRoute
   '/(auth-pages)/signup': typeof authPagesSignupRoute
   '/(authenticated)/admin': typeof authenticatedAdminRoute
+  '/(authenticated)/users': typeof authenticatedUsersRoute
   '/(public)/signup-form': typeof publicSignupFormRoute
   '/(public)/signup-success': typeof publicSignupSuccessRoute
   '/api/event-pdf': typeof ApiEventPdfRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/admin'
+    | '/users'
     | '/signup-form'
     | '/signup-success'
     | '/api/event-pdf'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/admin'
+    | '/users'
     | '/signup-form'
     | '/signup-success'
     | '/api/event-pdf'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/(auth-pages)/login'
     | '/(auth-pages)/signup'
     | '/(authenticated)/admin'
+    | '/(authenticated)/users'
     | '/(public)/signup-form'
     | '/(public)/signup-success'
     | '/api/event-pdf'
@@ -564,6 +576,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/signup-form'
       preLoaderRoute: typeof publicSignupFormRouteImport
       parentRoute: typeof publicRouteRoute
+    }
+    '/(authenticated)/users': {
+      id: '/(authenticated)/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof authenticatedUsersRouteImport
+      parentRoute: typeof authenticatedRouteRoute
     }
     '/(authenticated)/admin': {
       id: '/(authenticated)/admin'
@@ -873,6 +892,7 @@ const authenticatedSeasonsSeasonIdRouteRouteWithChildren =
 interface authenticatedRouteRouteChildren {
   authenticatedDashboardRouteRoute: typeof authenticatedDashboardRouteRouteWithChildren
   authenticatedAdminRoute: typeof authenticatedAdminRoute
+  authenticatedUsersRoute: typeof authenticatedUsersRoute
   authenticatedSeasonsSeasonIdRouteRoute: typeof authenticatedSeasonsSeasonIdRouteRouteWithChildren
   authenticatedSeasonsNewRoute: typeof authenticatedSeasonsNewRoute
   authenticatedSeasonsIndexRoute: typeof authenticatedSeasonsIndexRoute
@@ -882,6 +902,7 @@ const authenticatedRouteRouteChildren: authenticatedRouteRouteChildren = {
   authenticatedDashboardRouteRoute:
     authenticatedDashboardRouteRouteWithChildren,
   authenticatedAdminRoute: authenticatedAdminRoute,
+  authenticatedUsersRoute: authenticatedUsersRoute,
   authenticatedSeasonsSeasonIdRouteRoute:
     authenticatedSeasonsSeasonIdRouteRouteWithChildren,
   authenticatedSeasonsNewRoute: authenticatedSeasonsNewRoute,

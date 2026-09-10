@@ -35,7 +35,7 @@ import {
 import { buildScheduleBuilderStateResponse } from "~/lib/schedule/builder-state";
 import { combineDateAndTime } from "~/lib/schedule/slot-times";
 import { getScheduleTemplateForDate } from "~/lib/schedule/weekday-templates";
-import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { permix, protectedProcedure, publicProcedure } from "~/trpc/init";
 import { generateCategoryGroupsSchema } from "~/validators/group.validators";
 import {
   createMatchupSchema,
@@ -110,6 +110,7 @@ export const matchupRouter = {
    * Get event matchups with scores for scoring table (auth required)
    */
   getEventMatchupsForScoring: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(z.object({ eventId: z.string() }))
     .query(async ({ input }) => {
       const result = await getEventMatchupsWithScores(db, input.eventId);
@@ -121,6 +122,7 @@ export const matchupRouter = {
    * Get a single event with matchups (for PDF/image generation)
    */
   getEventById: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(z.object({ eventId: z.string() }))
     .query(async ({ input }) => {
       return await getEventWithMatchupsById(db, input.eventId);
@@ -130,6 +132,7 @@ export const matchupRouter = {
    * Get all matchups and events for a season
    */
   getBySeasonId: protectedProcedure
+    .use(permix.checkMiddleware("season.read"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       const [matchups, events] = await Promise.all([
@@ -166,6 +169,7 @@ export const matchupRouter = {
    * Nested schedule builder state (events, courts, unscheduled pool).
    */
   getScheduleBuilderState: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       const [matchups, events] = await Promise.all([
@@ -180,6 +184,7 @@ export const matchupRouter = {
    * Check if matchups exist for a season
    */
   hasMatchups: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await hasMatchupsForSeason(db, input.seasonId);
@@ -189,6 +194,7 @@ export const matchupRouter = {
    * Generate round-robin matchups for a season
    */
   generate: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .mutation(async ({ input }) => {
       // Check if matchups already exist
@@ -206,6 +212,7 @@ export const matchupRouter = {
    * Replaces only that category's groups and matchups.
    */
   generateForCategory: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(generateCategoryGroupsSchema)
     .mutation(async ({ input }) => {
       try {
@@ -227,15 +234,19 @@ export const matchupRouter = {
       }
     }),
 
-  create: protectedProcedure.input(createMatchupSchema).mutation(async ({ input }) => {
-    try {
-      return await createMatchup(db, input);
-    } catch (error) {
-      throw mapMatchupMutationError(error);
-    }
-  }),
+  create: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
+    .input(createMatchupSchema)
+    .mutation(async ({ input }) => {
+      try {
+        return await createMatchup(db, input);
+      } catch (error) {
+        throw mapMatchupMutationError(error);
+      }
+    }),
 
   updateTeams: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(updateMatchupTeamsSchema)
     .mutation(async ({ input }) => {
       try {
@@ -245,18 +256,22 @@ export const matchupRouter = {
       }
     }),
 
-  delete: protectedProcedure.input(deleteMatchupSchema).mutation(async ({ input }) => {
-    try {
-      return await deleteMatchup(db, input);
-    } catch (error) {
-      throw mapMatchupMutationError(error);
-    }
-  }),
+  delete: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
+    .input(deleteMatchupSchema)
+    .mutation(async ({ input }) => {
+      try {
+        return await deleteMatchup(db, input);
+      } catch (error) {
+        throw mapMatchupMutationError(error);
+      }
+    }),
 
   /**
    * Regenerate matchups (delete existing and create new)
    */
   regenerate: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .mutation(async ({ input }) => {
       await deleteMatchupsForSeason(db, input.seasonId);
@@ -268,6 +283,7 @@ export const matchupRouter = {
    * Regenerate schedule placements using existing events
    */
   regenerateSchedule: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -297,6 +313,7 @@ export const matchupRouter = {
    * Save the entire schedule (events + matchup placements)
    */
   saveSchedule: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -331,6 +348,7 @@ export const matchupRouter = {
    * 3. Auto-schedule matchups across events and courts
    */
   generateSchedule: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -401,6 +419,7 @@ export const matchupRouter = {
     }),
 
   saveSetScore: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -416,6 +435,7 @@ export const matchupRouter = {
     }),
 
   saveScorecard: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(
       z.object({
         seasonId: z.string(),

@@ -5,6 +5,7 @@ import z from "zod";
 import { EventMatchupsScoreTable } from "~/components/schedule/event-matchups-score-table";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { assertPermission } from "~/lib/permix/assert";
 import { formatEventDateForDisplay } from "~/lib/schedule/slot-times";
 
 function formatEventDate(event: { date: string }) {
@@ -17,6 +18,9 @@ function formatEventDate(event: { date: string }) {
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/scorecard")({
   component: ScorecardPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "score.update");
+  },
   validateSearch: z.object({
     eventId: z.string().optional(),
   }),

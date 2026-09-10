@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { usePermissions } from "~/hooks/use-permissions";
 import { getSeasonSwitchTarget, LAST_SEASON_STORAGE_KEY } from "~/lib/season-navigation";
 import { useTRPC } from "~/trpc/react";
 import type { SeasonState } from "~/validators/season.validators";
@@ -34,6 +35,10 @@ type Props = {
 export function AdminHeader({ user }: Props) {
   const trpc = useTRPC();
   const navigate = useNavigate();
+  const { check } = usePermissions();
+  const canManageSeasons = check("season.create");
+  const canManageUsers = check("user.read");
+  const canManageState = check("season.manageState");
   const params = useParams({ strict: false });
   const seasonId = "seasonId" in params ? String(params.seasonId) : undefined;
   const { pathname, search } = useRouterState({
@@ -77,7 +82,7 @@ export function AdminHeader({ user }: Props) {
         </Link>
 
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
-          {currentSeason?.state && (
+          {canManageState && currentSeason?.state && (
             <SeasonStatusDialog
               seasonId={currentSeason.id}
               currentState={currentSeason.state as SeasonState}
@@ -139,19 +144,23 @@ export function AdminHeader({ user }: Props) {
                   ))}
                 </>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/seasons/new">
-                  <Plus className="size-4" />
-                  Create season
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/seasons">
-                  <CalendarDays className="size-4" />
-                  Manage seasons
-                </Link>
-              </DropdownMenuItem>
+              {canManageSeasons && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/seasons/new">
+                      <Plus className="size-4" />
+                      Create season
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/seasons">
+                      <CalendarDays className="size-4" />
+                      Manage seasons
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -174,6 +183,11 @@ export function AdminHeader({ user }: Props) {
                 )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {canManageUsers && (
+                <DropdownMenuItem asChild>
+                  <Link to="/users">Users</Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <SignOutButton
                   variant="ghost"

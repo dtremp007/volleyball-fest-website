@@ -27,6 +27,7 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Textarea } from "~/components/ui/textarea";
+import { usePermissions } from "~/hooks/use-permissions";
 import {
   fromCalendarDates,
   parseUnavailableDates,
@@ -68,6 +69,8 @@ export function TeamDetailsDrawer() {
   const navigate = Route.useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { check } = usePermissions();
+  const canUpdate = check("team.update");
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<TeamDraft | null>(null);
   const [initialDraft, setInitialDraft] = useState<TeamDraft | null>(null);
@@ -241,7 +244,7 @@ export function TeamDetailsDrawer() {
           </div>
         </ScrollArea>
 
-        {team && (
+        {team && (isEditing || canUpdate) && (
           <DrawerFooter className="border-t pb-[max(1rem,env(safe-area-inset-bottom))]">
             {isEditing ? (
               <div className="flex w-full justify-end gap-3">
@@ -258,16 +261,18 @@ export function TeamDetailsDrawer() {
               </div>
             ) : (
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
-                <Button variant="outline" asChild>
-                  <a
-                    href={`/api/team-pdf?seasonId=${encodeURIComponent(seasonId)}&teamId=${encodeURIComponent(team.id)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View roster PDF
-                  </a>
-                </Button>
-                <Button onClick={startEditing}>Edit team</Button>
+                {canUpdate && (
+                  <Button variant="outline" asChild>
+                    <a
+                      href={`/api/team-pdf?seasonId=${encodeURIComponent(seasonId)}&teamId=${encodeURIComponent(team.id)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View roster PDF
+                    </a>
+                  </Button>
+                )}
+                {canUpdate && <Button onClick={startEditing}>Edit team</Button>}
               </div>
             )}
           </DrawerFooter>

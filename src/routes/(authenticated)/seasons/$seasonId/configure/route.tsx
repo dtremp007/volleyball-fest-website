@@ -1,8 +1,12 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { assertPermission } from "~/lib/permix/assert";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/configure")({
   component: ConfigureLayout,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "team.update");
+  },
   loader: async ({ params, context }) => {
     const [categories, teams, season, groups, matchupsData] = await Promise.all([
       context.queryClient.fetchQuery(context.trpc.category.getAll.queryOptions()),

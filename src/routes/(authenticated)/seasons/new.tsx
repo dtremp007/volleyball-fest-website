@@ -5,12 +5,16 @@ import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
+import { assertPermission } from "~/lib/permix/assert";
 import { slugifySeasonId } from "~/lib/season-id";
 import { LAST_SEASON_STORAGE_KEY } from "~/lib/season-navigation";
 import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/seasons/new")({
   component: NewSeasonPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "season.create");
+  },
 });
 
 function NewSeasonPage() {

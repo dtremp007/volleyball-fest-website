@@ -29,12 +29,16 @@ import {
 } from "~/components/ui/dialog";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { useGraphViewportStorage } from "~/hooks/use-graph-viewport-storage";
+import { assertPermission } from "~/lib/permix/assert";
 import { calculatePlayoffWinner } from "~/lib/playoffs/winner";
 import { cn } from "~/lib/utils";
 import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/playoffs")({
   component: PlayoffsPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "playoff.read");
+  },
 });
 
 const roundLabels: Record<string, string> = {

@@ -4,12 +4,16 @@ import { FileText } from "lucide-react";
 import { useCallback } from "react";
 import { ScheduleBuilder } from "~/components/schedule-builder/schedule-builder";
 import { Button } from "~/components/ui/button";
+import { assertPermission } from "~/lib/permix/assert";
 import { mapSnapshotToSaveInput } from "~/lib/schedule/builder-state";
 import { useTRPC } from "~/trpc/react";
 import type { ScheduleBuilderSnapshot } from "~/validators/schedule-builder.validators";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/build")({
   component: BuildPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "schedule.build");
+  },
   loader: async ({ params, context }) => {
     const { seasonId } = params;
     await context.queryClient.fetchQuery(

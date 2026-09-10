@@ -1,6 +1,8 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "~/env/server";
+import { auth } from "~/lib/auth/auth";
+import { isAdminRole } from "~/lib/auth/roles";
 
 // Initialize S3 client for Cloudflare R2
 const r2Client = new S3Client({
@@ -26,6 +28,17 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 async function handleUpload({ request }: { request: Request }) {
   try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+      query: { disableCookieCache: true },
+    });
+    if (!session || !isAdminRole(session.user.role)) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 

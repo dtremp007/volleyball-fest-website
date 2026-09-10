@@ -3,6 +3,7 @@ import z from "zod";
 import { PlayoffEventMatchupsScoreTable } from "~/components/schedule/playoff-event-matchups-score-table";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { assertPermission } from "~/lib/permix/assert";
 import { formatEventDateForDisplay } from "~/lib/schedule/slot-times";
 
 function formatEventDate(event: { date: string }) {
@@ -17,6 +18,9 @@ export const Route = createFileRoute(
   "/(authenticated)/seasons/$seasonId/playoffs_/scorecard",
 )({
   component: PlayoffScorecardPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "score.update");
+  },
   validateSearch: z.object({
     eventId: z.string().optional(),
   }),

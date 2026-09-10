@@ -19,10 +19,14 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { assertPermission } from "~/lib/permix/assert";
 import { useTRPC } from "~/trpc/react";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/settings")({
   component: SettingsPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "settings.manage");
+  },
   validateSearch: z.object({
     categoryId: z.string().optional(),
   }),

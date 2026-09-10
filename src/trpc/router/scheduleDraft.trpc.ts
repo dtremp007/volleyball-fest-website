@@ -10,7 +10,7 @@ import {
   getScheduleDrafts,
   toScheduleDraftView,
 } from "~/lib/db/queries/schedule-draft";
-import { protectedProcedure } from "~/trpc/init";
+import { permix, protectedProcedure } from "~/trpc/init";
 import { generateScheduleCandidatesSchema } from "~/validators/scheduling.validators";
 
 function mapDraftError(error: unknown, fallback: string): never {
@@ -23,6 +23,7 @@ function mapDraftError(error: unknown, fallback: string): never {
 
 export const scheduleDraftRouter = {
   generateCandidates: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(generateScheduleCandidatesSchema)
     .mutation(async ({ input }) => {
       try {
@@ -33,6 +34,7 @@ export const scheduleDraftRouter = {
     }),
 
   list: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       const drafts = await getScheduleDrafts(db, input.seasonId);
@@ -40,6 +42,7 @@ export const scheduleDraftRouter = {
     }),
 
   apply: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       try {
@@ -50,6 +53,7 @@ export const scheduleDraftRouter = {
     }),
 
   delete: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       const draft = await deleteScheduleDraft(db, input.id);
@@ -63,6 +67,7 @@ export const scheduleDraftRouter = {
     }),
 
   clear: protectedProcedure
+    .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .mutation(async ({ input }) => {
       return await clearScheduleDrafts(db, input.seasonId);

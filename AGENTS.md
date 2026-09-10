@@ -7,7 +7,7 @@ This document helps AI agents and new contributors understand the project at a g
 **Volleyball Fest** is a web app for managing and publishing a recreational volleyball league in Cuauhtémoc, Mexico. It serves two audiences:
 
 1. **Public visitors** — landing page, team directory, standings, team signup, schedule
-2. **League admins** (authenticated) — team management, season setup, schedule generation/building, live scorecard, PDF exports, CMS-style content
+2. **Authenticated operators** — invite-only accounts with a global role (`admin` or `scorekeeper`). Admins run the full league workflow; scorekeepers enter scores and can view the teams table read-only.
 
 The app was bootstrapped from [react-tanstarter](https://github.com/dotnize/react-tanstarter) but is now a domain-specific league management platform.
 
@@ -39,13 +39,14 @@ Create season → Open signup → Teams register (public form)
 Key admin routes under `/seasons/$seasonId/`:
 
 - **`/`** — season overview (events + matchups tabs, PDF links)
-- **`/teams`** — teams registered for that season
-- **`/scorecard`** — live score entry for that season
+- **`/teams`** — teams registered for that season (scorekeepers: read-only)
+- **`/scorecard`** — live score entry for that season (admin + scorekeeper)
 - **`/configure`** — assign teams to groups (DnD)
 - **`/generate`** — generate round-robin matchups and auto-schedule onto dates
 - **`/build`** — visual schedule builder (courts, time slots, drag matchups)
-- **`/playoffs`** — playoff bracket/overview
-- **`/playoffs/build`** — playoff schedule builder
+- **`/playoffs`** — playoff bracket/overview (admin)
+- **`/playoffs/build`** — playoff schedule builder (admin)
+- **`/playoffs/scorecard`** — live playoff score entry (admin + scorekeeper)
 
 ## Tech Stack
 
@@ -97,15 +98,30 @@ src/
 | `scheduleConfig` | Per-season scheduling defaults                           |
 | `cms`            | Hero/landing page content                                |
 | `position`       | Player positions                                         |
-| `user`           | User-related procedures                                  |
+| `user`           | List users, create users, update roles                   |
 
-### Auth
+### Auth and roles
 
-- Config: `src/lib/auth/auth.ts`
+Roles are **global** (not per-season), stored on `user.role`. Parse with `parseUserRole` in `src/lib/auth/roles.ts`. Do not treat every logged-in user as a full admin.
+
+| Role           | Access                                                                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`admin`**    | Full league operator: seasons, teams (edit), schedule/playoff builders, settings, user management                                                                 |
+| **`scorekeeper`** | `season.read`, `team.read`, `score.update` only. Teams table is read-only. Nav is Teams + regular/playoff scorecards. Other admin routes redirect to `/admin`. |
+
+Permissions:
+
+- Rule set: `src/lib/permix/permissions.ts` (`rulesForRole()`)
+- tRPC: `protectedProcedure` plus `permix.checkMiddleware("…")` in `src/trpc/init.ts` / routers
+- Route guards: `assertPermission` in `src/lib/permix/assert.ts`
+- UI: `usePermissions().check("team.update")` from `src/hooks/use-permissions.ts`
+- Root `beforeLoad` in `src/routes/__root.tsx` calls `permix.setup(rulesForRole(role))`; the same instance is restored in the root component after SSR so `check()` is ready on hydrate
+- Last-admin demotion is blocked in `user.updateRole`
+
+- Config: `src/lib/auth/auth.ts` (Better Auth `admin` plugin; `additionalFields.role` is not user-writable at signup)
 - Session enforced on `(authenticated)/` routes via `beforeLoad` redirect to `/login`
-- tRPC uses `protectedProcedure` for admin mutations
 - Auth API: `src/routes/api/auth.$.ts`
-- **Admin access is invite-only:** new accounts require `VITE_SIGNUP_INVITE_CODE` at `/signup` (see `src/routes/(auth-pages)/signup.tsx`). Only manually approved users who know the invite code can register.
+- **Signup is invite-only:** new accounts require `VITE_SIGNUP_INVITE_CODE` at `/signup`. Admins can also create users (email + password + role) on `/users` without the invite code.
 
 ## Routes Map
 
@@ -123,24 +139,29 @@ src/
 
 | Route     | Purpose     |
 | --------- | ----------- |
-| `/login`  | Admin login |
+| `/login`  | Operator login |
 | `/signup` | User signup |
 
-### Authenticated (admin)
+### Authenticated
 
-| Route                               | Purpose                                            |
-| ----------------------------------- | -------------------------------------------------- |
-| `/seasons`                          | Season list                                        |
-| `/seasons/$seasonId`                | Season overview                                    |
-| `/seasons/$seasonId/teams`          | Team management table for the season               |
-| `/seasons/$seasonId/scorecard`      | Live score entry for the season                    |
-| `/seasons/$seasonId/configure`      | Group assignment workflow                          |
-| `/seasons/$seasonId/generate`       | Matchup generation and auto-scheduling             |
-| `/seasons/$seasonId/build`          | Visual schedule builder                            |
-| `/seasons/$seasonId/playoffs`       | Playoff bracket/overview                           |
-| `/seasons/$seasonId/playoffs/build` | Playoff schedule builder                           |
-| `/settings`                         | App settings                                       |
-| `/dashboard`                        | Legacy dashboard route, not normal season workflow |
+| Route                                    | Purpose                                              | Who            |
+| ---------------------------------------- | ---------------------------------------------------- | -------------- |
+| `/admin`                                 | Landing: admins → season overview; scorekeepers → scorecard | both      |
+| `/seasons`                               | Season list                                          | admin          |
+| `/seasons/new`                           | Create season                                        | admin          |
+| `/seasons/$seasonId`                     | Season overview                                      | admin          |
+| `/seasons/$seasonId/teams`               | Teams table (scorekeepers: read-only)               | both           |
+| `/seasons/$seasonId/scorecard`           | Live score entry                                     | both           |
+| `/seasons/$seasonId/configure`           | Group assignment workflow                            | admin          |
+| `/seasons/$seasonId/generate`             | Matchup generation and auto-scheduling              | admin          |
+| `/seasons/$seasonId/build`               | Visual schedule builder                              | admin          |
+| `/seasons/$seasonId/playoffs`            | Playoff bracket/overview                              | admin          |
+| `/seasons/$seasonId/playoffs/build`      | Playoff schedule builder                              | admin          |
+| `/seasons/$seasonId/playoffs/scorecard`  | Live playoff score entry                              | both           |
+| `/seasons/$seasonId/settings`            | Season settings                                      | admin          |
+| `/users`                                 | List users, change roles, create users              | admin          |
+| `/settings`                              | App settings                                         | admin          |
+| `/dashboard`                             | Legacy dashboard route, not normal season workflow   | admin          |
 
 Authenticated league operations are season-scoped. Prefer adding admin pages
 that read or mutate season data under `/seasons/$seasonId/*`, and read
@@ -165,8 +186,8 @@ and owns the breadcrumb row plus the horizontal season menu.
 ```bash
 pnpm install
 cp .env.example .env   # fill in DATABASE_URL, DATABASE_AUTH_TOKEN, auth secrets, R2 vars
-pnpm db push           # push schema to Turso/local libsql
-pnpm dev               # http://localhost:3000
+pnpm db migrate         # apply SQL migrations in drizzle/
+pnpm dev                # http://localhost:3000
 ```
 
 ### Common Commands
@@ -178,8 +199,8 @@ pnpm dev               # http://localhost:3000
 | `pnpm start`              | Run production server (`.output/server/index.mjs`)      |
 | `pnpm check`              | Format + lint + typecheck                               |
 | `pnpm test`               | Run Vitest                                              |
-| `pnpm db push`            | Push schema changes (drizzle-kit)                       |
-| `pnpm db generate`        | Generate SQL migrations                                 |
+| `pnpm db generate`        | Generate SQL from schema changes into `drizzle/`      |
+| `pnpm db migrate`         | Apply pending SQL migrations                            |
 | `pnpm db studio`          | Drizzle Studio                                          |
 | `pnpm auth:generate`      | Regenerate Better Auth schema after auth config changes |
 | `pnpm ui add <component>` | Add shadcn/ui component                                 |
@@ -188,7 +209,8 @@ pnpm dev               # http://localhost:3000
 
 - Migrations live in `drizzle/`
 - Config: `drizzle.config.ts` (Turso dialect, snake_case casing)
-- After schema changes: `pnpm db generate` then apply via `pnpm db push` or migration SQL
+- **Always use generate + migrate** after schema changes: `pnpm db generate` then `pnpm db migrate`
+- **Do not use `pnpm db push`.** It can propose destructive rebuilds of unrelated tables (e.g. playoff points) instead of a focused SQL migration.
 
 ### Code Conventions
 
@@ -239,6 +261,7 @@ pnpm dev               # http://localhost:3000
 - **`docker-compose.yml`** is unused (Postgres template leftover).
 - **Public UI is Spanish** (`es-MX`); **admin UI is English** — see Language Policy above.
 - **Tests are minimal** — only `src/lib/standings/ranking.test.ts` exists today.
+- **`pnpm db push` is unsafe here** — always `pnpm db generate` + `pnpm db migrate`.
 
 ## Project Tree
 
@@ -262,9 +285,10 @@ volleyball-fest-website-2/
 │   ├── env/
 │   │   ├── client.ts              # Client-safe env (VITE_*)
 │   │   └── server.ts              # Server env validation (T3 env + Zod)
-│   ├── hooks/                     # use-file-upload, use-image-upload-handler, use-table-scroll
+│   ├── hooks/                     # use-permissions, use-file-upload, use-image-upload-handler, use-table-scroll
 │   ├── lib/
-│   │   ├── auth/                  # Better Auth config, client, middleware
+│   │   ├── auth/                  # Better Auth config, client, roles
+│   │   ├── permix/                # RBAC rules, tRPC middleware, route assert
 │   │   ├── canvas/                # Schedule image generation
 │   │   ├── db/
 │   │   │   ├── schema/            # Drizzle schemas (auth, cms, schedule, team)

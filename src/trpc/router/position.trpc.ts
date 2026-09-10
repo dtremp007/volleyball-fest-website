@@ -8,7 +8,7 @@ import {
   getPositions,
   updatePosition,
 } from "~/lib/db/queries/position";
-import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { permix, protectedProcedure, publicProcedure } from "~/trpc/init";
 import {
   createPositionSchema,
   updatePositionSchema,
@@ -25,17 +25,22 @@ export const positionRouter = {
       return await getPositionById(db, input.id);
     }),
 
-  create: protectedProcedure.input(createPositionSchema).mutation(async ({ input }) => {
-    return await createPosition(db, input);
-  }),
+  create: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
+    .input(createPositionSchema)
+    .mutation(async ({ input }) => {
+      return await createPosition(db, input);
+    }),
 
   update: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
     .input(z.object({ id: z.string(), data: updatePositionSchema }))
     .mutation(async ({ input }) => {
       return await updatePosition(db, input.id, input.data);
     }),
 
   delete: protectedProcedure
+    .use(permix.checkMiddleware("settings.manage"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await deletePosition(db, input.id);

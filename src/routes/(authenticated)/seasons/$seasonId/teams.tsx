@@ -9,9 +9,13 @@ import {
   TeamsSkeleton,
 } from "~/components/tables/teams";
 import { Skeleton } from "~/components/ui/skeleton";
+import { assertPermission } from "~/lib/permix/assert";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/teams")({
   component: TeamsPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "team.read");
+  },
   validateSearch: z.object({
     categoryId: z.string().optional(),
     teamId: z.string().optional(),

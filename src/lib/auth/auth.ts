@@ -1,5 +1,6 @@
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
+import { admin } from "better-auth/plugins/admin";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 
 import { env } from "~/env/server";
@@ -14,8 +15,25 @@ export const auth = betterAuth({
     provider: "sqlite",
   }),
 
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: true,
+        defaultValue: "admin",
+        input: false,
+      },
+    },
+  },
+
   // https://www.better-auth.com/docs/integrations/tanstack#usage-tips
-  plugins: [tanstackStartCookies()],
+  plugins: [
+    admin({
+      defaultRole: "admin",
+      adminRoles: ["admin"],
+    }),
+    tanstackStartCookies(),
+  ],
 
   // https://www.better-auth.com/docs/concepts/session-management#session-caching
   session: {

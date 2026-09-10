@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { usePermissions } from "~/hooks/use-permissions";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 import type { Team } from "./columns";
@@ -22,6 +23,8 @@ export function ActionsMenu({ team }: Props) {
   const queryClient = useQueryClient();
   const navigate = Route.useNavigate();
   const { seasonId } = Route.useParams();
+  const { check } = usePermissions();
+  const canUpdate = check("team.update");
 
   const deleteMutation = useMutation(
     trpc.team.removeFromSeason.mutationOptions({
@@ -33,6 +36,10 @@ export function ActionsMenu({ team }: Props) {
       },
     }),
   );
+
+  if (!canUpdate) {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-end">

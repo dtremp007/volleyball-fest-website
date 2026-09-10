@@ -9,13 +9,14 @@ import {
   getGroupsBySeasonAndCategory,
   getTeamsByGroup,
 } from "~/lib/db/queries/group";
-import { protectedProcedure } from "~/trpc/init";
+import { permix, protectedProcedure } from "~/trpc/init";
 
 export const groupRouter = {
   /**
    * List all groups for a season (all categories)
    */
   listForSeason: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await getGroupsBySeason(db, input.seasonId);
@@ -25,6 +26,7 @@ export const groupRouter = {
    * List all groups for a season and category
    */
   list: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -39,6 +41,7 @@ export const groupRouter = {
    * Create a new group for a season and category
    */
   create: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -54,6 +57,7 @@ export const groupRouter = {
    * Assign a team to a group (or remove from group if groupId is null)
    */
   assignTeam: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -70,6 +74,7 @@ export const groupRouter = {
    * Get all teams in a specific group
    */
   getTeams: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -84,6 +89,7 @@ export const groupRouter = {
    * Delete a group and remove all team assignments
    */
   delete: protectedProcedure
+    .use(permix.checkMiddleware("team.update"))
     .input(z.object({ groupId: z.string() }))
     .mutation(async ({ input }) => {
       await deleteGroup(db, input.groupId);

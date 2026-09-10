@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
+import { usePermissions } from "~/hooks/use-permissions";
 import { LAST_SEASON_STORAGE_KEY, selectAdminEntrySeason } from "~/lib/season-navigation";
 
 export const Route = createFileRoute("/(authenticated)/admin")({
@@ -17,6 +18,11 @@ export const Route = createFileRoute("/(authenticated)/admin")({
 function AdminEntryPage() {
   const { seasons } = Route.useLoaderData();
   const navigate = useNavigate();
+  const { check } = usePermissions();
+  const canManageSeasons = check("season.create");
+  const landingPath = check("season.update")
+    ? "/seasons/$seasonId"
+    : "/seasons/$seasonId/scorecard";
 
   useEffect(() => {
     const selected = selectAdminEntrySeason(
@@ -25,23 +31,29 @@ function AdminEntryPage() {
     );
     if (selected) {
       navigate({
-        to: "/seasons/$seasonId",
+        to: landingPath,
         params: { seasonId: selected.id },
         replace: true,
       });
     }
-  }, [navigate, seasons]);
+  }, [landingPath, navigate, seasons]);
 
   if (!seasons.length) {
     return (
       <div className="mx-auto flex max-w-xl flex-col items-center gap-4 px-4 py-24 text-center">
-        <h1 className="text-2xl font-semibold">Create your first season</h1>
+        <h1 className="text-2xl font-semibold">
+          {canManageSeasons ? "Create your first season" : "No seasons yet"}
+        </h1>
         <p className="text-muted-foreground">
-          Seasons keep registration, teams, schedules, and scores in one context.
+          {canManageSeasons
+            ? "Seasons keep registration, teams, schedules, and scores in one context."
+            : "Ask an admin to create a season before entering scores."}
         </p>
-        <Button asChild>
-          <Link to="/seasons/new">Create season</Link>
-        </Button>
+        {canManageSeasons && (
+          <Button asChild>
+            <Link to="/seasons/new">Create season</Link>
+          </Button>
+        )}
       </div>
     );
   }

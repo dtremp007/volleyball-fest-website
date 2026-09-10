@@ -3,10 +3,14 @@ import { CircleAlert, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { SeasonsDataTable } from "~/components/tables/seasons";
 import { Button } from "~/components/ui/button";
+import { assertPermission } from "~/lib/permix/assert";
 import { LAST_SEASON_STORAGE_KEY } from "~/lib/season-navigation";
 
 export const Route = createFileRoute("/(authenticated)/seasons/")({
   component: SeasonsPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "season.create");
+  },
   validateSearch: (search: Record<string, unknown>) =>
     search.notice === "season-not-found"
       ? ({ notice: "season-not-found" } as const)

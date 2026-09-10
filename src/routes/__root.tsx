@@ -14,6 +14,9 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import type { Permix } from "permix";
+import { PermixProvider } from "permix/react";
+import { useMemo } from "react";
 
 import { DefaultCatchBoundary } from "~/components/default-catch-boundary";
 import { NavigationProgress } from "~/components/navigation-progress";
@@ -21,9 +24,18 @@ import { ThemeProvider } from "~/components/theme-provider";
 import { Toaster } from "~/components/ui/sonner";
 import { TooltipProvider } from "~/components/ui/tooltip";
 import { auth } from "~/lib/auth/auth";
+import { parseUserRole } from "~/lib/auth/roles";
+import type { PermissionsDefinition } from "~/lib/permix/permissions";
+import { rulesForRole } from "~/lib/permix/permissions";
 import { seo } from "~/lib/utils";
 import appCss from "~/styles.css?url";
 import type { AppRouter } from "~/trpc/router";
+
+function roleFromSession(session: { user?: object } | null | undefined) {
+  return session?.user
+    ? parseUserRole("role" in session.user ? session.user.role : undefined)
+    : null;
+}
 
 const getServerSession = createServerFn({ method: "GET" }).handler(async () => {
   const headers = getRequestHeaders();
@@ -48,9 +60,11 @@ const getServerSession = createServerFn({ method: "GET" }).handler(async () => {
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
   trpc: TRPCOptionsProxy<AppRouter>;
+  permix: Permix<PermissionsDefinition>;
 }>()({
-  beforeLoad: async () => {
+  beforeLoad: async ({ context }) => {
     const session = await getServerSession();
+    context.permix.setup(rulesForRole(roleFromSession(session)));
 
     return { session };
   },
@@ -121,9 +135,19 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootComponent() {
+  const { permix, session } = Route.useRouteContext();
+  const role = roleFromSession(session);
+
+  // SSR skips root beforeLoad on the client; restore rules from the serialized session.
+  useMemo(() => {
+    permix.setup(rulesForRole(role));
+  }, [permix, role]);
+
   return (
     <RootDocument>
-      <Outlet />
+      <PermixProvider permix={permix}>
+        <Outlet />
+      </PermixProvider>
     </RootDocument>
   );
 }

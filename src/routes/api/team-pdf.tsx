@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { createFileRoute } from "@tanstack/react-router";
 import { TeamSheetDocument } from "~/components/pdf/team-sheet";
 import { auth } from "~/lib/auth/auth";
+import { isAdminRole } from "~/lib/auth/roles";
 import { db } from "~/lib/db";
 import { getTeamForSeason } from "~/lib/db/queries/team";
 
@@ -11,8 +12,11 @@ async function handleGetTeamPDF({ request }: { request: Request }) {
     const teamId = url.searchParams.get("teamId");
     const seasonId = url.searchParams.get("seasonId");
 
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session) {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+      query: { disableCookieCache: true },
+    });
+    if (!session || !isAdminRole(session.user.role)) {
       return new Response(JSON.stringify({ error: "Authentication required" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },

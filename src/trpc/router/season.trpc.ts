@@ -12,7 +12,7 @@ import {
   updateSeason,
   updateSeasonState,
 } from "~/lib/db/queries/season";
-import { protectedProcedure, publicProcedure } from "~/trpc/init";
+import { permix, protectedProcedure, publicProcedure } from "~/trpc/init";
 import {
   createSeasonSchema,
   seasonStateEnum,
@@ -29,15 +29,18 @@ const validStateTransitions: Record<string, string[]> = {
 };
 
 export const seasonRouter = {
-  getAll: protectedProcedure.query(async () => {
-    return await getSeasons(db);
-  }),
+  getAll: protectedProcedure
+    .use(permix.checkMiddleware("season.read"))
+    .query(async () => {
+      return await getSeasons(db);
+    }),
 
   getPublicContext: publicProcedure.query(async () => {
     return await getPublicSeasonContext(db);
   }),
 
   getById: protectedProcedure
+    .use(permix.checkMiddleware("season.read"))
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       return await getSeasonById(db, input.id);
@@ -49,24 +52,29 @@ export const seasonRouter = {
       return await getSeasonByState(db, input.state);
     }),
 
-  create: protectedProcedure.input(createSeasonSchema).mutation(async ({ input }) => {
-    try {
-      return await createSeason(db, input);
-    } catch (error) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: error instanceof Error ? error.message : "Season could not be created",
-      });
-    }
-  }),
+  create: protectedProcedure
+    .use(permix.checkMiddleware("season.create"))
+    .input(createSeasonSchema)
+    .mutation(async ({ input }) => {
+      try {
+        return await createSeason(db, input);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Season could not be created",
+        });
+      }
+    }),
 
   update: protectedProcedure
+    .use(permix.checkMiddleware("season.update"))
     .input(z.object({ id: z.string(), data: updateSeasonSchema }))
     .mutation(async ({ input }) => {
       return await updateSeason(db, input.id, input.data);
     }),
 
   updateState: protectedProcedure
+    .use(permix.checkMiddleware("season.manageState"))
     .input(z.object({ id: z.string(), state: seasonStateEnum }))
     .mutation(async ({ input }) => {
       // Get current season to validate transition
@@ -103,6 +111,7 @@ export const seasonRouter = {
     }),
 
   delete: protectedProcedure
+    .use(permix.checkMiddleware("season.delete"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return await deleteSeason(db, input.id);

@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { assertPermission } from "~/lib/permix/assert";
 import { EventsDataTable, EventsSkeleton } from "../../../../components/tables/events";
 import { EventDetailsDrawer } from "../../../../components/tables/events/event-details-drawer";
 import {
@@ -22,6 +23,9 @@ import {
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/")({
   component: SeasonOverviewPage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "season.update");
+  },
   validateSearch: z.object({
     view: z.enum(["events", "playoffs"]).optional(),
     eventId: z.string().optional(),

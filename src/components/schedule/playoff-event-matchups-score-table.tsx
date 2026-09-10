@@ -164,12 +164,6 @@ export function PlayoffEventMatchupsScoreTable({ eventId }: Props) {
     trpc.playoff.saveSetScore.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: scoreQueryKey });
-        void queryClient.invalidateQueries({
-          queryKey: trpc.playoff.getSeasonGraphs.pathKey(),
-        });
-        void queryClient.invalidateQueries({
-          queryKey: trpc.playoff.getScheduleBuilderState.pathKey(),
-        });
       },
       onError: (error) => toast.error(error.message),
     }),

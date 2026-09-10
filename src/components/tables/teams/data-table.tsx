@@ -18,6 +18,7 @@ import {
   TableFooter,
   TableRow,
 } from "~/components/ui/table";
+import { usePermissions } from "~/hooks/use-permissions";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
 import { BottomBarWrapper } from "./bottom-bar";
@@ -41,6 +42,8 @@ export function TeamsDataTable() {
 
   // Fetch all teams for the season (no categoryId filter)
   const { data: teams } = useSuspenseQuery(trpc.team.list.queryOptions({ seasonId }));
+  const { check } = usePermissions();
+  const canUpdate = check("team.update");
 
   // Compute column filters from URL search params
   const columnFilters: ColumnFiltersState = useMemo(() => {
@@ -66,7 +69,12 @@ export function TeamsDataTable() {
     state: {
       sorting,
       rowSelection,
-      columnVisibility,
+      columnVisibility: {
+        ...columnVisibility,
+        categoryId: false,
+        select: canUpdate,
+        actions: canUpdate,
+      },
       columnFilters,
     },
   });
@@ -152,7 +160,7 @@ export function TeamsDataTable() {
       </div>
 
       <BottomBarWrapper
-        show={showBottomBar}
+        show={canUpdate && showBottomBar}
         selectedCount={selectedCount}
         selectedTeamIds={Object.keys(rowSelection)}
         onClearSelection={handleClearSelection}

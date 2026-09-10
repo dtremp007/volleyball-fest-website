@@ -29,6 +29,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
+import { assertPermission } from "~/lib/permix/assert";
 import { formatEventDateForDisplay, getDatePart } from "~/lib/schedule/slot-times";
 import {
   getScheduleTemplateForDate,
@@ -46,6 +47,9 @@ type PendingGenerateAction = "schedule" | "candidates";
 
 export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/generate")({
   component: GeneratePage,
+  beforeLoad: ({ context }) => {
+    assertPermission(context.permix, "schedule.build");
+  },
   loader: async ({ params, context }) => {
     const [matchupsData, scheduleConfig, season, presets, drafts, categories] =
       await Promise.all([
@@ -147,9 +151,7 @@ function GeneratePage() {
   const [weights, setWeights] = useState<SchedulingWeights>(
     activePreset?.weights ?? DEFAULT_SCHEDULING_WEIGHTS,
   );
-  const [pendingAction, setPendingAction] = useState<PendingGenerateAction | null>(
-    null,
-  );
+  const [pendingAction, setPendingAction] = useState<PendingGenerateAction | null>(null);
 
   const hasExistingSchedule = events.length > 0;
 
@@ -306,7 +308,9 @@ function GeneratePage() {
           >
             ← Configure
           </Link>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight">Generate Schedule</h2>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+            Generate Schedule
+          </h2>
           <p className="text-muted-foreground mt-2">
             Select dates and configure schedule settings for {season.name}
           </p>

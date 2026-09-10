@@ -106,6 +106,13 @@
       "when": 1787000000000,
       "tag": "0014_season_team_has_paid",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1789063579460,
+      "tag": "0015_user_roles",
+      "breakpoints": true
     }
   ]
 }

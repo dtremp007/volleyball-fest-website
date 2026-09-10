@@ -157,7 +157,11 @@ function ConfigureOverviewPage() {
                 </dl>
                 {categoryTeams.length > 0 && (
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button asChild variant="outline" className="w-full sm:min-w-0 sm:flex-1">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full sm:min-w-0 sm:flex-1"
+                    >
                       <Link
                         to="/seasons/$seasonId/configure/$categoryId"
                         params={{ seasonId, categoryId: category.id }}

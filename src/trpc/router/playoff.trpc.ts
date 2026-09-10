@@ -17,7 +17,7 @@ import {
   savePlayoffSetScore,
 } from "~/lib/db/queries/playoff";
 import { buildPlayoffScheduleBuilderStateResponse } from "~/lib/schedule/playoff-builder-state";
-import { protectedProcedure } from "~/trpc/init";
+import { permix, protectedProcedure } from "~/trpc/init";
 
 const playoffCategoryInput = z.object({
   seasonId: z.string(),
@@ -30,24 +30,28 @@ const generatePlayoffInput = playoffCategoryInput.extend({
 
 export const playoffRouter = {
   getScheduleEvents: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await getPlayoffScheduleEventsBySeasonId(db, input.seasonId);
     }),
 
   getEventMatchupsForScoring: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(z.object({ eventId: z.string() }))
     .query(async ({ input }) => {
       return await getPlayoffEventMatchupsWithScores(db, input.eventId);
     }),
 
   getEventById: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(z.object({ eventId: z.string() }))
     .query(async ({ input }) => {
       return await getPlayoffEventWithMatchupsById(db, input.eventId);
     }),
 
   getScheduleBuilderState: protectedProcedure
+    .use(permix.checkMiddleware("playoff.build"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       const [matchups, events] = await Promise.all([
@@ -59,33 +63,44 @@ export const playoffRouter = {
     }),
 
   getSeasonGraphs: protectedProcedure
+    .use(permix.checkMiddleware("playoff.read"))
     .input(z.object({ seasonId: z.string() }))
     .query(async ({ input }) => {
       return await getPlayoffGraphsBySeason(db, input.seasonId);
     }),
 
-  getGraph: protectedProcedure.input(playoffCategoryInput).query(async ({ input }) => {
-    const [graph, hasScores] = await Promise.all([
-      getPlayoffGraph(db, input),
-      hasPlayoffScores(db, input),
-    ]);
+  getGraph: protectedProcedure
+    .use(permix.checkMiddleware("playoff.read"))
+    .input(playoffCategoryInput)
+    .query(async ({ input }) => {
+      const [graph, hasScores] = await Promise.all([
+        getPlayoffGraph(db, input),
+        hasPlayoffScores(db, input),
+      ]);
 
-    return {
-      ...graph,
-      hasScores,
-    };
-  }),
+      return {
+        ...graph,
+        hasScores,
+      };
+    }),
 
-  generate: protectedProcedure.input(generatePlayoffInput).mutation(async ({ input }) => {
-    return await generatePlayoffGraph(db, input);
-  }),
+  generate: protectedProcedure
+    .use(permix.checkMiddleware("playoff.build"))
+    .input(generatePlayoffInput)
+    .mutation(async ({ input }) => {
+      return await generatePlayoffGraph(db, input);
+    }),
 
-  clear: protectedProcedure.input(playoffCategoryInput).mutation(async ({ input }) => {
-    await clearPlayoffGraph(db, input);
-    return { ok: true };
-  }),
+  clear: protectedProcedure
+    .use(permix.checkMiddleware("playoff.build"))
+    .input(playoffCategoryInput)
+    .mutation(async ({ input }) => {
+      await clearPlayoffGraph(db, input);
+      return { ok: true };
+    }),
 
   createDefaultScheduleEvents: protectedProcedure
+    .use(permix.checkMiddleware("playoff.build"))
     .input(z.object({ seasonId: z.string() }))
     .mutation(async ({ input }) => {
       const events = await createDefaultPlayoffScheduleEvents(db, input.seasonId);
@@ -93,12 +108,14 @@ export const playoffRouter = {
     }),
 
   regenerateSchedule: protectedProcedure
+    .use(permix.checkMiddleware("playoff.build"))
     .input(z.object({ seasonId: z.string() }))
     .mutation(async ({ input }) => {
       return await autoSchedulePlayoffMatchups(db, input.seasonId);
     }),
 
   saveSchedule: protectedProcedure
+    .use(permix.checkMiddleware("playoff.build"))
     .input(
       z.object({
         seasonId: z.string(),
@@ -126,6 +143,7 @@ export const playoffRouter = {
     }),
 
   saveSetScore: protectedProcedure
+    .use(permix.checkMiddleware("score.update"))
     .input(
       z.object({
         seasonId: z.string(),

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { usePermissions } from "~/hooks/use-permissions";
 import { cn } from "~/lib/utils";
 import { Route } from "~/routes/(authenticated)/seasons/$seasonId/teams";
 import { useTRPC } from "~/trpc/react";
@@ -18,6 +19,8 @@ function FarAwayCell({ team }: { team: Team }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { seasonId } = Route.useParams();
+  const { check } = usePermissions();
+  const canUpdate = check("team.update");
 
   const updateIsFarAwayMutation = useMutation(
     trpc.team.updateIsFarAway.mutationOptions({
@@ -51,7 +54,7 @@ function FarAwayCell({ team }: { team: Team }) {
           <Checkbox
             checked={Boolean(team.isFarAway)}
             onCheckedChange={handleCheckedChange}
-            disabled={updateIsFarAwayMutation.isPending}
+            disabled={!canUpdate || updateIsFarAwayMutation.isPending}
             aria-label="Far away"
           />
           {updateIsFarAwayMutation.isPending && (
@@ -70,6 +73,8 @@ function HasPaidCell({ team }: { team: Team }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { seasonId } = Route.useParams();
+  const { check } = usePermissions();
+  const canUpdate = check("team.update");
 
   const updateHasPaidMutation = useMutation(
     trpc.team.updateHasPaid.mutationOptions({
@@ -103,7 +108,7 @@ function HasPaidCell({ team }: { team: Team }) {
           <Checkbox
             checked={Boolean(team.hasPaid)}
             onCheckedChange={handleCheckedChange}
-            disabled={updateHasPaidMutation.isPending}
+            disabled={!canUpdate || updateHasPaidMutation.isPending}
             aria-label="Has paid"
           />
           {updateHasPaidMutation.isPending && (
