@@ -150,7 +150,9 @@ export function TeamsDataTable() {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={8}>Total teams</TableCell>
+              <TableCell colSpan={Math.max(table.getVisibleLeafColumns().length - 1, 1)}>
+                Total teams
+              </TableCell>
               <TableCell className="text-right">
                 {table.getFilteredRowModel().rows.length}
               </TableCell>

@@ -154,7 +154,7 @@ export const columns: ColumnDef<Team>[] = [
       );
     },
     enableSorting: false,
-    enableHiding: false,
+    enableHiding: true,
   },
   {
     header: "Team Name",

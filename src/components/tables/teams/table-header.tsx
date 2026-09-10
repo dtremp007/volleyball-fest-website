@@ -34,17 +34,18 @@ export function TableHeader({ table, sortColumn, sortDirection, onSort }: Props)
   return (
     <BaseTableHeader className="border-r-0 border-l-0">
       <TableRow className="hover:bg-transparent">
-        {/* Select column */}
-        <TableHead className="bg-background z-20 w-[50px] min-w-[50px]">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-            aria-label="Select all"
-          />
-        </TableHead>
+        {isVisible("select") && (
+          <TableHead className="bg-background z-20 w-[50px] min-w-[50px]">
+            <Checkbox
+              checked={
+                table.getIsAllPageRowsSelected() ||
+                (table.getIsSomePageRowsSelected() && "indeterminate")
+              }
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+              aria-label="Select all"
+            />
+          </TableHead>
+        )}
 
         {/* Team Name column */}
         {isVisible("name") && (
