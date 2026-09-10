@@ -60,8 +60,8 @@ export function TeamsSkeleton() {
                     <Skeleton className="h-4 w-4" />
                   </TableCell>
                 )}
-                <TableCell className="w-[200px] min-w-[200px] border-r p-0">
-                  <div className="flex items-center justify-between gap-2 px-2">
+                <TableCell className="w-[200px] min-w-[200px] border-r">
+                  <div className="flex items-center gap-2">
                     <Skeleton className="size-6 shrink-0 rounded-full" />
                     <Skeleton className="h-4 w-[120px]" />
                   </div>

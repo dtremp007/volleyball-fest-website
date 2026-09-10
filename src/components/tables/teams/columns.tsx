@@ -160,21 +160,21 @@ export const columns: ColumnDef<Team>[] = [
     header: "Team Name",
     accessorKey: "name",
     meta: {
-      className: "w-[200px] min-w-[200px] border-r p-0",
+      className: "w-[200px] min-w-[200px] border-r",
     },
     cell: ({ row }) => {
       const logoUrl = row.original.logoUrl;
       const name = row.original.name;
 
       return (
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <Avatar className="size-6">
             {logoUrl && <AvatarImage src={logoUrl} alt={`${name} logo`} />}
             <AvatarFallback className="text-[10px] font-medium">
               {name?.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="pr-4">{name}</span>
+          <span>{name}</span>
         </div>
       );
     },
