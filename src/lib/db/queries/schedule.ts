@@ -86,7 +86,8 @@ export async function getEventsBySeasonId(db: Database, seasonId: string) {
       seasonId: schema.scheduleEvent.seasonId,
     })
     .from(schema.scheduleEvent)
-    .where(eq(schema.scheduleEvent.seasonId, seasonId));
+    .where(eq(schema.scheduleEvent.seasonId, seasonId))
+    .orderBy(asc(schema.scheduleEvent.startTime));
 }
 
 export async function createEvent(
