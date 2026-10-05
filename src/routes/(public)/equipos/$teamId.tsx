@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Users } from "lucide-react";
 
+import { TeamScheduleList } from "~/components/schedule/team-schedule-list";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -16,12 +17,20 @@ export const Route = createFileRoute("/(public)/equipos/$teamId")({
 
     const seasonId = publicContext.teamsSeason?.id;
     if (seasonId) {
-      await context.queryClient.ensureQueryData(
-        context.trpc.team.getPublicById.queryOptions({
-          seasonId,
-          teamId: params.teamId,
-        }),
-      );
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          context.trpc.team.getPublicById.queryOptions({
+            seasonId,
+            teamId: params.teamId,
+          }),
+        ),
+        context.queryClient.ensureQueryData(
+          context.trpc.matchup.getPublicTeamSchedule.queryOptions({
+            seasonId,
+            teamId: params.teamId,
+          }),
+        ),
+      ]);
     }
 
     return { publicContext };
@@ -36,6 +45,12 @@ function EquipoDetailPage() {
 
   const { data: team, isLoading } = useQuery(
     trpc.team.getPublicById.queryOptions({ seasonId, teamId }, { enabled: !!seasonId }),
+  );
+  const { data: games = [] } = useQuery(
+    trpc.matchup.getPublicTeamSchedule.queryOptions(
+      { seasonId, teamId },
+      { enabled: !!seasonId },
+    ),
   );
 
   if (isLoading) {
@@ -118,7 +133,16 @@ function EquipoDetailPage() {
       </section>
 
       <section className="pb-16">
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-6xl space-y-6 px-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Calendario</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TeamScheduleList games={games} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Plantel</CardTitle>
