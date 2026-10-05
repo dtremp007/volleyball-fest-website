@@ -91,3 +91,11 @@ export function createNewEvent(name: string, date: string): ScheduleEvent {
     ],
   };
 }
+
+/**
+ * Events are ordered chronologically so a new date lands between its neighbors.
+ * Stable sort keeps same-date events in their existing order.
+ */
+export function sortEventsByDate(events: ScheduleEvent[]): ScheduleEvent[] {
+  return [...events].sort((a, b) => a.date.localeCompare(b.date));
+}

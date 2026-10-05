@@ -1,7 +1,7 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { create } from "zustand";
 import type { DragData, Matchup, ScheduleEvent } from "./types";
-import { createNewEvent } from "./utils";
+import { createNewEvent, sortEventsByDate } from "./utils";
 
 type ScheduleState = {
   events: ScheduleEvent[];
@@ -52,7 +52,12 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
   lastSaved: null,
 
   init: (events, unscheduledMatchups) => {
-    set({ events, unscheduledMatchups, isDirty: false, activeMatchup: null });
+    set({
+      events: sortEventsByDate(events),
+      unscheduledMatchups,
+      isDirty: false,
+      activeMatchup: null,
+    });
   },
 
   setActiveMatchup: (matchup) => {
@@ -205,7 +210,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
 
   addEvent: (name, date) => {
     set((state) => ({
-      events: [...state.events, createNewEvent(name, date)],
+      events: sortEventsByDate([...state.events, createNewEvent(name, date)]),
       isDirty: true,
     }));
   },
@@ -214,10 +219,10 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
     if (events.length === 0) return;
 
     set((state) => ({
-      events: [
+      events: sortEventsByDate([
         ...state.events,
         ...events.map((event) => createNewEvent(event.name, event.date)),
-      ],
+      ]),
       isDirty: true,
     }));
   },
@@ -246,12 +251,16 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
   },
 
   updateEvent: (eventId, updates) => {
-    set((state) => ({
-      events: state.events.map((event) =>
+    set((state) => {
+      const nextEvents = state.events.map((event) =>
         event.id === eventId ? { ...event, ...updates } : event,
-      ),
-      isDirty: true,
-    }));
+      );
+      return {
+        // Re-sort only when the date changes so cards don't jump while renaming.
+        events: updates.date !== undefined ? sortEventsByDate(nextEvents) : nextEvents,
+        isDirty: true,
+      };
+    });
   },
 
   setSaved: () => {
