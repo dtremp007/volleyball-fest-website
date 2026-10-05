@@ -26,6 +26,7 @@ import {
   saveMatchupScorecard,
   saveSchedule,
   saveSetScore,
+  ScoredMatchupMovedError,
   updateMatchupTeams,
 } from "~/lib/db/queries/schedule";
 import {
@@ -336,7 +337,14 @@ export const matchupRouter = {
       }),
     )
     .mutation(async ({ input }) => {
-      await saveSchedule(db, input);
+      try {
+        await saveSchedule(db, input);
+      } catch (error) {
+        if (error instanceof ScoredMatchupMovedError) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: error.message });
+        }
+        throw error;
+      }
       return { success: true };
     }),
 

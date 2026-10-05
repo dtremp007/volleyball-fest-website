@@ -39,6 +39,9 @@ import type { DragData, DropData } from "./types";
 import { UnscheduledPanel } from "./unscheduled-panel";
 import { AUTOSAVE_INTERVAL } from "./utils";
 
+const SCORED_MATCHUP_LOCKED_MESSAGE =
+  "Games with scores are locked. Other games can't be placed above them.";
+
 export type ScheduleBuilderProps = {
   initialState: ScheduleBuilderInitialState;
   onSave: (snapshot: ScheduleBuilderSnapshot) => Promise<void>;
@@ -84,8 +87,12 @@ export function ScheduleBuilder({
     try {
       await onSave(snapshot);
       setSaved();
-    } catch {
-      toast.error("Failed to save schedule");
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? `Failed to save schedule: ${error.message}`
+          : "Failed to save schedule",
+      );
     }
   }, [onSave, setSaved]);
 
@@ -142,6 +149,9 @@ export function ScheduleBuilder({
       setActiveMatchup(null);
 
       const { active, over } = event;
+      const notifyIfBlocked = (applied: boolean) => {
+        if (!applied) toast.error(SCORED_MATCHUP_LOCKED_MESSAGE);
+      };
       if (!over) return;
 
       const dragData = active.data.current as DragData;
@@ -157,11 +167,13 @@ export function ScheduleBuilder({
 
       if (overData?.type === "unscheduled") {
         if (source.type === "scheduled") {
-          moveScheduledToUnscheduled(
-            matchup,
-            source.eventId,
-            source.courtId,
-            source.index,
+          notifyIfBlocked(
+            moveScheduledToUnscheduled(
+              matchup,
+              source.eventId,
+              source.courtId,
+              source.index,
+            ),
           );
         }
         return;
@@ -169,7 +181,7 @@ export function ScheduleBuilder({
 
       if (overData?.type === "court") {
         const { eventId, courtId } = overData as DropData;
-        moveMatchupToCourt(matchup, source, eventId, courtId);
+        notifyIfBlocked(moveMatchupToCourt(matchup, source, eventId, courtId));
         return;
       }
 
@@ -182,32 +194,38 @@ export function ScheduleBuilder({
             source.eventId === overSource.eventId &&
             source.courtId === overSource.courtId
           ) {
-            reorderMatchup(
-              source.eventId,
-              source.courtId,
-              matchup.id,
-              overDragData.matchup.id,
+            notifyIfBlocked(
+              reorderMatchup(
+                source.eventId,
+                source.courtId,
+                matchup.id,
+                overDragData.matchup.id,
+              ),
             );
             return;
           }
 
-          moveMatchupToCourt(
-            matchup,
-            source,
-            overSource.eventId,
-            overSource.courtId,
-            overSource.index,
+          notifyIfBlocked(
+            moveMatchupToCourt(
+              matchup,
+              source,
+              overSource.eventId,
+              overSource.courtId,
+              overSource.index,
+            ),
           );
           return;
         }
 
         if (source.type === "unscheduled" && overSource.type === "scheduled") {
-          moveMatchupToCourt(
-            matchup,
-            source,
-            overSource.eventId,
-            overSource.courtId,
-            overSource.index,
+          notifyIfBlocked(
+            moveMatchupToCourt(
+              matchup,
+              source,
+              overSource.eventId,
+              overSource.courtId,
+              overSource.index,
+            ),
           );
         }
       }

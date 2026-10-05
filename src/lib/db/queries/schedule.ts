@@ -1,5 +1,6 @@
 import { startOfDay, subDays } from "date-fns";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import { getCategories } from "~/lib/db/queries/category";
@@ -102,24 +103,6 @@ export async function createEvent(
     seasonId: params.seasonId,
   });
   return { id, ...params };
-}
-
-export async function updateEvent(
-  db: Database,
-  id: string,
-  params: { name?: string; date?: string },
-) {
-  const updateData: { name?: string; startTime?: string } = {};
-  if (params.name !== undefined) {
-    updateData.name = params.name;
-  }
-  if (params.date !== undefined) {
-    updateData.startTime = params.date;
-  }
-  await db
-    .update(schema.scheduleEvent)
-    .set(updateData)
-    .where(eq(schema.scheduleEvent.id, id));
 }
 
 export async function deleteEvent(db: Database, id: string) {
@@ -685,46 +668,87 @@ type ScheduleData = {
   }[];
 };
 
+export class ScoredMatchupMovedError extends Error {
+  constructor() {
+    super("Games that already have scores can't be moved to another night.");
+    this.name = "ScoredMatchupMovedError";
+  }
+}
+
 export async function saveSchedule(db: Database, data: ScheduleData) {
   const { seasonId, events, matchups } = data;
 
-  // Get existing events for this season
-  const existingEvents = await getEventsBySeasonId(db, seasonId);
+  const [existingEvents, existingMatchups] = await Promise.all([
+    getEventsBySeasonId(db, seasonId),
+    getMatchupsBySeasonId(db, seasonId),
+  ]);
   const existingEventIds = new Set(existingEvents.map((e) => e.id));
   const newEventIds = new Set(events.map((e) => e.id));
 
-  // Delete events that no longer exist
+  // Played games stay on their night; the builder locks them too.
+  const nextEventIdByMatchup = new Map(matchups.map((m) => [m.id, m.eventId]));
+  for (const existing of existingMatchups) {
+    if (!existing.hasScores) continue;
+    const eventRemoved = existing.eventId !== null && !newEventIds.has(existing.eventId);
+    const movedNight =
+      nextEventIdByMatchup.has(existing.id) &&
+      nextEventIdByMatchup.get(existing.id) !== existing.eventId;
+    if (eventRemoved || movedNight) {
+      throw new ScoredMatchupMovedError();
+    }
+  }
+
+  const statements: BatchItem<"sqlite">[] = [];
+
+  // Delete events that no longer exist, unscheduling their matchups first
   for (const existingEvent of existingEvents) {
     if (!newEventIds.has(existingEvent.id)) {
-      await deleteEvent(db, existingEvent.id);
+      statements.push(
+        db
+          .update(schema.matchup)
+          .set({ eventId: null, courtId: null, slotIndex: null })
+          .where(eq(schema.matchup.eventId, existingEvent.id)),
+        db
+          .delete(schema.scheduleEvent)
+          .where(eq(schema.scheduleEvent.id, existingEvent.id)),
+      );
     }
   }
 
   // Insert or update events
   for (const event of events) {
-    if (existingEventIds.has(event.id)) {
-      await updateEvent(db, event.id, { name: event.name, date: event.date });
-    } else {
-      await db.insert(schema.scheduleEvent).values({
-        id: event.id,
-        name: event.name,
-        startTime: event.date,
-        seasonId,
-      });
-    }
+    statements.push(
+      existingEventIds.has(event.id)
+        ? db
+            .update(schema.scheduleEvent)
+            .set({ name: event.name, startTime: event.date })
+            .where(eq(schema.scheduleEvent.id, event.id))
+        : db.insert(schema.scheduleEvent).values({
+            id: event.id,
+            name: event.name,
+            startTime: event.date,
+            seasonId,
+          }),
+    );
   }
 
   // Update matchup scheduling info
   for (const matchup of matchups) {
-    await db
-      .update(schema.matchup)
-      .set({
-        eventId: matchup.eventId,
-        courtId: matchup.courtId,
-        slotIndex: matchup.slotIndex,
-      })
-      .where(eq(schema.matchup.id, matchup.id));
+    statements.push(
+      db
+        .update(schema.matchup)
+        .set({
+          eventId: matchup.eventId,
+          courtId: matchup.courtId,
+          slotIndex: matchup.slotIndex,
+        })
+        .where(eq(schema.matchup.id, matchup.id)),
+    );
   }
+
+  // One atomic batch: a dropped connection can't leave a half-saved schedule.
+  const [first, ...rest] = statements;
+  if (first) await db.batch([first, ...rest]);
 }
 
 // ============== Configure Groups & Generate Matchups ==============

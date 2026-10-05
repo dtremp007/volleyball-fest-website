@@ -1,7 +1,12 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { create } from "zustand";
 import type { DragData, Matchup, ScheduleEvent } from "./types";
-import { createNewEvent, sortEventsByDate } from "./utils";
+import {
+  countScoredMatchups,
+  createNewEvent,
+  movesScoredMatchup,
+  sortEventsByDate,
+} from "./utils";
 
 type ScheduleState = {
   events: ScheduleEvent[];
@@ -19,23 +24,23 @@ type ScheduleActions = {
     sourceEventId: string,
     sourceCourtId: string,
     sourceIndex: number,
-  ) => void;
+  ) => boolean;
   moveMatchupToCourt: (
     matchup: Matchup,
     source: DragData["source"],
     targetEventId: string,
     targetCourtId: string,
     targetIndex?: number,
-  ) => void;
+  ) => boolean;
   reorderMatchup: (
     eventId: string,
     courtId: "A" | "B",
     activeMatchupId: string,
     overMatchupId: string,
-  ) => void;
+  ) => boolean;
   addEvent: (name: string, date: string) => void;
   addEvents: (events: { name: string; date: string }[]) => void;
-  deleteEvent: (eventId: string) => void;
+  deleteEvent: (eventId: string) => boolean;
   updateEvent: (
     eventId: string,
     updates: Partial<Pick<ScheduleEvent, "name" | "date" | "startTime">>,
@@ -44,6 +49,7 @@ type ScheduleActions = {
   markDirty: () => void;
 };
 
+/** Move actions return false when they were refused because a played game would move. */
 export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) => ({
   events: [],
   unscheduledMatchups: [],
@@ -65,6 +71,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
   },
 
   moveScheduledToUnscheduled: (matchup, sourceEventId, sourceCourtId, sourceIndex) => {
+    let blocked = false;
     set((state) => {
       const eventIndex = state.events.findIndex((evt) => evt.id === sourceEventId);
       const currentEvent = eventIndex >= 0 ? state.events[eventIndex] : null;
@@ -95,6 +102,10 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
 
       const nextEvents = [...state.events];
       nextEvents[eventIndex] = { ...currentEvent, courts: nextCourts };
+      if (movesScoredMatchup(state.events, nextEvents)) {
+        blocked = true;
+        return state;
+      }
 
       const alreadyUnscheduled = state.unscheduledMatchups.some(
         (m) => m.id === matchup.id,
@@ -108,9 +119,11 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
         isDirty: true,
       };
     });
+    return !blocked;
   },
 
   moveMatchupToCourt: (matchup, source, targetEventId, targetCourtId, targetIndex) => {
+    let blocked = false;
     set((state) => {
       const targetEventIdx = state.events.findIndex((e) => e.id === targetEventId);
       if (targetEventIdx < 0) return state;
@@ -166,6 +179,10 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
         matchups: nextTargetMatchups,
       };
       nextEvents[targetEventIdx] = { ...targetEvent, courts: nextTargetCourts };
+      if (movesScoredMatchup(state.events, nextEvents)) {
+        blocked = true;
+        return state;
+      }
 
       let nextUnscheduled = state.unscheduledMatchups;
       if (source.type === "unscheduled") {
@@ -178,9 +195,11 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
         isDirty: true,
       };
     });
+    return !blocked;
   },
 
   reorderMatchup: (eventId, courtId, activeMatchupId, overMatchupId) => {
+    let blocked = false;
     set((state) => {
       const eventIdx = state.events.findIndex((e) => e.id === eventId);
       if (eventIdx < 0) return state;
@@ -203,9 +222,14 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
 
       const nextEvents = [...state.events];
       nextEvents[eventIdx] = { ...event, courts: nextCourts };
+      if (movesScoredMatchup(state.events, nextEvents)) {
+        blocked = true;
+        return state;
+      }
 
       return { events: nextEvents, isDirty: true };
     });
+    return !blocked;
   },
 
   addEvent: (name, date) => {
@@ -228,9 +252,14 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
   },
 
   deleteEvent: (eventId) => {
+    let blocked = false;
     set((state) => {
       const event = state.events.find((e) => e.id === eventId);
       if (!event) return state;
+      if (countScoredMatchups(event) > 0) {
+        blocked = true;
+        return state;
+      }
 
       const matchupsToReturn: Matchup[] = [];
       event.courts.forEach((court) => {
@@ -248,6 +277,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>((set) =>
         isDirty: true,
       };
     });
+    return !blocked;
   },
 
   updateEvent: (eventId, updates) => {
