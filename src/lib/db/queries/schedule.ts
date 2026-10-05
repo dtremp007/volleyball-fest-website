@@ -447,11 +447,35 @@ export async function hasMatchupsForSeason(db: Database, seasonId: string) {
   return result.length > 0;
 }
 
+export class SeasonHasScoresError extends Error {
+  constructor() {
+    super(
+      "This season already has games with scores, so it can't be regenerated. Use the schedule builder to adjust it instead.",
+    );
+    this.name = "SeasonHasScoresError";
+  }
+}
+
+/**
+ * Season-wide regeneration moves or deletes every matchup, so it is only
+ * allowed before any game has been scored.
+ */
+export async function assertSeasonHasNoScores(db: Database, seasonId: string) {
+  const [scored] = await db
+    .select({ matchupId: schema.points.matchupId })
+    .from(schema.points)
+    .where(eq(schema.points.seasonId, seasonId))
+    .limit(1);
+  if (scored) throw new SeasonHasScoresError();
+}
+
 export async function deleteMatchupsForSeason(db: Database, seasonId: string) {
+  await assertSeasonHasNoScores(db, seasonId);
   await db.delete(schema.matchup).where(eq(schema.matchup.seasonId, seasonId));
 }
 
 export async function clearMatchupPlacementsForSeason(db: Database, seasonId: string) {
+  await assertSeasonHasNoScores(db, seasonId);
   await db
     .update(schema.matchup)
     .set({
@@ -616,6 +640,7 @@ export async function autoScheduleMatchups(
   eventIds: string[],
   weights?: Partial<SchedulingWeights> | SchedulingWeights,
 ) {
+  await assertSeasonHasNoScores(db, seasonId);
   const input = await loadSolveScheduleContext(db, seasonId, eventIds, weights);
 
   if (!input) {

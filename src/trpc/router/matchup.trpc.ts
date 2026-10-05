@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "~/lib/db";
 import { getPublicUnifiedSchedule } from "~/lib/db/queries/public-schedule";
 import {
+  assertSeasonHasNoScores,
   autoScheduleMatchups,
   CategoryHasScoresError,
   clearMatchupPlacementsForSeason,
@@ -27,6 +28,7 @@ import {
   saveSchedule,
   saveSetScore,
   ScoredMatchupMovedError,
+  SeasonHasScoresError,
   updateMatchupTeams,
 } from "~/lib/db/queries/schedule";
 import {
@@ -46,7 +48,11 @@ import {
 import { partialSchedulingWeightsSchema } from "~/validators/scheduling.validators";
 
 function mapMatchupMutationError(error: unknown): never {
-  if (error instanceof MatchupHasScoresError || error instanceof CategoryHasScoresError) {
+  if (
+    error instanceof MatchupHasScoresError ||
+    error instanceof CategoryHasScoresError ||
+    error instanceof SeasonHasScoresError
+  ) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message: error.message,
@@ -275,7 +281,11 @@ export const matchupRouter = {
     .use(permix.checkMiddleware("schedule.build"))
     .input(z.object({ seasonId: z.string() }))
     .mutation(async ({ input }) => {
-      await deleteMatchupsForSeason(db, input.seasonId);
+      try {
+        await deleteMatchupsForSeason(db, input.seasonId);
+      } catch (error) {
+        throw mapMatchupMutationError(error);
+      }
       const count = await generateMatchupsForSeason(db, input.seasonId);
       return { generated: count };
     }),
@@ -300,14 +310,17 @@ export const matchupRouter = {
           weights: input.weights,
         }),
       ]);
-      await clearMatchupPlacementsForSeason(db, input.seasonId);
-
-      return await autoScheduleMatchups(
-        db,
-        input.seasonId,
-        events.map((event) => event.id),
-        weights,
-      );
+      try {
+        await clearMatchupPlacementsForSeason(db, input.seasonId);
+        return await autoScheduleMatchups(
+          db,
+          input.seasonId,
+          events.map((event) => event.id),
+          weights,
+        );
+      } catch (error) {
+        throw mapMatchupMutationError(error);
+      }
     }),
 
   /**
@@ -371,6 +384,12 @@ export const matchupRouter = {
     )
     .mutation(async ({ input }) => {
       const { seasonId } = input;
+      // Checked up front: the steps below delete every event before rescheduling.
+      try {
+        await assertSeasonHasNoScores(db, seasonId);
+      } catch (error) {
+        throw mapMatchupMutationError(error);
+      }
       // Normalize: trim, filter empty, dedupe
       const dates = [...new Set(input.dates.map((d) => d.trim()).filter(Boolean))];
       if (dates.length === 0) {
