@@ -99,3 +99,37 @@ export function createNewEvent(name: string, date: string): ScheduleEvent {
 export function sortEventsByDate(events: ScheduleEvent[]): ScheduleEvent[] {
   return [...events].sort((a, b) => a.date.localeCompare(b.date));
 }
+
+function findScoredPlacements(events: ScheduleEvent[]) {
+  const placements = new Map<string, string>();
+  for (const event of events) {
+    for (const court of event.courts) {
+      court.matchups.forEach((matchup, index) => {
+        if (matchup.hasScores)
+          placements.set(matchup.id, `${event.id}:${court.id}:${index}`);
+      });
+    }
+  }
+  return placements;
+}
+
+/**
+ * True when a change would move a played game to another night, court, or time slot
+ * (including shifting it by inserting a game above it).
+ */
+export function movesScoredMatchup(prev: ScheduleEvent[], next: ScheduleEvent[]) {
+  const before = findScoredPlacements(prev);
+  if (before.size === 0) return false;
+  const after = findScoredPlacements(next);
+  for (const [id, placement] of before) {
+    if (after.get(id) !== placement) return true;
+  }
+  return false;
+}
+
+export function countScoredMatchups(event: ScheduleEvent) {
+  return event.courts.reduce(
+    (count, court) => count + court.matchups.filter((m) => m.hasScores).length,
+    0,
+  );
+}

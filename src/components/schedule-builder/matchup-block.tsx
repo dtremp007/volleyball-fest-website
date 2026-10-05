@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, Car, GripVertical } from "lucide-react";
+import { AlertTriangle, Car, GripVertical, Lock } from "lucide-react";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
@@ -169,6 +169,8 @@ export const MatchupBlock = memo(function MatchupBlock({
     useSortable({
       id: sortableId,
       data: dragData,
+      // Played games stay put; the store also refuses moves that would shift them.
+      disabled: { draggable: Boolean(matchup?.hasScores) },
     });
 
   const style = useMemo(
@@ -182,6 +184,7 @@ export const MatchupBlock = memo(function MatchupBlock({
   if (!matchup) return null;
 
   const colors = getCategoryColor(matchup.category);
+  const isLocked = Boolean(matchup.hasScores);
   const hasConflict = conflictingTeams.length > 0;
   const hasRematchConflict = rematchTeams.length > 0;
   const unavailableTeams = [matchup.teamA, matchup.teamB]
@@ -200,12 +203,22 @@ export const MatchupBlock = memo(function MatchupBlock({
         colors.bg,
         colors.border,
         isDragging && "z-10 opacity-40",
-        !isDragging && "cursor-grab hover:shadow-md active:cursor-grabbing",
+        !isDragging && !isLocked && "cursor-grab hover:shadow-md active:cursor-grabbing",
+        isLocked && "cursor-default",
       )}
       {...listeners}
       {...attributes}
     >
-      <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
+      {isLocked ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Lock className="text-muted-foreground size-4 shrink-0" />
+          </TooltipTrigger>
+          <TooltipContent side="left">Has scores, locked in place</TooltipContent>
+        </Tooltip>
+      ) : (
+        <GripVertical className="text-muted-foreground/50 size-4 shrink-0" />
+      )}
       <div className="min-w-0 flex-1">
         <MatchupContent matchup={matchup} />
       </div>

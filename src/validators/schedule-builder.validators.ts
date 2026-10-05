@@ -17,6 +17,8 @@ export const scheduleBuilderMatchupSchema = z.object({
   teamB: scheduleBuilderTeamSchema,
   category: z.string(),
   duration: z.number().optional(),
+  /** Played games are locked in place in the builder. */
+  hasScores: z.boolean().optional(),
 });
 
 export const scheduleBuilderCourtSchema = z.object({

@@ -1,5 +1,6 @@
 import { addDays, format, getDay, parseISO } from "date-fns";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import { getCategories, getCategoryById } from "~/lib/db/queries/category";
@@ -77,35 +78,6 @@ export async function getPlayoffScheduleEventsBySeasonId(db: Database, seasonId:
     .from(schema.playoffScheduleEvent)
     .where(eq(schema.playoffScheduleEvent.seasonId, seasonId))
     .orderBy(asc(schema.playoffScheduleEvent.startTime));
-}
-
-export async function deletePlayoffScheduleEvent(db: Database, id: string) {
-  await db
-    .update(schema.playoffMatchup)
-    .set({ eventId: null, courtId: null, slotIndex: null })
-    .where(eq(schema.playoffMatchup.eventId, id));
-
-  await db
-    .delete(schema.playoffScheduleEvent)
-    .where(eq(schema.playoffScheduleEvent.id, id));
-}
-
-export async function updatePlayoffScheduleEvent(
-  db: Database,
-  id: string,
-  params: { name?: string; date?: string },
-) {
-  const updateData: { name?: string; startTime?: string } = {};
-  if (params.name !== undefined) {
-    updateData.name = params.name;
-  }
-  if (params.date !== undefined) {
-    updateData.startTime = params.date;
-  }
-  await db
-    .update(schema.playoffScheduleEvent)
-    .set(updateData)
-    .where(eq(schema.playoffScheduleEvent.id, id));
 }
 
 export async function createDefaultPlayoffScheduleEvents(db: Database, seasonId: string) {
@@ -244,43 +216,59 @@ export async function savePlayoffSchedule(db: Database, data: PlayoffScheduleDat
   const existingEventIds = new Set(existingEvents.map((event) => event.id));
   const nextEventIds = new Set(events.map((event) => event.id));
 
+  const statements: BatchItem<"sqlite">[] = [];
+
   for (const existingEvent of existingEvents) {
     if (!nextEventIds.has(existingEvent.id)) {
-      await deletePlayoffScheduleEvent(db, existingEvent.id);
+      statements.push(
+        db
+          .update(schema.playoffMatchup)
+          .set({ eventId: null, courtId: null, slotIndex: null })
+          .where(eq(schema.playoffMatchup.eventId, existingEvent.id)),
+        db
+          .delete(schema.playoffScheduleEvent)
+          .where(eq(schema.playoffScheduleEvent.id, existingEvent.id)),
+      );
     }
   }
 
   for (const event of events) {
-    if (existingEventIds.has(event.id)) {
-      await updatePlayoffScheduleEvent(db, event.id, {
-        name: event.name,
-        date: event.date,
-      });
-    } else {
-      await db.insert(schema.playoffScheduleEvent).values({
-        id: event.id,
-        name: event.name,
-        startTime: event.date,
-        seasonId,
-      });
-    }
+    statements.push(
+      existingEventIds.has(event.id)
+        ? db
+            .update(schema.playoffScheduleEvent)
+            .set({ name: event.name, startTime: event.date })
+            .where(eq(schema.playoffScheduleEvent.id, event.id))
+        : db.insert(schema.playoffScheduleEvent).values({
+            id: event.id,
+            name: event.name,
+            startTime: event.date,
+            seasonId,
+          }),
+    );
   }
 
   for (const matchup of matchups) {
-    await db
-      .update(schema.playoffMatchup)
-      .set({
-        eventId: matchup.eventId,
-        courtId: matchup.courtId,
-        slotIndex: matchup.slotIndex,
-      })
-      .where(
-        and(
-          eq(schema.playoffMatchup.id, matchup.id),
-          eq(schema.playoffMatchup.seasonId, seasonId),
+    statements.push(
+      db
+        .update(schema.playoffMatchup)
+        .set({
+          eventId: matchup.eventId,
+          courtId: matchup.courtId,
+          slotIndex: matchup.slotIndex,
+        })
+        .where(
+          and(
+            eq(schema.playoffMatchup.id, matchup.id),
+            eq(schema.playoffMatchup.seasonId, seasonId),
+          ),
         ),
-      );
+    );
   }
+
+  // One atomic batch: a dropped connection can't leave a half-saved schedule.
+  const [first, ...rest] = statements;
+  if (first) await db.batch([first, ...rest]);
 }
 
 export async function autoSchedulePlayoffMatchups(db: Database, seasonId: string) {
