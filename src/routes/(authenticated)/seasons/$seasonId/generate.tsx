@@ -138,7 +138,11 @@ function GeneratePage() {
     ? presets.find((preset) => preset.id === scheduleConfig.activePresetId)
     : undefined;
 
-  const totalMatchups = (liveMatchups?.matchups ?? matchupsData.matchups).length;
+  const seasonMatchups = liveMatchups?.matchups ?? matchupsData.matchups;
+  const totalMatchups = seasonMatchups.length;
+  // Generating replaces every placement, so the server refuses once games are scored.
+  const scoredMatchupCount = seasonMatchups.filter((matchup) => matchup.hasScores).length;
+  const isLockedByScores = scoredMatchupCount > 0;
 
   const [selectedDates, setSelectedDates] = useState<Date[]>(() =>
     datesFromEvents(matchupsData.events),
@@ -324,6 +328,27 @@ function GeneratePage() {
         ) : null}
       </div>
 
+      {isLockedByScores && (
+        <div className="bg-destructive/10 border-destructive/20 mb-6 flex items-start gap-2 rounded-md border p-4">
+          <AlertCircle className="text-destructive mt-0.5 size-4 shrink-0" />
+          <div className="text-destructive text-sm">
+            <p className="font-medium">Generating is locked for this season</p>
+            <p className="mt-1">
+              {scoredMatchupCount} game{scoredMatchupCount === 1 ? " has" : "s have"}{" "}
+              scores. Generating would move or remove played games, so use the{" "}
+              <Link
+                to="/seasons/$seasonId/build"
+                params={{ seasonId }}
+                className="font-medium underline underline-offset-4"
+              >
+                schedule builder
+              </Link>{" "}
+              to add or adjust game nights instead.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
@@ -504,7 +529,7 @@ function GeneratePage() {
               </div>
               <Button
                 onClick={handleGenerateCandidates}
-                disabled={selectedDatesCount === 0 || isGenerating}
+                disabled={selectedDatesCount === 0 || isGenerating || isLockedByScores}
                 className="w-full"
                 size="lg"
               >
@@ -524,7 +549,7 @@ function GeneratePage() {
                 type="button"
                 variant="outline"
                 onClick={handleGenerateSchedule}
-                disabled={selectedDatesCount === 0 || isGenerating}
+                disabled={selectedDatesCount === 0 || isGenerating || isLockedByScores}
                 className="w-full"
               >
                 {generateScheduleMutation.isPending ? (

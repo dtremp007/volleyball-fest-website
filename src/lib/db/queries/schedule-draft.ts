@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Database } from "~/lib/db";
 import {
+  assertSeasonHasNoScores,
   clearMatchupPlacementsForSeason,
   createEvent,
   deleteEvent,
@@ -143,6 +144,7 @@ export async function generateScheduleCandidates(
   params: GenerateScheduleCandidatesParams,
 ) {
   const seasonId = params.seasonId;
+  await assertSeasonHasNoScores(db, seasonId);
   const count = Math.min(8, Math.max(1, params.count ?? 3));
   const dates = params.dates
     ? [...new Set(params.dates.map((date) => date.trim()).filter(Boolean))]
@@ -275,6 +277,7 @@ export async function applyScheduleDraft(db: Database, draftId: string) {
   if (!draft) {
     throw new Error("Schedule draft not found");
   }
+  await assertSeasonHasNoScores(db, draft.seasonId);
 
   const placements = parseScheduleDraftPlacements(draft.placementsJson);
   const metrics = parseScheduleDraftMetrics(draft.metricsJson);
