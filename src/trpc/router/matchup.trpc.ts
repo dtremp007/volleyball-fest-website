@@ -2,7 +2,10 @@ import { TRPCError, type TRPCRouterRecord } from "@trpc/server";
 import { format } from "date-fns";
 import { z } from "zod";
 import { db } from "~/lib/db";
-import { getPublicUnifiedSchedule } from "~/lib/db/queries/public-schedule";
+import {
+  getPublicTeamSchedule,
+  getPublicUnifiedSchedule,
+} from "~/lib/db/queries/public-schedule";
 import {
   assertSeasonHasNoScores,
   autoScheduleMatchups,
@@ -111,6 +114,15 @@ export const matchupRouter = {
         upcomingOnly: input.upcomingOnly,
         limit: input.limit,
       });
+    }),
+
+  /**
+   * Public: every scheduled game for one team (team detail page)
+   */
+  getPublicTeamSchedule: publicProcedure
+    .input(z.object({ seasonId: z.string(), teamId: z.string() }))
+    .query(async ({ input }) => {
+      return await getPublicTeamSchedule(db, input.seasonId, input.teamId);
     }),
 
   /**
