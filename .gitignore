@@ -27,3 +27,6 @@ dist
 /public/build
 
 .tanstack
+
+# Amp orb portals
+.amp/portals/*

@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb: dependencies, a local SQLite database, and seeded logins.
+# Idempotent: safe to rerun on a warm snapshot.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+  local name="$1"
+  shift
+  echo "==> $name"
+  local start=$SECONDS
+  "$@"
+  echo "<== $name ($((SECONDS - start))s)"
+}
+
+# The orb image ships Node 26, under which the dev server drops every response
+# header (Content-Type, Location, Set-Cookie), so pages render blank and login
+# never sticks. Install Node 24 and put it first on PATH for login shells in
+# this repository, which is what Amp and orb services use.
+NODE_VERSION=24.22.0
+NODE_SHA256=cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008
+NODE_DIR="$HOME/.local/share/node-v$NODE_VERSION"
+
+install_node() {
+  if [ ! -x "$NODE_DIR/bin/node" ]; then
+    local tmp
+    tmp="$(mktemp -d)"
+    local tarball="node-v$NODE_VERSION-linux-x64.tar.xz"
+    curl -fsSL -o "$tmp/$tarball" "https://nodejs.org/dist/v$NODE_VERSION/$tarball"
+    echo "$NODE_SHA256  $tmp/$tarball" | sha256sum -c -
+    mkdir -p "$NODE_DIR"
+    tar -xJf "$tmp/$tarball" -C "$NODE_DIR" --strip-components=1
+    rm -rf "$tmp"
+  fi
+
+  local repo_root marker
+  repo_root="$(pwd)"
+  marker="# volleyball-fest: Node $NODE_VERSION"
+  if ! grep -Fqx "$marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$marker
+case "\$PWD/" in
+  "$repo_root"/*) export PATH="$NODE_DIR/bin:\$PATH" ;;
+esac
+EOF
+  fi
+  export PATH="$NODE_DIR/bin:$PATH"
+  node --version
+}
+
+install_deps() {
+  pnpm install --frozen-lockfile
+}
+
+# Local development env. The real Turso/R2 credentials are not available in orbs,
+# so the app runs against a local SQLite file with placeholder R2 values.
+write_env() {
+  if [ -f .env ]; then
+    echo ".env already exists; leaving it unchanged"
+    return
+  fi
+  cat > .env <<EOF
+VITE_BASE_URL=http://localhost:3000
+VITE_SIGNUP_INVITE_CODE=orb-invite
+DATABASE_URL=file:.data/local.db
+DATABASE_AUTH_TOKEN=local
+BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+R2_ACCOUNT_ID=local
+R2_ACCESS_KEY_ID=local
+R2_SECRET_ACCESS_KEY=local
+R2_BUCKET_NAME=local
+R2_PUBLIC_URL=http://localhost:3000/r2
+EOF
+}
+
+# drizzle/0000_init.sql is a no-op baseline (production was created with
+# `db push`), so an empty database cannot be built from migrations alone.
+# For a new local file only: push the schema, then mark every journal entry
+# as applied so later `pnpm db migrate` runs stay in sync.
+init_db() {
+  mkdir -p .data
+  if [ ! -f .data/local.db ]; then
+    pnpm db push --force
+    node --input-type=module <<'EOF'
+import { createClient } from "@libsql/client";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+const db = createClient({ url: "file:.data/local.db" });
+const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8"));
+await db.execute(
+  "CREATE TABLE IF NOT EXISTS __drizzle_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, hash text NOT NULL, created_at numeric)",
+);
+for (const entry of journal.entries) {
+  const sql = readFileSync(`drizzle/${entry.tag}.sql`, "utf8");
+  const hash = createHash("sha256").update(sql).digest("hex");
+  await db.execute({
+    sql: "INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)",
+    args: [hash, entry.when],
+  });
+}
+console.log(`Recorded ${journal.entries.length} migrations as applied`);
+EOF
+  fi
+  pnpm db migrate
+}
+
+seed_users() {
+  node --input-type=module <<'EOF'
+import { createClient } from "@libsql/client";
+import { hashPassword } from "better-auth/crypto";
+
+const db = createClient({ url: "file:.data/local.db" });
+const users = [
+  { id: "orb-admin", name: "Orb Admin", email: "admin@example.com", role: "admin" },
+  { id: "orb-scorekeeper", name: "Orb Scorekeeper", email: "scorekeeper@example.com", role: "scorekeeper" },
+];
+const now = Date.now();
+for (const u of users) {
+  await db.execute({
+    sql: "INSERT OR IGNORE INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?, ?)",
+    args: [u.id, u.name, u.email, u.role, now, now],
+  });
+  const existing = await db.execute({ sql: "SELECT 1 FROM account WHERE id = ?", args: [u.id] });
+  if (existing.rows.length === 0) {
+    await db.execute({
+      sql: "INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES (?, ?, 'credential', ?, ?, ?, ?)",
+      args: [u.id, u.id, u.id, await hashPassword("password123"), now, now],
+    });
+  }
+}
+console.log("Seeded users: admin@example.com, scorekeeper@example.com");
+EOF
+}
+
+write_agent_notes() {
+  local notes="$HOME/.config/amp/AGENTS.md"
+  local marker="# Volleyball Fest orb notes"
+  mkdir -p "$(dirname "$notes")"
+  if grep -Fqx "$marker" "$notes" 2>/dev/null; then
+    return
+  fi
+  cat >> "$notes" <<'EOF'
+
+# Volleyball Fest orb notes
+
+- `.agents/setup` writes `.env` for a local SQLite database (`.data/local.db`) with placeholder R2 values; no Turso or R2 credentials exist in the orb, so logo uploads will not work.
+- Node 24 is first on PATH for login shells inside the repo (the image's Node 26 breaks dev-server response headers). Start the dev server with `amp orb services ensure` (service `web`, port 3000).
+- Seeded logins (password `password123`): `admin@example.com` (admin), `scorekeeper@example.com` (scorekeeper). Signup invite code: `orb-invite`.
+- The local database starts with no seasons or teams; create test data through the admin UI or tRPC.
+- Delete `.data/local.db` and rerun `.agents/setup` to reset the local database.
+EOF
+}
+
+step "install Node $NODE_VERSION" install_node
+step "pnpm install" install_deps
+step "write .env" write_env
+step "init local database" init_db
+step "seed users" seed_users
+step "write orb agent notes" write_agent_notes

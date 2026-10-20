@@ -1,0 +1,6 @@
+services:
+  web:
+    command: pnpm dev
+    port: 3000
+    portal: true
+    title: Volleyball Fest dev server
