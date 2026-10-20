@@ -16,6 +16,7 @@ import {
   savePlayoffSchedule,
   savePlayoffSetScore,
 } from "~/lib/db/queries/playoff";
+import { playoffFormatEnum } from "~/lib/db/schema";
 import { buildPlayoffScheduleBuilderStateResponse } from "~/lib/schedule/playoff-builder-state";
 import { permix, protectedProcedure } from "~/trpc/init";
 
@@ -25,7 +26,7 @@ const playoffCategoryInput = z.object({
 });
 
 const generatePlayoffInput = playoffCategoryInput.extend({
-  format: z.enum(["top-4", "top-5"]),
+  format: z.enum(playoffFormatEnum),
 });
 
 export const playoffRouter = {

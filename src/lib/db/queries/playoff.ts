@@ -49,6 +49,7 @@ type PlayoffTemplate = {
 type PlayoffDependencyType = "winner" | "loser";
 
 const PLAYOFF_ROUND_ORDER = [
+  "round-of-16",
   "play-in",
   "quarter-final",
   "semifinal",
@@ -56,6 +57,7 @@ const PLAYOFF_ROUND_ORDER = [
   "final",
 ];
 const PLAYOFF_ROUND_EVENT_INDEX: Record<string, number> = {
+  "round-of-16": 0,
   "play-in": 0,
   "quarter-final": 0,
   semifinal: 1,
@@ -64,7 +66,7 @@ const PLAYOFF_ROUND_EVENT_INDEX: Record<string, number> = {
 };
 
 export function getPlayoffQualifierCount(format: PlayoffFormat | null | undefined) {
-  return format === "top-5" ? 5 : 4;
+  return Number((format ?? "top-4").slice("top-".length));
 }
 
 export async function getPlayoffScheduleEventsBySeasonId(db: Database, seasonId: string) {
@@ -1073,18 +1075,23 @@ async function buildPlayoffGraphFromStandings(
   }));
 
   const seedCount = Math.min(groupA.teams.length, groupB.teams.length);
-  if (params.format === "top-5" && seedCount >= 5) {
-    return buildTopFiveTemplate(params, groupA, groupB);
-  }
-  if (params.format === "top-4" && seedCount >= 4) {
-    return buildTopFourTemplate(params, groupA, groupB);
+  const required = getPlayoffQualifierCount(params.format);
+  if (seedCount < required) {
+    throw new Error(
+      `Top ${required} playoff generation requires at least ${required} teams per group`,
+    );
   }
 
-  throw new Error(
-    params.format === "top-5"
-      ? "Top 5 playoff generation requires at least five teams per group"
-      : "Top 4 playoff generation requires at least four teams per group",
-  );
+  switch (params.format) {
+    case "top-8":
+      return buildTopEightTemplate(params, groupA, groupB);
+    case "top-6":
+      return buildTopSixTemplate(params, groupA, groupB);
+    case "top-5":
+      return buildTopFiveTemplate(params, groupA, groupB);
+    case "top-4":
+      return buildTopFourTemplate(params, groupA, groupB);
+  }
 }
 
 function buildSeeds(groupName: string, teams: TeamStanding[], count: number): Seed[] {
@@ -1172,6 +1179,116 @@ function buildTopFiveTemplate(
       dependencySlot(sf1.id, 1, "Winner QF 2", qf2.id),
       dependencySlot(sf2.id, 0, "Winner QF 3", qf3.id),
       dependencySlot(sf2.id, 1, "Winner QF 4", qf4.id),
+      dependencySlot(thirdPlace.id, 0, "Loser Semifinal 1", sf1.id, "loser"),
+      dependencySlot(thirdPlace.id, 1, "Loser Semifinal 2", sf2.id, "loser"),
+      dependencySlot(final.id, 0, "Winner Semifinal 1", sf1.id),
+      dependencySlot(final.id, 1, "Winner Semifinal 2", sf2.id),
+    ],
+  };
+}
+
+// Seeds 1-2 of each group get byes to the quarterfinals; seeds 3-6 play in.
+// Quarterfinals keep the Top 4 cross-group shape (A1 v B4, B2 v A3, ...)
+// with each 3/4 seed replaced by the winner of its play-in.
+function buildTopSixTemplate(
+  params: { seasonId: string; categoryId: string },
+  groupA: { name: string; teams: TeamStanding[] },
+  groupB: { name: string; teams: TeamStanding[] },
+): PlayoffTemplate {
+  const a = buildSeeds(groupA.name, groupA.teams, 6);
+  const b = buildSeeds(groupB.name, groupB.teams, 6);
+  const m1 = matchup(params, "Match 1", "play-in", 2);
+  const m2 = matchup(params, "Match 2", "play-in", 2);
+  const m3 = matchup(params, "Match 3", "play-in", 2);
+  const m4 = matchup(params, "Match 4", "play-in", 2);
+  const qf1 = matchup(params, "QF 1", "quarter-final");
+  const qf2 = matchup(params, "QF 2", "quarter-final");
+  const qf3 = matchup(params, "QF 3", "quarter-final");
+  const qf4 = matchup(params, "QF 4", "quarter-final");
+  const sf1 = matchup(params, "Semifinal 1", "semifinal");
+  const sf2 = matchup(params, "Semifinal 2", "semifinal");
+  const thirdPlace = matchup(params, "Tercer Lugar", "third-place");
+  const final = matchup(params, "Final", "final");
+
+  return {
+    matchups: [m1, m2, m3, m4, qf1, qf2, qf3, qf4, sf1, sf2, thirdPlace, final],
+    teams: [
+      concreteSlot(m1.id, 0, b[3]),
+      concreteSlot(m1.id, 1, a[4]),
+      concreteSlot(m2.id, 0, a[2]),
+      concreteSlot(m2.id, 1, b[5]),
+      concreteSlot(m3.id, 0, b[2]),
+      concreteSlot(m3.id, 1, a[5]),
+      concreteSlot(m4.id, 0, a[3]),
+      concreteSlot(m4.id, 1, b[4]),
+      concreteSlot(qf1.id, 0, a[0]),
+      dependencySlot(qf1.id, 1, "Winner M1", m1.id),
+      concreteSlot(qf2.id, 0, b[1]),
+      dependencySlot(qf2.id, 1, "Winner M2", m2.id),
+      concreteSlot(qf3.id, 0, a[1]),
+      dependencySlot(qf3.id, 1, "Winner M3", m3.id),
+      concreteSlot(qf4.id, 0, b[0]),
+      dependencySlot(qf4.id, 1, "Winner M4", m4.id),
+      dependencySlot(sf1.id, 0, "Winner QF 1", qf1.id),
+      dependencySlot(sf1.id, 1, "Winner QF 2", qf2.id),
+      dependencySlot(sf2.id, 0, "Winner QF 3", qf3.id),
+      dependencySlot(sf2.id, 1, "Winner QF 4", qf4.id),
+      dependencySlot(thirdPlace.id, 0, "Loser Semifinal 1", sf1.id, "loser"),
+      dependencySlot(thirdPlace.id, 1, "Loser Semifinal 2", sf2.id, "loser"),
+      dependencySlot(final.id, 0, "Winner Semifinal 1", sf1.id),
+      dependencySlot(final.id, 1, "Winner Semifinal 2", sf2.id),
+    ],
+  };
+}
+
+// Full 16-team bracket, every round-of-16 game crosses groups (A1 v B8, ...).
+// Group winners land in opposite halves and can only meet in the final.
+function buildTopEightTemplate(
+  params: { seasonId: string; categoryId: string },
+  groupA: { name: string; teams: TeamStanding[] },
+  groupB: { name: string; teams: TeamStanding[] },
+): PlayoffTemplate {
+  const a = buildSeeds(groupA.name, groupA.teams, 8);
+  const b = buildSeeds(groupB.name, groupB.teams, 8);
+  const pairs: [Seed, Seed][] = [
+    [a[0], b[7]],
+    [b[3], a[4]],
+    [b[1], a[6]],
+    [a[2], b[5]],
+    [b[0], a[7]],
+    [a[3], b[4]],
+    [a[1], b[6]],
+    [b[2], a[5]],
+  ];
+  const r16 = pairs.map((_, index) =>
+    matchup(params, `Octavos ${index + 1}`, "round-of-16"),
+  );
+  const qfs = [1, 2, 3, 4].map((n) => matchup(params, `QF ${n}`, "quarter-final"));
+  const sf1 = matchup(params, "Semifinal 1", "semifinal");
+  const sf2 = matchup(params, "Semifinal 2", "semifinal");
+  const thirdPlace = matchup(params, "Tercer Lugar", "third-place");
+  const final = matchup(params, "Final", "final");
+
+  return {
+    matchups: [...r16, ...qfs, sf1, sf2, thirdPlace, final],
+    teams: [
+      ...pairs.flatMap(([top, bottom], index) => [
+        concreteSlot(r16[index].id, 0, top),
+        concreteSlot(r16[index].id, 1, bottom),
+      ]),
+      ...qfs.flatMap((qf, index) => [
+        dependencySlot(qf.id, 0, `Winner Octavos ${index * 2 + 1}`, r16[index * 2].id),
+        dependencySlot(
+          qf.id,
+          1,
+          `Winner Octavos ${index * 2 + 2}`,
+          r16[index * 2 + 1].id,
+        ),
+      ]),
+      dependencySlot(sf1.id, 0, "Winner QF 1", qfs[0].id),
+      dependencySlot(sf1.id, 1, "Winner QF 2", qfs[1].id),
+      dependencySlot(sf2.id, 0, "Winner QF 3", qfs[2].id),
+      dependencySlot(sf2.id, 1, "Winner QF 4", qfs[3].id),
       dependencySlot(thirdPlace.id, 0, "Loser Semifinal 1", sf1.id, "loser"),
       dependencySlot(thirdPlace.id, 1, "Loser Semifinal 2", sf2.id, "loser"),
       dependencySlot(final.id, 0, "Winner Semifinal 1", sf1.id),

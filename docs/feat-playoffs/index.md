@@ -127,7 +127,7 @@ Inputs:
 
 - season id
 - category id
-- playoff format: `top-4` or `top-5`
+- playoff format: `top-4`, `top-5`, `top-6`, or `top-8`
 - current standings/seeds, loaded automatically
 
 Outputs:
@@ -140,6 +140,8 @@ Outputs:
 Supported formats:
 
 - `Top 5`: top 5 from each of 2 groups advance; creates play-in round, quarterfinals, semifinals, third-place, and final.
+- `Top 8`: top 8 from each of 2 groups advance; creates a cross-group round of 16 (`Octavos`, A1 v B8, B4 v A5, ...), quarterfinals, semifinals, third-place, and final.
+- `Top 6`: top 6 from each of 2 groups advance; seeds 1-2 get byes to the quarterfinals while seeds 3-6 play best-of-2 play-ins (B4 v A5, A3 v B6, B3 v A6, A4 v B5) whose winners replace the 3/4 seeds of the Top 4 quarterfinals.
 - `Top 4`: top 4 from each of 2 groups advance; creates quarterfinals, semifinals, third-place, and final.
 
 Third-place games are always generated. They are part of the playoff structure,
@@ -155,6 +157,7 @@ Generated matchup names are hardcoded in `src/lib/db/queries/playoff.ts`:
 
 - Top 4 names are in `buildTopFourTemplate`.
 - Top 5 names are in `buildTopFiveTemplate`.
+- Top 6 and Top 8 names are in `buildTopSixTemplate` and `buildTopEightTemplate`.
 - Search for calls like `matchup(params, "QF 1", "quarter-final")`, `matchup(params, "Match 1", "play-in", 2)`, `matchup(params, "Semifinal 1", "semifinal")`, `matchup(params, "Tercer Lugar", "third-place")`, and `matchup(params, "Final", "final")`.
 
 Generated waiting-slot labels are also in those templates:

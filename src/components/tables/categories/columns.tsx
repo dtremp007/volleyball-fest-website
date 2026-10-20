@@ -7,6 +7,8 @@ export type Category = RouterOutputs["category"]["getAll"][number];
 const playoffFormatLabels: Record<string, string> = {
   "top-4": "Top 4",
   "top-5": "Top 5",
+  "top-6": "Top 6",
+  "top-8": "Top 8",
 };
 
 export const columns: ColumnDef<Category>[] = [

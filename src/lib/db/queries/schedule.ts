@@ -29,7 +29,7 @@ import {
 } from "~/validators/scheduling.validators";
 
 function getPlayoffQualifierCount(format: schema.PlayoffFormat | null | undefined) {
-  return format === "top-5" ? 5 : 4;
+  return Number((format ?? "top-4").slice("top-".length));
 }
 
 // ============== Schedule Config ==============

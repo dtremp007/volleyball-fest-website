@@ -29,6 +29,7 @@ import {
 } from "~/components/ui/dialog";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { useGraphViewportStorage } from "~/hooks/use-graph-viewport-storage";
+import type { PlayoffFormat } from "~/lib/db/schema";
 import { assertPermission } from "~/lib/permix/assert";
 import { calculatePlayoffWinner } from "~/lib/playoffs/winner";
 import { cn } from "~/lib/utils";
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/(authenticated)/seasons/$seasonId/playoff
 });
 
 const roundLabels: Record<string, string> = {
+  "round-of-16": "Round of 16",
   "play-in": "Play-in",
   "quarter-final": "Quarterfinals",
   semifinal: "Semifinals",
@@ -50,6 +52,7 @@ const roundLabels: Record<string, string> = {
 };
 
 const roundOrder: Record<string, number> = {
+  "round-of-16": 0,
   "play-in": 0,
   "quarter-final": 1,
   semifinal: 2,
@@ -58,6 +61,7 @@ const roundOrder: Record<string, number> = {
 };
 
 const roundX: Record<string, number> = {
+  "round-of-16": 0,
   "play-in": 0,
   "quarter-final": 460,
   semifinal: 920,
@@ -125,8 +129,6 @@ type CategoryLabelNodeData = {
   matchups: number;
   locked: boolean;
 };
-
-type PlayoffFormat = "top-4" | "top-5";
 
 const EMPTY_SEASON_GRAPHS: SeasonGraph[] = [];
 
@@ -294,6 +296,8 @@ function PlayoffsPage() {
                   setPlayoffFormat(event.target.value as PlayoffFormat)
                 }
               >
+                <NativeSelectOption value="top-8">Top 8</NativeSelectOption>
+                <NativeSelectOption value="top-6">Top 6</NativeSelectOption>
                 <NativeSelectOption value="top-5">Top 5</NativeSelectOption>
                 <NativeSelectOption value="top-4">Top 4</NativeSelectOption>
               </NativeSelect>

@@ -17,7 +17,8 @@ export const seasonStateEnum = [
 ] as const;
 export type SeasonState = (typeof seasonStateEnum)[number];
 
-export const playoffFormatEnum = ["top-4", "top-5"] as const;
+// Top N teams from each of two groups advance.
+export const playoffFormatEnum = ["top-4", "top-5", "top-6", "top-8"] as const;
 export type PlayoffFormat = (typeof playoffFormatEnum)[number];
 
 export const season = sqliteTable("season", {
