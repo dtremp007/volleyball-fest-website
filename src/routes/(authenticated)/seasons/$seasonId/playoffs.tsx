@@ -31,6 +31,7 @@ import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { useGraphViewportStorage } from "~/hooks/use-graph-viewport-storage";
 import type { PlayoffFormat } from "~/lib/db/schema";
 import { assertPermission } from "~/lib/permix/assert";
+import { layoutPlayoffGraph } from "~/lib/playoffs/graph-layout";
 import { calculatePlayoffWinner } from "~/lib/playoffs/winner";
 import { cn } from "~/lib/utils";
 import { useTRPC } from "~/trpc/react";
@@ -51,34 +52,16 @@ const roundLabels: Record<string, string> = {
   final: "Final",
 };
 
-const roundOrder: Record<string, number> = {
-  "round-of-16": 0,
-  "play-in": 0,
-  "quarter-final": 1,
-  semifinal: 2,
-  "third-place": 3,
-  final: 4,
-};
-
-const roundX: Record<string, number> = {
-  "round-of-16": 0,
-  "play-in": 0,
-  "quarter-final": 460,
-  semifinal: 920,
-  "third-place": 1050,
-  final: 1520,
-};
-
 const nodeTypes = {
   matchup: MatchupNode,
   categoryLabel: CategoryLabelNode,
 };
 
+const MATCHUP_GAP_X = 460;
 const MATCHUP_GAP_Y = 275;
 const CATEGORY_HEADER_Y = 0;
 const CATEGORY_BODY_Y = 150;
-const CATEGORY_BODY_MIN_HEIGHT = 680;
-const CATEGORY_GAP_Y = 300;
+const CATEGORY_GAP_Y = 150;
 
 type GraphData = {
   hasGraph: boolean;
@@ -374,23 +357,7 @@ function buildCanvasElements(
 
   generatedGraphs.forEach(({ category, graph }) => {
     const matchups = graph?.matchups ?? [];
-    const rounds = new Map<string, PlayoffMatchup[]>();
-    const matchupYById = new Map<string, number>();
-
-    for (const matchup of matchups) {
-      const existing = rounds.get(matchup.round) ?? [];
-      existing.push(matchup);
-      rounds.set(matchup.round, existing);
-    }
-
-    const maxRoundCount = Math.max(
-      1,
-      ...Array.from(rounds.values()).map((roundMatchups) => roundMatchups.length),
-    );
-    const categoryBodyHeight = Math.max(
-      CATEGORY_BODY_MIN_HEIGHT,
-      maxRoundCount * MATCHUP_GAP_Y,
-    );
+    const layout = layoutPlayoffGraph(matchups);
 
     nodes.push({
       id: `category-${category.id}`,
@@ -405,76 +372,41 @@ function buildCanvasElements(
       selectable: false,
     });
 
-    for (const [, roundMatchups] of Array.from(rounds.entries()).sort(
-      ([a], [b]) => (roundOrder[a] ?? 99) - (roundOrder[b] ?? 99),
-    )) {
-      const sortedMatchups = [...roundMatchups].sort((a, b) =>
-        a.label.localeCompare(b.label),
-      );
-      const columnHeight = sortedMatchups.length * MATCHUP_GAP_Y;
-      const startY =
-        categoryY +
-        CATEGORY_BODY_Y +
-        Math.max(0, (categoryBodyHeight - columnHeight) / 2);
-      sortedMatchups.forEach((matchup, matchupIndex) => {
-        const fallbackY = startY + matchupIndex * MATCHUP_GAP_Y;
-        const dependencyCenteredY = getDependencyCenteredY(matchup, matchupYById);
-        const y = dependencyCenteredY ?? fallbackY;
-
-        matchupYById.set(matchup.id, y);
-
-        nodes.push({
-          id: matchup.id,
-          type: "matchup",
-          position: {
-            x: roundX[matchup.round] ?? 0,
-            y,
-          },
-          data: { matchup },
-        });
-
-        for (const slot of matchup.teams) {
-          if (!slot.dependsOn) continue;
-          const dependencyType = slot.dependencyType === "loser" ? "loser" : "winner";
-
-          edges.push({
-            id: `${slot.dependsOn}-${slot.id}`,
-            source: slot.dependsOn,
-            sourceHandle: dependencyType,
-            target: matchup.id,
-            targetHandle: slot.id,
-            type: "smoothstep",
-            animated: false,
-            className:
-              dependencyType === "loser" ? "stroke-amber-600" : "stroke-muted-foreground",
-          });
-        }
+    for (const matchup of matchups) {
+      const position = layout.positions.get(matchup.id) ?? { column: 0, row: 0 };
+      nodes.push({
+        id: matchup.id,
+        type: "matchup",
+        position: {
+          x: position.column * MATCHUP_GAP_X,
+          y: categoryY + CATEGORY_BODY_Y + position.row * MATCHUP_GAP_Y,
+        },
+        data: { matchup },
       });
+
+      for (const slot of matchup.teams) {
+        if (!slot.dependsOn) continue;
+        const dependencyType = slot.dependencyType === "loser" ? "loser" : "winner";
+
+        edges.push({
+          id: `${slot.dependsOn}-${slot.id}`,
+          source: slot.dependsOn,
+          sourceHandle: dependencyType,
+          target: matchup.id,
+          targetHandle: slot.id,
+          type: "smoothstep",
+          animated: false,
+          className:
+            dependencyType === "loser" ? "stroke-amber-600" : "stroke-muted-foreground",
+        });
+      }
     }
 
-    categoryY += CATEGORY_BODY_Y + categoryBodyHeight + CATEGORY_GAP_Y;
+    categoryY +=
+      CATEGORY_BODY_Y + Math.max(1, layout.rowCount) * MATCHUP_GAP_Y + CATEGORY_GAP_Y;
   });
 
   return { nodes, edges };
-}
-
-function getDependencyCenteredY(
-  matchup: PlayoffMatchup,
-  matchupYById: Map<string, number>,
-) {
-  const dependencyYValues = [
-    ...new Set(
-      matchup.teams
-        .map((slot) => slot.dependsOn)
-        .filter((dependencyId): dependencyId is string => Boolean(dependencyId)),
-    ),
-  ]
-    .map((dependencyId) => matchupYById.get(dependencyId))
-    .filter((y): y is number => y !== undefined);
-
-  if (dependencyYValues.length < 2) return null;
-
-  return dependencyYValues.reduce((sum, y) => sum + y, 0) / dependencyYValues.length;
 }
 
 function MatchupNode({ data, selected }: NodeProps<Node<MatchupNodeData>>) {
