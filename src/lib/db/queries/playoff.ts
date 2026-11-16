@@ -1064,12 +1064,19 @@ async function buildPlayoffGraphFromStandings(
     throw new Error("No standings found for this category");
   }
 
+  return buildPlayoffTemplate(params, categoryStandings.sections);
+}
+
+export function buildPlayoffTemplate(
+  params: { seasonId: string; categoryId: string; format: PlayoffFormat },
+  sections: Array<{ groupName: string | null; teams: TeamStanding[] }>,
+): PlayoffTemplate {
   const required = getPlayoffQualifierCount(params.format);
 
   // Standings only expose group names when a category has 2+ groups, so a
   // single-group (or ungrouped) category arrives as one unnamed section.
-  if (categoryStandings.sections.length === 1) {
-    const [section] = categoryStandings.sections;
+  if (sections.length === 1) {
+    const [section] = sections;
     if (section.teams.length < required) {
       throw new Error(
         `Top ${required} playoff generation requires at least ${required} teams`,
@@ -1078,12 +1085,12 @@ async function buildPlayoffGraphFromStandings(
     return buildSingleGroupTemplate(params, section.teams);
   }
 
-  const sections = categoryStandings.sections.filter((section) => section.groupName);
-  if (sections.length !== 2) {
+  const namedSections = sections.filter((section) => section.groupName);
+  if (namedSections.length !== 2) {
     throw new Error("Playoff generation supports categories with one or two groups");
   }
 
-  const [groupA, groupB] = sections.map((section) => ({
+  const [groupA, groupB] = namedSections.map((section) => ({
     name: section.groupName!,
     teams: section.teams,
   }));
