@@ -144,6 +144,15 @@ Supported formats:
 - `Top 6`: top 6 from each of 2 groups advance; seeds 1-2 get byes to the quarterfinals while seeds 3-6 play best-of-2 play-ins (B4 v A5, A3 v B6, B3 v A6, A4 v B5) whose winners replace the 3/4 seeds of the Top 4 quarterfinals.
 - `Top 4`: top 4 from each of 2 groups advance; creates quarterfinals, semifinals, third-place, and final.
 
+Single-group categories (standings return one unnamed section) are also
+supported. There "Top N" means the top N teams overall, seeded `#1`..`#N`, in
+`buildSingleGroupTemplate`:
+
+- `Top 4`: semifinals #1 v #4, #2 v #3.
+- `Top 5`: best-of-2 play-in #4 v #5; semifinals #1 v winner, #2 v #3.
+- `Top 6`: best-of-2 play-ins #4 v #5 and #3 v #6; #1 and #2 get byes to the semifinals.
+- `Top 8`: quarterfinals #1 v #8, #4 v #5, #2 v #7, #3 v #6.
+
 Third-place games are always generated. They are part of the playoff structure,
 not an optional format flag. Both Top 4 and Top 5 eventually produce two
 semifinals; the final receives the two semifinal winners, and `Tercer Lugar`
