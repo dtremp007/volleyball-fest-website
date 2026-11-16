@@ -1064,9 +1064,23 @@ async function buildPlayoffGraphFromStandings(
     throw new Error("No standings found for this category");
   }
 
+  const required = getPlayoffQualifierCount(params.format);
+
+  // Standings only expose group names when a category has 2+ groups, so a
+  // single-group (or ungrouped) category arrives as one unnamed section.
+  if (categoryStandings.sections.length === 1) {
+    const [section] = categoryStandings.sections;
+    if (section.teams.length < required) {
+      throw new Error(
+        `Top ${required} playoff generation requires at least ${required} teams`,
+      );
+    }
+    return buildSingleGroupTemplate(params, section.teams);
+  }
+
   const sections = categoryStandings.sections.filter((section) => section.groupName);
   if (sections.length !== 2) {
-    throw new Error("Playoff generation currently requires exactly two groups");
+    throw new Error("Playoff generation supports categories with one or two groups");
   }
 
   const [groupA, groupB] = sections.map((section) => ({
@@ -1075,7 +1089,6 @@ async function buildPlayoffGraphFromStandings(
   }));
 
   const seedCount = Math.min(groupA.teams.length, groupB.teams.length);
-  const required = getPlayoffQualifierCount(params.format);
   if (seedCount < required) {
     throw new Error(
       `Top ${required} playoff generation requires at least ${required} teams per group`,
@@ -1091,6 +1104,104 @@ async function buildPlayoffGraphFromStandings(
       return buildTopFiveTemplate(params, groupA, groupB);
     case "top-4":
       return buildTopFourTemplate(params, groupA, groupB);
+  }
+}
+
+// One group: "Top N" means the top N teams overall (seeded #1..#N) feed a
+// single bracket that ends in semifinals, third place and final.
+//   Top 4: SF #1 v #4, #2 v #3
+//   Top 5: play-in #4 v #5; SF #1 v winner, #2 v #3
+//   Top 6: play-ins #4 v #5, #3 v #6; #1 and #2 get byes to the semifinals
+//   Top 8: QF #1 v #8, #4 v #5, #2 v #7, #3 v #6
+function buildSingleGroupTemplate(
+  params: { seasonId: string; categoryId: string; format: PlayoffFormat },
+  teams: TeamStanding[],
+): PlayoffTemplate {
+  const s = buildSeeds("#", teams, getPlayoffQualifierCount(params.format));
+  const sf1 = matchup(params, "Semifinal 1", "semifinal");
+  const sf2 = matchup(params, "Semifinal 2", "semifinal");
+  const thirdPlace = matchup(params, "Tercer Lugar", "third-place");
+  const final = matchup(params, "Final", "final");
+  const tail = {
+    matchups: [sf1, sf2, thirdPlace, final],
+    teams: [
+      dependencySlot(thirdPlace.id, 0, "Loser Semifinal 1", sf1.id, "loser"),
+      dependencySlot(thirdPlace.id, 1, "Loser Semifinal 2", sf2.id, "loser"),
+      dependencySlot(final.id, 0, "Winner Semifinal 1", sf1.id),
+      dependencySlot(final.id, 1, "Winner Semifinal 2", sf2.id),
+    ],
+  };
+
+  switch (params.format) {
+    case "top-4":
+      return {
+        matchups: tail.matchups,
+        teams: [
+          concreteSlot(sf1.id, 0, s[0]),
+          concreteSlot(sf1.id, 1, s[3]),
+          concreteSlot(sf2.id, 0, s[1]),
+          concreteSlot(sf2.id, 1, s[2]),
+          ...tail.teams,
+        ],
+      };
+    case "top-5": {
+      const m1 = matchup(params, "Match 1", "play-in", 2);
+      return {
+        matchups: [m1, ...tail.matchups],
+        teams: [
+          concreteSlot(m1.id, 0, s[3]),
+          concreteSlot(m1.id, 1, s[4]),
+          concreteSlot(sf1.id, 0, s[0]),
+          dependencySlot(sf1.id, 1, "Winner M1", m1.id),
+          concreteSlot(sf2.id, 0, s[1]),
+          concreteSlot(sf2.id, 1, s[2]),
+          ...tail.teams,
+        ],
+      };
+    }
+    case "top-6": {
+      const m1 = matchup(params, "Match 1", "play-in", 2);
+      const m2 = matchup(params, "Match 2", "play-in", 2);
+      return {
+        matchups: [m1, m2, ...tail.matchups],
+        teams: [
+          concreteSlot(m1.id, 0, s[3]),
+          concreteSlot(m1.id, 1, s[4]),
+          concreteSlot(m2.id, 0, s[2]),
+          concreteSlot(m2.id, 1, s[5]),
+          concreteSlot(sf1.id, 0, s[0]),
+          dependencySlot(sf1.id, 1, "Winner M1", m1.id),
+          concreteSlot(sf2.id, 0, s[1]),
+          dependencySlot(sf2.id, 1, "Winner M2", m2.id),
+          ...tail.teams,
+        ],
+      };
+    }
+    case "top-8": {
+      const pairs: [Seed, Seed][] = [
+        [s[0], s[7]],
+        [s[3], s[4]],
+        [s[1], s[6]],
+        [s[2], s[5]],
+      ];
+      const qfs = pairs.map((_, index) =>
+        matchup(params, `QF ${index + 1}`, "quarter-final"),
+      );
+      return {
+        matchups: [...qfs, ...tail.matchups],
+        teams: [
+          ...pairs.flatMap(([top, bottom], index) => [
+            concreteSlot(qfs[index].id, 0, top),
+            concreteSlot(qfs[index].id, 1, bottom),
+          ]),
+          dependencySlot(sf1.id, 0, "Winner QF 1", qfs[0].id),
+          dependencySlot(sf1.id, 1, "Winner QF 2", qfs[1].id),
+          dependencySlot(sf2.id, 0, "Winner QF 3", qfs[2].id),
+          dependencySlot(sf2.id, 1, "Winner QF 4", qfs[3].id),
+          ...tail.teams,
+        ],
+      };
+    }
   }
 }
 
