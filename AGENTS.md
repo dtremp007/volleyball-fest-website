@@ -241,6 +241,9 @@ pnpm dev                # http://localhost:3000
 - **File storage:** Cloudflare R2 (team logos via `/api/upload-image`)
 - **Env vars:** see `src/env/server.ts` and `src/env/client.ts`
 - Build: `pnpm build` → run with `pnpm start` locally to smoke-test production output
+- Migrations: `vercel.json` runs `pnpm db migrate` before the build on production
+  deploys only. Preview deploys share the production Turso database, so they
+  must never migrate.
 
 ### Language Policy
 
