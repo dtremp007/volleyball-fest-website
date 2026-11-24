@@ -1152,7 +1152,7 @@ function buildSingleGroupTemplate(
         ],
       };
     case "top-5": {
-      const m1 = matchup(params, "Match 1", "play-in", 2);
+      const m1 = matchup(params, "Match 1", "play-in");
       return {
         matchups: [m1, ...tail.matchups],
         teams: [
@@ -1167,8 +1167,8 @@ function buildSingleGroupTemplate(
       };
     }
     case "top-6": {
-      const m1 = matchup(params, "Match 1", "play-in", 2);
-      const m2 = matchup(params, "Match 2", "play-in", 2);
+      const m1 = matchup(params, "Match 1", "play-in");
+      const m2 = matchup(params, "Match 2", "play-in");
       return {
         matchups: [m1, m2, ...tail.matchups],
         teams: [
@@ -1267,8 +1267,8 @@ function buildTopFiveTemplate(
 ): PlayoffTemplate {
   const a = buildSeeds(groupA.name, groupA.teams, 5);
   const b = buildSeeds(groupB.name, groupB.teams, 5);
-  const m1 = matchup(params, "Match 1", "play-in", 2);
-  const m2 = matchup(params, "Match 2", "play-in", 2);
+  const m1 = matchup(params, "Match 1", "play-in");
+  const m2 = matchup(params, "Match 2", "play-in");
   const qf1 = matchup(params, "QF 1", "quarter-final");
   const qf2 = matchup(params, "QF 2", "quarter-final");
   const qf3 = matchup(params, "QF 3", "quarter-final");
@@ -1315,10 +1315,10 @@ function buildTopSixTemplate(
 ): PlayoffTemplate {
   const a = buildSeeds(groupA.name, groupA.teams, 6);
   const b = buildSeeds(groupB.name, groupB.teams, 6);
-  const m1 = matchup(params, "Match 1", "play-in", 2);
-  const m2 = matchup(params, "Match 2", "play-in", 2);
-  const m3 = matchup(params, "Match 3", "play-in", 2);
-  const m4 = matchup(params, "Match 4", "play-in", 2);
+  const m1 = matchup(params, "Match 1", "play-in");
+  const m2 = matchup(params, "Match 2", "play-in");
+  const m3 = matchup(params, "Match 3", "play-in");
+  const m4 = matchup(params, "Match 4", "play-in");
   const qf1 = matchup(params, "QF 1", "quarter-final");
   const qf2 = matchup(params, "QF 2", "quarter-final");
   const qf3 = matchup(params, "QF 3", "quarter-final");

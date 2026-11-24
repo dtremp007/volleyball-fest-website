@@ -141,7 +141,7 @@ Supported formats:
 
 - `Top 5`: top 5 from each of 2 groups advance; creates play-in round, quarterfinals, semifinals, third-place, and final.
 - `Top 8`: top 8 from each of 2 groups advance; creates a cross-group round of 16 (`Octavos`, A1 v B8, B4 v A5, ...), quarterfinals, semifinals, third-place, and final.
-- `Top 6`: top 6 from each of 2 groups advance; seeds 1-2 get byes to the quarterfinals while seeds 3-6 play best-of-2 play-ins (B4 v A5, A3 v B6, B3 v A6, A4 v B5) whose winners replace the 3/4 seeds of the Top 4 quarterfinals.
+- `Top 6`: top 6 from each of 2 groups advance; seeds 1-2 get byes to the quarterfinals while seeds 3-6 play best-of-3 play-ins (B4 v A5, A3 v B6, B3 v A6, A4 v B5) whose winners replace the 3/4 seeds of the Top 4 quarterfinals.
 - `Top 4`: top 4 from each of 2 groups advance; creates quarterfinals, semifinals, third-place, and final.
 
 Single-group categories (standings return one unnamed section) are also
@@ -149,8 +149,8 @@ supported. There "Top N" means the top N teams overall, seeded `#1`..`#N`, in
 `buildSingleGroupTemplate`:
 
 - `Top 4`: semifinals #1 v #4, #2 v #3.
-- `Top 5`: best-of-2 play-in #4 v #5; semifinals #1 v winner, #2 v #3.
-- `Top 6`: best-of-2 play-ins #4 v #5 and #3 v #6; #1 and #2 get byes to the semifinals.
+- `Top 5`: best-of-3 play-in #4 v #5; semifinals #1 v winner, #2 v #3.
+- `Top 6`: best-of-3 play-ins #4 v #5 and #3 v #6; #1 and #2 get byes to the semifinals.
 - `Top 8`: quarterfinals #1 v #8, #4 v #5, #2 v #7, #3 v #6.
 
 Third-place games are always generated. They are part of the playoff structure,
@@ -167,7 +167,7 @@ Generated matchup names are hardcoded in `src/lib/db/queries/playoff.ts`:
 - Top 4 names are in `buildTopFourTemplate`.
 - Top 5 names are in `buildTopFiveTemplate`.
 - Top 6 and Top 8 names are in `buildTopSixTemplate` and `buildTopEightTemplate`.
-- Search for calls like `matchup(params, "QF 1", "quarter-final")`, `matchup(params, "Match 1", "play-in", 2)`, `matchup(params, "Semifinal 1", "semifinal")`, `matchup(params, "Tercer Lugar", "third-place")`, and `matchup(params, "Final", "final")`.
+- Search for calls like `matchup(params, "QF 1", "quarter-final")`, `matchup(params, "Match 1", "play-in")`, `matchup(params, "Semifinal 1", "semifinal")`, `matchup(params, "Tercer Lugar", "third-place")`, and `matchup(params, "Final", "final")`.
 
 Generated waiting-slot labels are also in those templates:
 
@@ -185,8 +185,9 @@ Default best-of is set in the helper:
 
 Specific games can override it in the templates:
 
-- Top 5 play-in games currently use `matchup(params, "Match 1", "play-in", 2)` and `matchup(params, "Match 2", "play-in", 2)`.
-- Quarterfinals, semifinals, third-place, and final currently use the default `bestOf = 3`.
+- All generated games, including play-ins, currently use the default `bestOf = 3`.
+- Avoid even best-of values such as 2: a 1-1 split has no winner, so the
+  dependent "Winner ..." slot never fills in.
 
 To make a specific generated game best-of-5, pass `5` as the fourth argument in the relevant template. As with labels, this affects newly generated rows only.
 
